@@ -176,6 +176,8 @@ do
             or input.UserInputType == Enum.UserInputType.Touch) then
             local d = input.Position - dragStart
             frame.Position = UDim2.fromOffset(startPos.X.Offset + d.X, startPos.Y.Offset + d.Y)
+            CFG.guiX = math.floor(frame.Position.X.Offset)
+            CFG.guiY = math.floor(frame.Position.Y.Offset)
         end
     end)
 end
@@ -531,8 +533,6 @@ end)
 
 task.spawn(function()
     while STATE.alive() do
-        CFG.guiX = math.floor(frame.Position.X.Offset)
-        CFG.guiY = math.floor(frame.Position.Y.Offset)
         saveCfg(CFG)
         task.wait(3)
     end
