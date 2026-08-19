@@ -3,14 +3,18 @@ do
     local env = getgenv and getgenv() or _G
     env.__TPFARM_GEN = (env.__TPFARM_GEN or 0) + 1
     local myGen = env.__TPFARM_GEN
+    pcall(function() if env.__TPFARM_GUI then env.__TPFARM_GUI:Destroy() end end)
+    env.__TPFARM_GUI = nil
     local hosts = {}
     pcall(function() if gethui then table.insert(hosts, gethui()) end end)
     pcall(function() table.insert(hosts, game:GetService("CoreGui")) end)
     pcall(function() table.insert(hosts, game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")) end)
     for _, h in ipairs(hosts) do
         if h then
-            for _, c in ipairs(h:GetChildren()) do
-                if c.Name == "TPFarmPanel" or c.Name == "TPFollowPanel" then pcall(function() c:Destroy() end) end
+            for _, c in ipairs(h:GetDescendants()) do
+                if c:IsA("ScreenGui") and (c.Name == "TPFarmPanel" or c.Name == "TPFollowPanel") then
+                    pcall(function() c:Destroy() end)
+                end
             end
         end
     end
@@ -135,6 +139,7 @@ do
     if not placed then pcall(function() gui.Parent = game:GetService("CoreGui") placed = gui.Parent ~= nil end) end
     if not placed then pcall(function() gui.Parent = me:WaitForChild("PlayerGui") end) end
     pcall(function() if syn and syn.protect_gui then syn.protect_gui(gui) end end)
+    pcall(function() (getgenv and getgenv() or _G).__TPFARM_GUI = gui end)
 end
 STATE.onCleanup(function()
     pcall(function() RunService:UnbindFromRenderStep(AIM) end)
