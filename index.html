@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NEWGOD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Spline+Sans:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  font-size:21px;
+  --bg:#14110d; --bg2:#191510; --line:#2c241a;
+  --gold:#e7b173; --gold2:#f3cf99; --gold3:#c98e4a;
+  --ink:#efe4d6; --dim:#a4948181;
+  --sage:#9bbf95; --coral:#e09181;
+}
+*{box-sizing:border-box}
+html{scrollbar-width:thin;scrollbar-color:#c98e4a #16120d}
+::-webkit-scrollbar{width:14px;height:14px}
+::-webkit-scrollbar-track{background:#16120d;border-radius:999px}
+::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#e7b173,#c98e4a);border-radius:999px;border:3px solid #16120d}
+::-webkit-scrollbar-thumb:hover{background:#f3cf99}
+::-webkit-scrollbar-button{display:none;width:0;height:0}
+::-webkit-scrollbar-corner{background:#16120d}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Spline Sans",-apple-system,"Noto Sans HK",sans-serif;
+  font-size:1.05rem;line-height:1.72;
+}
+.hidden{display:none !important}
+.topbar{
+  position:sticky;top:0;z-index:20;width:100%;max-width:100vw;overflow:hidden;
+  background:rgba(20,17,13,.94);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);padding:14px 16px 16px;
+}
+.brand{
+  max-width:1000px;margin:0 auto 12px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+}
+.brand h1{
+  font-family:Fraunces,Georgia,serif;font-weight:800;letter-spacing:.04em;
+  font-size:2rem;margin:0;color:var(--gold);
+}
+.brand span{color:var(--dim);font-size:.82rem;letter-spacing:.22em;text-transform:uppercase}
+nav{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;
+  max-width:1000px;width:100%;margin:0 auto;
+}
+.tab{
+  min-width:0;justify-content:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  display:flex;align-items:center;padding:11px 10px;border-radius:11px;cursor:pointer;
+  background:var(--bg2);border:1px solid var(--line);color:var(--ink);
+  font-family:inherit;font-size:.86rem;font-weight:600;letter-spacing:.04em;
+  transition:background .15s,border-color .15s,color .15s;
+}
+.tab:hover{border-color:var(--gold3)}
+.tab.active{background:linear-gradient(180deg,#e7b173,#c98e4a);color:#1a1510;border-color:transparent}
+main{max-width:1000px;margin:0 auto;padding:34px 16px 90px}
+.view{display:none}
+.view.active{display:block}
+.vhead{margin-bottom:26px}
+.vhead h2{font-family:Fraunces,Georgia,serif;font-size:2.3rem;line-height:1.15;margin:0 0 8px;color:var(--gold2)}
+.vhead p{margin:0;color:#c9b9a5}
+.card{
+  background:var(--bg2);border:1px solid var(--line);border-radius:16px;
+  padding:22px 22px 24px;margin:0 0 20px;
+}
+.card h3{margin:0 0 10px;font-size:1.1rem;color:var(--gold);letter-spacing:.02em}
+.card p{margin:0 0 10px}
+.card p:last-child{margin-bottom:0}
+.codewrap{position:relative}
+code.block{
+  display:block;background:#0f0c09;border:1px solid var(--line);border-radius:12px;
+  padding:18px 20px;margin:0 0 14px;overflow-x:auto;white-space:pre;
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:.8rem;color:var(--gold2);
+}
+.copy{
+  display:inline-flex;align-items:center;gap:9px;cursor:pointer;
+  background:linear-gradient(180deg,#e7b173,#c98e4a);color:#1a1510;border:0;
+  border-radius:11px;padding:13px 22px;font-family:inherit;font-weight:700;font-size:.92rem;
+  letter-spacing:.03em;transition:filter .15s,transform .05s;
+}
+.copy:hover{filter:brightness(1.08)}
+.copy:active{transform:translateY(1px)}
+.copy.done{background:linear-gradient(180deg,#9bbf95,#7fa87a)}
+.plat{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+.chip{
+  border:1px solid var(--line);border-radius:999px;padding:6px 15px;
+  font-size:.76rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);background:#0f0c09;
+}
+ol,ul{margin:0;padding-left:1.3em}
+li{margin:0 0 9px}
+li:last-child{margin-bottom:0}
+.k{color:var(--gold2);font-weight:600}
+.note{color:#bda98f;font-size:.92rem}
+.pager{
+  display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:1000px;margin:38px auto 0;
+}
+.pager button{
+  cursor:pointer;background:var(--bg2);border:1px solid var(--line);color:var(--ink);
+  border-radius:13px;padding:17px 14px;font-family:inherit;font-weight:700;font-size:.95rem;
+}
+.pager button:hover:not(:disabled){border-color:var(--gold3);color:var(--gold2)}
+.pager button:disabled{opacity:.32;cursor:default}
+footer{
+  max-width:1000px;margin:0 auto;padding:0 16px 60px;color:var(--dim);
+  font-size:.78rem;letter-spacing:.18em;text-transform:uppercase;text-align:center;
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <h1>NEWGOD</h1>
+    <span>roblox scripts</span>
+  </div>
+  <nav id="nav"></nav>
+</div>
+
+<main>
+
+  <section class="view active" data-t="Script">
+    <div class="vhead">
+      <h2>TP Farm</h2>
+      <p>Teleports onto a target, lands a headshot, moves to the next one. Same line on every device.</p>
+    </div>
+
+    <div class="card">
+      <div class="plat"><span class="chip">PC</span><span class="chip">iOS</span><span class="chip">Android</span></div>
+      <div class="codewrap">
+        <code class="block" id="line">loadstring(game:HttpGet("https://newgod2727.github.io/loader"))()</code>
+        <button class="copy" id="copyBtn" type="button">Copy the script</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Measured, not promised</h3>
+      <p>30 seconds from a fresh load: <span class="k">30 kills, 32 shots, 96% accuracy</span>, and the ultimate fired itself twice. That is one kill per second on a normal arena.</p>
+    </div>
+  </section>
+
+  <section class="view" data-t="How to use">
+    <div class="vhead">
+      <h2>Three steps</h2>
+      <p>No key, no checkpoint, no ad link.</p>
+    </div>
+    <div class="card">
+      <ol>
+        <li>Join the game and get into an arena round, not the lobby.</li>
+        <li>Open your executor and paste the line.</li>
+        <li>Press <span class="k">START FARM</span> on the panel. It remembers your settings next time.</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3>If nothing shows up</h3>
+      <p>Run it while a round is live. In the lobby the script tells you and stops instead of throwing a wall of red text.</p>
+      <p class="note">Any executor with <span class="k">loadstring</span> and <span class="k">game:HttpGet</span> works. <span class="k">gethui</span>, <span class="k">readfile</span>, <span class="k">writefile</span> and <span class="k">hookfunction</span> are optional — without them it still runs, it just forgets where you dragged the panel.</p>
+    </div>
+  </section>
+
+  <section class="view" data-t="Panel">
+    <div class="vhead">
+      <h2>What the panel does</h2>
+      <p>Every control is a button. Drag it anywhere, mouse or finger.</p>
+    </div>
+    <div class="card">
+      <ul>
+        <li><span class="k">START FARM / STOP</span> — the whole loop.</li>
+        <li><span class="k">BACK</span> — how far behind the target you stand. 0 works, so does 8.</li>
+        <li><span class="k">BOTS / PLAYERS</span> — pick what counts as a target.</li>
+        <li><span class="k">RESPAWN</span> — deploys you again the moment you die.</li>
+        <li><span class="k">INF ONESHOT</span> — fires the ultimate the moment it is charged, forever.</li>
+        <li><span class="k">HOP SERVER</span> — jumps to the fullest server it can find. More targets, more kills.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Live readout</h3>
+      <p>Round state, current target and its health, ammo, accuracy, ultimate charge, how many players and bots are in the arena, and shots / landed / kills / reloads.</p>
+    </div>
+  </section>
+
+  <section class="view" data-t="Updates">
+    <div class="vhead">
+      <h2>Updates</h2>
+      <p>The link never changes. Paste it once, you always get the newest build.</p>
+    </div>
+    <div class="card">
+      <h3>Current build</h3>
+      <ul>
+        <li>Fixed the shot resolving to the wrong character — kills went from 1 in 12 to 12 in 12.</li>
+        <li>Fixed the ultimate never firing when it was already charged.</li>
+        <li>Reload no longer restarts its own timer, so the cycle runs at the weapon's real speed.</li>
+        <li>Mobile: panel hosts through gethui, falls back on its own, and drags with touch.</li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+<div class="pager">
+  <button id="prev" type="button">&larr; Previous</button>
+  <button id="next" type="button">Next &rarr;</button>
+</div>
+
+<footer>NEWGOD</footer>
+
+<script>
+(function(){
+  var views = Array.prototype.slice.call(document.querySelectorAll(".view"));
+  var nav = document.getElementById("nav");
+  var prev = document.getElementById("prev");
+  var next = document.getElementById("next");
+  var cur = 0;
+
+  views.forEach(function(v, i){
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "tab" + (i === 0 ? " active" : "");
+    b.textContent = v.getAttribute("data-t");
+    b.addEventListener("click", function(){ go(i); });
+    nav.appendChild(b);
+  });
+
+  function go(i){
+    if (i < 0 || i >= views.length) return;
+    cur = i;
+    views.forEach(function(v, n){ v.classList.toggle("active", n === i); });
+    Array.prototype.forEach.call(nav.children, function(b, n){ b.classList.toggle("active", n === i); });
+    prev.disabled = (i === 0);
+    next.disabled = (i === views.length - 1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  prev.addEventListener("click", function(){ go(cur - 1); });
+  next.addEventListener("click", function(){ go(cur + 1); });
+
+  document.addEventListener("keydown", function(e){
+    var t = e.target && e.target.tagName;
+    if (t === "INPUT" || t === "TEXTAREA") return;
+    if (e.key === "ArrowLeft") go(cur - 1);
+    if (e.key === "ArrowRight") go(cur + 1);
+  });
+
+  var btn = document.getElementById("copyBtn");
+  var line = document.getElementById("line");
+  btn.addEventListener("click", function(){
+    var text = line.textContent;
+    function done(){
+      btn.textContent = "Copied";
+      btn.classList.add("done");
+      setTimeout(function(){ btn.textContent = "Copy the script"; btn.classList.remove("done"); }, 1600);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else {
+      fallback();
+    }
+    function fallback(){
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); done(); } catch (err) {}
+      document.body.removeChild(ta);
+    }
+  });
+
+  go(0);
+})();
+</script>
+
+</body>
+</html>
