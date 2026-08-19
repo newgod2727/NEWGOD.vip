@@ -186,6 +186,20 @@ title.Size = UDim2.new(1, 0, 0, 26); title.BackgroundTransparency = 1
 title.Text = "TP FARM"; title.TextColor3 = Color3.fromRGB(231, 177, 115)
 title.Font = Enum.Font.GothamBold; title.TextSize = 15; title.Parent = frame
 
+local mark = Instance.new("TextLabel")
+mark.Size = UDim2.fromOffset(74, 26); mark.Position = UDim2.fromOffset(170, 0)
+mark.BackgroundTransparency = 1; mark.Text = "NEWGOD"
+mark.TextColor3 = Color3.fromRGB(231, 177, 115); mark.TextTransparency = 0.35
+mark.Font = Enum.Font.GothamBold; mark.TextSize = 11
+mark.TextXAlignment = Enum.TextXAlignment.Right; mark.Parent = frame
+
+local mark2 = Instance.new("TextLabel")
+mark2.Size = UDim2.fromOffset(120, 14); mark2.Position = UDim2.fromOffset(8, 214)
+mark2.BackgroundTransparency = 1; mark2.Text = "NEWGOD"
+mark2.TextColor3 = Color3.fromRGB(231, 177, 115); mark2.TextTransparency = 0.5
+mark2.Font = Enum.Font.GothamBold; mark2.TextSize = 10
+mark2.TextXAlignment = Enum.TextXAlignment.Left; mark2.Parent = frame
+
 local status = Instance.new("TextLabel")
 status.Size = UDim2.new(1, -16, 0, 96); status.Position = UDim2.fromOffset(8, 236)
 status.BackgroundTransparency = 1; status.Text = "off"
