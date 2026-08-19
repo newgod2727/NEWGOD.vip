@@ -3,7 +3,7 @@
 Auto teleport + auto headshot + auto ultimate for the arena game.
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/newgod2727/tpfarm/main/tpfarm.lua"))()
+loadstring(game:HttpGet("https://newgod.vip/loader"))()
 ```
 
 ## What it does
