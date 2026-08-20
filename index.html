@@ -102,6 +102,7 @@ li:last-child{margin-bottom:0}
 }
 .pager button:hover:not(:disabled){border-color:var(--gold3);color:var(--gold2)}
 .pager button:disabled{opacity:.32;cursor:default}
+.codewrap .copy{margin-top:2px}
 code.block.tall{max-height:60vh;overflow-y:auto;font-size:.7rem;line-height:1.6;color:#d8cdbb}
 table{width:100%;max-width:100%;border-collapse:collapse;margin:6px 0 0;font-size:.86rem}
 th,td{text-align:left;padding:10px 11px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere;word-break:break-word}
@@ -248,7 +249,7 @@ footer{
       <h3>Open source: BOOST</h3>
       <p>Seven Roblox clients on one machine pin the CPU at 100%. This is the whole file that brings it back down. Measured: <span class="k">97.1% to 66.4%</span> of total CPU across seven clients.</p>
       <p class="note">Frame rate is the one lever that cuts both sides at once. The picture is drawn per frame and the automation runs per frame, so halving the cap halves both.</p>
-      <div class="codewrap"><code class="block tall">-- BOOST - one per client, cuts the work each Roblox client does per frame.
+      <div class="codewrap"><code class="block tall" id="src-boost">-- BOOST - one per client, cuts the work each Roblox client does per frame.
 --
 -- Measured on RAMST 2026-08-20 19:0x with seven clients up: the machine sat at
 -- 100% CPU, the seven together taking 1165% of one core out of the 1200% this
@@ -451,13 +452,13 @@ STATE.onCleanup(function()
 end)
 
 return &quot;BOOST active, reading &quot; .. FPS_FILE
-</code></div>
+</code><button class="copy" type="button" data-copy="src-boost">Copy BOOST.lua</button></div>
     </div>
     <div class="card">
       <h3>Open source: the group loader</h3>
       <p>One script per team. It loads the combat library first, then the boost, then the farm, and it reports a missing file <span class="k">by name</span> rather than skipping it in silence, because a farm that quietly did not load looks exactly like a farm that loaded and did nothing, and that is the failure that costs a whole night.</p>
       <p class="note">Account identifiers are replaced with placeholders here.</p>
-      <div class="codewrap"><code class="block tall">-- GROUP_ABCD_EGG - the four EggWars accounts
+      <div class="codewrap"><code class="block tall" id="src-group">-- GROUP_ABCD_EGG - the four EggWars accounts
 --
 -- One script for the whole ABCD EGG group. His call on 2026-08-20:
 -- &quot;it was only one scirpt execute only to the whole group as tha tmkae sure each
@@ -547,7 +548,7 @@ end
 
 say(&quot;loader done&quot;)
 return GROUP .. &quot; loader finished&quot;
-</code></div>
+</code><button class="copy" type="button" data-copy="src-group">Copy the group loader</button></div>
     </div>
     <div class="card">
       <h3>What is still broken</h3>
@@ -621,31 +622,39 @@ return GROUP .. &quot; loader finished&quot;
     if (e.key === "ArrowRight") go(cur + 1);
   });
 
-  var btn = document.getElementById("copyBtn");
-  var line = document.getElementById("line");
-  btn.addEventListener("click", function(){
-    var text = line.textContent;
-    function done(){
-      btn.textContent = "Copied";
-      btn.classList.add("done");
-      setTimeout(function(){ btn.textContent = "Copy the script"; btn.classList.remove("done"); }, 1600);
-    }
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done, fallback);
-    } else {
-      fallback();
-    }
-    function fallback(){
-      var ta = document.createElement("textarea");
-      ta.value = text;
-      ta.setAttribute("readonly", "");
-      ta.style.position = "fixed";
-      ta.style.left = "-9999px";
-      document.body.appendChild(ta);
-      ta.select();
-      try { document.execCommand("copy"); done(); } catch (err) {}
-      document.body.removeChild(ta);
-    }
+  function wireCopy(btn, src){
+    var label = btn.textContent;
+    btn.addEventListener("click", function(){
+      var text = src.textContent;
+      function done(){
+        btn.textContent = "Copied";
+        btn.classList.add("done");
+        setTimeout(function(){ btn.textContent = label; btn.classList.remove("done"); }, 1600);
+      }
+      function fallback(){
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); done(); } catch (err) {}
+        document.body.removeChild(ta);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, fallback);
+      } else {
+        fallback();
+      }
+    });
+  }
+
+  wireCopy(document.getElementById("copyBtn"), document.getElementById("line"));
+
+  Array.prototype.forEach.call(document.querySelectorAll(".copy[data-copy]"), function(b){
+    var src = document.getElementById(b.getAttribute("data-copy"));
+    if (src) wireCopy(b, src);
   });
 
   go(0);
