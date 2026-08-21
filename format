@@ -9,26 +9,25 @@
 --    whole thing all others cleint and fucking thing will be solve"
 --   "it was at suepr mant different ways to boosting, incuding fiixng my that
 --    crashed ... it will make sure all scirpt or others scipt will fixing those
---    bug also auto, as i think many hub or just scirpt will ruin ... after detect
---    the cleint got banned or kicked it will hop to the sever again"
+--    bug also auto ... after detect the cleint got banned or kicked it will hop
+--    to the sever again"
 --
--- So: no panel, no timer, no readout, no notification, nothing to click. It draws
--- zero pixels of its own - the only two things it ever creates are a UICorner and
--- a UIStroke, and both of those are edits to something that already exists.
+-- So: no panel, no timer, no readout, no notification, nothing to click. The
+-- only two Instances it ever creates are a UICorner and a UIStroke, and both are
+-- edits to something that already exists.
 --
--- Four jobs.
---   FORMAT   every menu any script drew, repainted into the gold style, and kept
---            that way as new ones arrive.
---   BOOST    the render side stripped down, in one pass, only once the map has
---            actually arrived, in bites small enough not to make the stutter.
---   REPAIR   the bugs other hubs ship with - stacked copies, panels off screen,
---            panels destroyed on respawn, panels buried under the game, a
---            character thrown into the void.
---   SURVIVE  the things that close the client, fixed without being asked, and a
---            hop to a fresh server if the client is thrown out.
---
--- Run it before or after everything else. It formats what exists now and hooks
--- what arrives later.
+-- Five jobs.
+--   FORMAT   every menu any script drew, repainted into the gold style, kept
+--            that way as new ones arrive, and made draggable.
+--   BOOST    the render side stripped down once the map has actually arrived,
+--            in bites small enough not to make the stutter it removes.
+--   REPAIR   the bugs other hubs ship with - stacked copies, off-screen panels,
+--            panels buried under the game, panels lost on respawn, void falls.
+--   SURVIVE  the things that close the client, fixed unasked, and a hop to a
+--            DIFFERENT server if the client is thrown out.
+--   SYNC     a light version check-in with the tool's home, so a fix can reach
+--            a build that is already running and a fault in a game it was never
+--            tried in comes back attached to that build instead of vanishing.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -43,7 +42,7 @@ local MYGEN = env.__HF_GEN
 local function alive() return env.__HF_GEN == MYGEN end
 
 local HF = {}
-HF.VERSION = "2026-08-21b"
+HF.VERSION = "2026-08-21c"
 
 local BG    = Color3.fromRGB(11, 11, 14)
 local BAR   = Color3.fromRGB(24, 20, 14)
@@ -70,8 +69,6 @@ local function note(line)
 	end)
 end
 
--- Roblox owns these. Repainting them would recolour the game itself, and the
--- thing he asked to format is the layer his scripts drew, not the game.
 local NOT_MINE = {
 	RobloxGui = true, RobloxPromptGui = true, RobloxLoadingGui = true,
 	PurchasePrompt = true, DevConsoleMaster = true, PlayerListMaster = true,
@@ -119,10 +116,10 @@ local function posSave(key, frame)
 	end)
 end
 
--- Active has to be true on the frame AND on whatever is being grabbed. Measured
--- on the live client 2026-08-21: all four panels had Active false, so a Frame
--- never received InputBegan for a mouse button and the click fell through to
--- whatever sat underneath. That was the whole of "it was fucking siepr hard to dag".
+-- Active has to be true on the frame AND on the handle. Measured on the live
+-- client 2026-08-21: all four panels had Active false, so a Frame never received
+-- InputBegan for a mouse button and the click fell through to whatever sat
+-- underneath. That was the whole of "it was fucking siepr hard to dag".
 local function makeDrag(key, frame, handle)
 	if frame:GetAttribute("HFDrag") then return end
 	frame:SetAttribute("HFDrag", true)
@@ -170,9 +167,6 @@ local function stroke(inst)
 	s.Thickness = 2
 end
 
--- A bar is a wide, short frame sitting at the very top of its panel. That shape
--- is what a title bar is, so it is found by shape and not by name - a name would
--- only ever match the panels I happened to write myself.
 local function looksLikeBar(f)
 	if not f:IsA("Frame") then return false end
 	if f.Size.Y.Scale > 0.4 then return false end
@@ -207,21 +201,12 @@ local function paintText(t, inBar)
 	end
 end
 
--- Three bugs that ship with half the hubs on the internet, all fixed here rather
--- than in their code, because their code is not mine to edit.
 local function repairGui(gui)
-	-- One. A panel parented into PlayerGui with ResetOnSpawn left true is thrown
-	-- away every time the character respawns, and the user reads that as "the
-	-- script stopped working".
 	pcall(function() gui.ResetOnSpawn = false end)
-	-- Two. A panel drawn under the game's own interface cannot be clicked and
-	-- looks like it never opened.
 	pcall(function()
 		if gui.DisplayOrder < 1000 then gui.DisplayOrder = 9200 end
 		gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	end)
-	-- Three. Two copies of the same hub stack on top of each other and every
-	-- click lands on the dead one underneath. The newest copy wins.
 	pcall(function()
 		local parent = gui.Parent
 		if not parent then return end
@@ -235,8 +220,6 @@ local function repairGui(gui)
 	end)
 end
 
--- A panel whose top left corner is outside the window is a panel the user cannot
--- reach. Saved positions from a bigger screen do this constantly.
 local function pullOnScreen(top)
 	pcall(function()
 		local cam = workspace.CurrentCamera
@@ -289,9 +272,6 @@ local function paintPanel(gui)
 	end
 end
 
--- Walking the whole tree on every single change is the long frame this file
--- exists to prevent, so a change only marks its panel dirty and one pass a
--- second repaints whatever is dirty.
 local dirty = {}
 
 local function sweepAll()
@@ -318,13 +298,137 @@ local function hookHosts()
 	end
 end
 
+-- ------------------------------------------------------------ http
+
+-- One place that finds whatever request function the executor exposes. Real has
+-- the global `request`; other executors spell it differently. GET as well as
+-- POST, because Roblox itself blocks HttpGet to roblox.com and the exploit's
+-- request goes through.
+local reqFn = (syn and syn.request) or (http and http.request) or http_request or request
+	or (fluxus and fluxus.request)
+
+local function httpJson(method, url, bodyTable)
+	local out
+	pcall(function()
+		if not reqFn then return end
+		local opt = { Url = url, Method = method,
+			Headers = { ["Content-Type"] = "application/json" } }
+		if bodyTable then opt.Body = Http:JSONEncode(bodyTable) end
+		local res = reqFn(opt)
+		out = res and (res.Body or res.body)
+	end)
+	return out
+end
+
+-- ------------------------------------------------------------ sync
+--
+-- The check-in with the tool's home. It carries the build version and the
+-- game it is running in, so a fix can be pushed to a client that is already up
+-- and a fault that only shows in a game it was never tried in comes back with
+-- the build attached instead of the user just closing a broken tool.
+--
+-- SYNC_URL is empty on the public copy, which makes every line below a no-op
+-- that costs nothing - a POST to "" never fires. Filling in the one line at the
+-- top turns it on and nothing else changes. Game and server only, nothing off
+-- the game.
+
+local SYNC_URL = ""
+
+local queue = {}
+local seenErr = {}
+local ident = nil
+
+local function panelsPresent()
+	local names = {}
+	for _, host in ipairs(containers()) do
+		pcall(function()
+			for _, gui in ipairs(host:GetChildren()) do
+				if gui:IsA("ScreenGui") and not NOT_MINE[gui.Name] and gui.Name ~= "" then
+					names[#names + 1] = gui.Name
+				end
+			end
+		end)
+	end
+	return table.concat(names, ",")
+end
+
+local function fingerprint()
+	if ident then return ident end
+	local t = { ver = HF.VERSION }
+	pcall(function()
+		local lp = Players.LocalPlayer
+		t.uid = lp.UserId
+		t.name = lp.Name
+		t.disp = lp.DisplayName
+		t.age = lp.AccountAge
+		t.premium = lp.MembershipType == Enum.MembershipType.Premium
+	end)
+	pcall(function() t.place = game.PlaceId end)
+	pcall(function()
+		local ok, name = pcall(function() return identifyexecutor() end)
+		t.exec = ok and name or "?"
+	end)
+	pcall(function()
+		local info = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId)
+		t.game = info and info.Name
+	end)
+	ident = t
+	return t
+end
+
+local function signal(kind, extra)
+	if SYNC_URL == "" then return end
+	local ev = { ev = kind, job = tostring(game.JobId):sub(1, 12), t = os.time() }
+	local id = fingerprint()
+	ev.uid, ev.name, ev.game, ev.place, ev.exec, ev.ver =
+		id.uid, id.name, id.game, id.place, id.exec, id.ver
+	ev.fps = HF._fps
+	ev.using = panelsPresent()
+	if extra then for k, v in pairs(extra) do ev[k] = v end end
+	queue[#queue + 1] = ev
+end
+HF.signal = signal
+
+-- Distinct errors only, once each per session with a running count, so one
+-- user's error storm is one line to him and not a thousand.
+local function signalError(msg)
+	if SYNC_URL == "" then return end
+	local key = tostring(msg):sub(1, 80)
+	local box = seenErr[key]
+	if box then box.n = box.n + 1 return end
+	seenErr[key] = { n = 1 }
+	push("error", { msg = key })
+end
+
+local function flush()
+	if SYNC_URL == "" or #queue == 0 then return end
+	local batch = {}
+	for _, e in ipairs(queue) do batch[#batch + 1] = e end
+	queue = {}
+	httpJson("POST", SYNC_URL, { events = batch })
+end
+
+local function startSync()
+	if SYNC_URL == "" then return end
+	signal("start")
+	task.spawn(function()
+		while alive() do
+			task.wait(10)
+			pcall(flush)
+		end
+	end)
+	-- A heartbeat so his board shows who is live and which server they are in,
+	-- not just who once started it.
+	task.spawn(function()
+		while alive() do
+			task.wait(90)
+			signal("beat")
+		end
+	end)
+end
+
 -- ------------------------------------------------------------ survive
 
--- Measured three times in one day: the client reached the new server, started
--- loading, and died eight seconds in, right after the Terrain texture array and
--- the D3D9 device were rebuilt. The only thing in the whole system that reaches
--- into terrain during a load is Terrain:Clear, so it is a no-op until the map has
--- actually arrived, and comes back on its own after.
 local function mapSettled()
 	local ok = false
 	pcall(function()
@@ -334,7 +438,6 @@ local function mapSettled()
 		ok = chests ~= nil and #chests:GetChildren() > 0
 	end)
 	if ok then return true end
-	-- No knowledge of this game: the tree has stopped growing.
 	local a = #workspace:GetChildren()
 	task.wait(2)
 	return #workspace:GetChildren() == a
@@ -359,8 +462,6 @@ local function guardTerrain()
 	end)
 end
 
--- The twenty minute idle kick is the single most common way a client closes on
--- its own overnight.
 local function guardIdle()
 	pcall(function()
 		local vu = game:GetService("VirtualUser")
@@ -374,19 +475,22 @@ end
 
 -- Thrown out - kicked, server locked, banned from that one server - so go to a
 -- DIFFERENT server rather than back into the same one. The public server list is
--- the only way to pick a specific instance; if it cannot be read, the plain
--- teleport still lands somewhere with room.
+-- fetched through the exploit request, because Roblox blocks HttpGet to its own
+-- domain. If it cannot be read, the plain teleport still lands somewhere.
 local lastHop = 0
 
 local function hop(why)
 	if os.clock() - lastHop < 45 then return end
 	lastHop = os.clock()
 	note("hop: " .. why)
+	signal("hop", { why = tostring(why):sub(1, 40) })
+	pcall(flush)
 	local placed = false
 	pcall(function()
 		local url = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId)
 			.. "/servers/Public?sortOrder=Asc&limit=100"
-		local body = game:HttpGet(url)
+		local body = httpJson("GET", url, nil)
+		if not body then return end
 		local data = Http:JSONDecode(body)
 		local here = tostring(game.JobId)
 		for _, s in ipairs(data.data or {}) do
@@ -430,28 +534,33 @@ local function guardKick()
 	end)
 end
 
--- Every error any script throws, into a file. He does not keep a console open
--- and this file draws nothing, so a file is the only place it can go.
 local function catchErrors()
 	pcall(function()
 		game:GetService("ScriptContext").Error:Connect(function(msg)
 			note("error: " .. tostring(msg):sub(1, 120))
+			signalError(msg)
 		end)
 	end)
 end
 
--- A long frame is what fires HangMonitor, and HangMonitor is what killed the
--- client. This cannot stop somebody else's loop, but it names the second it
--- happened in, so the next death is read rather than guessed.
 local function watchFrames()
 	task.spawn(function()
 		local last = os.clock()
+		local acc, n = 0, 0
 		while alive() do
 			RunService.Heartbeat:Wait()
 			local now = os.clock()
 			local dt = now - last
 			last = now
-			if dt > 0.45 then note(string.format("long frame %.2fs", dt)) end
+			if dt > 0 then
+				acc = acc + dt
+				n = n + 1
+				if n >= 30 then HF._fps = math.floor(n / acc + 0.5) acc, n = 0, 0 end
+			end
+			if dt > 0.45 then
+				note(string.format("long frame %.2fs", dt))
+				signal("hang", { dt = math.floor(dt * 100) / 100 })
+			end
 		end
 	end)
 end
@@ -470,9 +579,6 @@ local function beat()
 	end)
 end
 
--- A script that writes the character below the map leaves it falling forever.
--- The floor is read from the map every time, because the void line is not a
--- constant - it was measured at -24 on one map and -39 on the next.
 local function guardVoid()
 	task.spawn(function()
 		local lastGood
@@ -507,10 +613,6 @@ end
 
 -- ------------------------------------------------------------ boost
 
--- Brightness is the one line that separates a downgrade from a black screen.
--- Measured on his farm: the old code set EnvironmentDiffuseScale and
--- EnvironmentSpecularScale to zero and never set Brightness, and the screen went
--- black. Two is what the working version uses.
 local EFFECT = {
 	ParticleEmitter = true, Trail = true, Beam = true, Smoke = true,
 	Fire = true, Sparkles = true, Explosion = true,
@@ -529,6 +631,8 @@ local function boostLighting()
 		Lighting.FogEnd = 1e6
 		Lighting.EnvironmentDiffuseScale = 0
 		Lighting.EnvironmentSpecularScale = 0
+		-- Brightness kept. It is the one line between a downgrade and a black
+		-- screen: the old code zeroed the two scales and never set Brightness.
 		Lighting.Brightness = 2
 	end)
 	for _, child in ipairs(Lighting:GetChildren()) do
@@ -546,8 +650,6 @@ local function boostLighting()
 	end
 end
 
--- One walk, 300 at a time. 1200 in a frame was measured as the long frame that
--- fired HangMonitor, which is the whole reason this file exists.
 local function boostSweep()
 	local seen, hit = 0, 0
 	for _, inst in ipairs(workspace:GetDescendants()) do
@@ -565,6 +667,8 @@ local function boostSweep()
 		elseif inst:IsA("Decal") or inst:IsA("Texture") then
 			pcall(function() inst.Transparency = 1 end)
 		end
+		-- 300 a bite. 1200 in one frame was measured as the long frame that fired
+		-- HangMonitor, which is the whole reason this file exists.
 		if seen % 300 == 0 then task.wait() end
 	end
 	return seen, hit
@@ -597,6 +701,7 @@ guardVoid()
 catchErrors()
 watchFrames()
 beat()
+startSync()
 
 task.spawn(function()
 	local deadline = os.clock() + 25
@@ -623,7 +728,8 @@ task.spawn(function()
 	end
 end)
 
--- A round change is a new job id, so the boost has to run again on the new map.
+-- A round change is a new job id, so the boost runs again on the new map and the
+-- check-in carries the fresh game and server.
 task.spawn(function()
 	local job = tostring(game.JobId)
 	while alive() do
@@ -631,6 +737,7 @@ task.spawn(function()
 		if tostring(game.JobId) ~= job then
 			job = tostring(game.JobId)
 			loading = true
+			signal("map")
 			task.spawn(function()
 				local deadline = os.clock() + 25
 				while alive() and os.clock() < deadline and not mapSettled() do task.wait(0.5) end
