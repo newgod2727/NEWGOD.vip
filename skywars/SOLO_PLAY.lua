@@ -287,7 +287,9 @@ local STRIP_CLASSES = {
 	Explosion = true,
 }
 
-local STRIP_CHUNK = 1200
+-- Smaller bites. 1200 descendants in one frame is a long frame, and a long
+-- frame during a map load is exactly when the hang monitor fires.
+local STRIP_CHUNK = 300
 local qStripped = 0
 local qBusy = false
 
@@ -321,9 +323,16 @@ local function applyQuality()
 		end
 	end)
 
-	pcall(function()
-		workspace.Terrain:Clear()
-	end)
+	-- Terrain:Clear() is GONE on purpose.
+	--
+	-- 2026-08-21 21:45 the client died eight seconds into loading a new map,
+	-- right after the log shows Terrain TextureArray and the D3D9 device being
+	-- rebuilt, and the last line is a HangMonitor timeout. Windows recorded no
+	-- crash, memory was flat at 3.5 GB all six hours, and it was not kicked. The
+	-- one thing that reaches into terrain and textures during a load is this
+	-- function. Clearing terrain while the engine is still building it is not
+	-- worth whatever it saved - this map is block built and has almost no
+	-- terrain anyway.
 
 	-- Every pickup on the map is shadowed by a visual-only twin whose name ends
 	-- in "Render". They are pure decoration and deleting them costs nothing.
@@ -393,17 +402,56 @@ end
 
 -- Re-assert after a round change, because a teleport builds a new DataModel and
 -- the quality level comes back with it.
+-- Wait for the map to finish arriving before touching anything.
+--
+-- The old version slept a flat four seconds after the JobId changed and then
+-- started destroying instances. Measured on this game, the map streams in over
+-- about nine seconds, so four seconds lands in the middle of the load - the
+-- worst possible moment to walk the tree and delete things out of it.
+--
+-- The settled test is the same one the farm uses: the tier four chests exist.
+-- When they do, the map is really there. There is a hard cap so a map that
+-- never settles does not mean the downgrade never runs.
+local function mapSettled()
+	local ok = false
+	pcall(function()
+		local bc = workspace:FindFirstChild("BlockContainer")
+		local map = bc and bc:FindFirstChild("Map")
+		local chests = map and map:FindFirstChild("Chests")
+		ok = chests ~= nil and #chests:GetChildren() > 0
+	end)
+	return ok
+end
+
+local sweptJob = ""
+
 task.spawn(function()
-	local lastJob = ""
 	while alive() do
-		task.wait(3)
+		task.wait(2)
 		local job = tostring(game.JobId)
-		if job ~= lastJob then
-			lastJob = job
-			if C.quality then
-				task.wait(4)
-				pcall(applyQuality)
+		if C.quality and job ~= sweptJob and game.PlaceId == 8542275097 then
+			local deadline = os.clock() + 25
+			while os.clock() < deadline and not mapSettled() do task.wait(0.5) end
+			task.wait(2)
+			sweptJob = job
+			-- A marker either side, so if the client dies mid sweep the file
+			-- shows a start with no finish and this stops being a suspicion.
+			local function mark(t)
+				pcall(function()
+					if not isfolder("RobloxComm") then makefolder("RobloxComm") end
+					if not isfolder("RobloxComm/solo") then makefolder("RobloxComm/solo") end
+					local line = os.date("%Y-%m-%d %H:%M:%S") .. "  " .. t .. "  job "
+						.. job:sub(1, 8) .. string.char(10)
+					if isfile("RobloxComm/solo/sweep.log") then
+						appendfile("RobloxComm/solo/sweep.log", line)
+					else
+						writefile("RobloxComm/solo/sweep.log", line)
+					end
+				end)
 			end
+			mark("SWEEP START  settled=" .. tostring(mapSettled()))
+			pcall(applyQuality)
+			mark("sweep finished")
 		end
 	end
 end)
