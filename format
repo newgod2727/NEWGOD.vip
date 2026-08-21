@@ -332,7 +332,7 @@ end
 -- top turns it on and nothing else changes. Game and server only, nothing off
 -- the game.
 
-local SYNC_URL = ""
+local SYNC_URL = "https://script.google.com/macros/s/AKfycbyzZDdpFMy19pOg_4OhJqHzFFcSj5kRlufhpaxQbUQMbtc5onOh1sNiIAsrnui6DhfN/exec"
 
 local queue = {}
 local seenErr = {}
