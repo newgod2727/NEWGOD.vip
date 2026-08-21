@@ -131,7 +131,47 @@ footer{
 
 <main>
 
-  <section class="view active" data-t="Script">
+  <section class="view active" data-t="Games">
+    <div class="vhead">
+      <h2>Pick the game</h2>
+      <p>Open the game first, then paste the one line for it. Each script only works in its own game.</p>
+    </div>
+
+    <div class="card">
+      <h3>SkyWars &mdash; Solo</h3>
+      <p>Goes for tier four chests only, waits for a Diamond or an Onyx sword, then fights from below where nothing can reach back. Loads Vape for you.</p>
+      <div class="plat"><span class="chip">Game ID 8542259458</span><span class="chip">PC</span><span class="chip">Mobile</span></div>
+      <p><a class="copy" style="display:inline-block;text-decoration:none;margin:0 0 10px" href="https://www.roblox.com/games/8542259458/SkyWars" target="_blank" rel="noopener">Open SkyWars on Roblox</a></p>
+      <div class="codewrap">
+        <code class="block" id="src-skywars">loadstring(game:HttpGet("https://newgod.vip/skywars/loader"))()</code>
+        <button class="copy" type="button" data-copy="src-skywars">Copy the SkyWars line</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>AIMBOT</h3>
+      <p>The TP Farm line. Teleports onto a target, lands a headshot, moves to the next one.</p>
+      <div class="plat"><span class="chip">Game ID 80139795758532</span><span class="chip">PC</span><span class="chip">iOS</span><span class="chip">Android</span></div>
+      <p><a class="copy" style="display:inline-block;text-decoration:none;margin:0 0 10px" href="https://www.roblox.com/games/80139795758532/AIMBOT" target="_blank" rel="noopener">Open AIMBOT on Roblox</a></p>
+      <div class="codewrap">
+        <code class="block" id="src-aimbot">loadstring(game:HttpGet("https://newgod.vip/loader"))()</code>
+        <button class="copy" type="button" data-copy="src-aimbot">Copy the AIMBOT line</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>What the SkyWars loader does on its own</h3>
+      <ul>
+        <li>Reads the universe id and the place id and only runs if it is really SkyWars.</li>
+        <li>Loads Vape if it is not already there, and never loads a second copy.</li>
+        <li>Loads the recorder, the level bar, the farm and the panel, in that order.</li>
+        <li>Re-loads itself after a teleport, so a new server keeps your settings and your panel positions.</li>
+        <li>The recorder is included but stays stopped &mdash; it is a debug tool, press START if you want it.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="view" data-t="Script">
     <div class="vhead">
       <h2>TP Farm</h2>
       <p>Teleports onto a target, lands a headshot, moves to the next one. Same line on every device.</p>
