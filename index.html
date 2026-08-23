@@ -619,6 +619,67 @@ return GROUP .. &quot; loader finished&quot;
     </div>
   </section>
 
+  <section class="view" data-t="Toolbox">
+    <div class="vhead">
+      <h2>PyToolbox</h2>
+      <p>The sidebar that runs both my machines. Not a Roblox script &mdash; a Windows panel that sits pinned to the left of the desktop, under every other window, and starts everything else.</p>
+    </div>
+
+    <div class="card">
+      <h3>Download</h3>
+      <p>The zip holds both builds and the readme. If you only want one file, take the one for your machine.</p>
+      <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span></div>
+      <p>
+        <a class="copy" style="display:inline-block;text-decoration:none;margin:0 8px 10px 0" href="https://newgod.vip/toolbox/PyToolbox.zip" download>Download PyToolbox.zip</a>
+        <a class="copy" style="display:inline-block;text-decoration:none;margin:0 8px 10px 0" href="https://newgod.vip/toolbox/desktop-toolbox.py" download>desktop toolbox.py</a>
+        <a class="copy" style="display:inline-block;text-decoration:none;margin:0 0 10px" href="https://newgod.vip/toolbox/laptop-toolbox.py" download>laptop toolbox.py</a>
+      </p>
+      <div class="codewrap">
+        <code class="block" id="src-tb-zip">https://newgod.vip/toolbox/PyToolbox.zip</code>
+        <button class="copy" type="button" data-copy="src-tb-zip">Copy the PyToolbox.zip link</button>
+      </div>
+      <div class="codewrap">
+        <code class="block" id="src-tb-run">pythonw.exe toolbox.py</code>
+        <button class="copy" type="button" data-copy="src-tb-run">Copy the line that starts toolbox.py</button>
+      </div>
+      <p class="note">Start it with <span class="k">pythonw.exe</span>, not <span class="k">python.exe</span>, or you get a console window sitting behind it. Source is at <a href="https://github.com/newgod2727/toolbox" target="_blank" rel="noopener">github.com/newgod2727/toolbox</a>.</p>
+    </div>
+
+    <div class="card">
+      <h3>Two builds, not one file</h3>
+      <p>The desktop one and the laptop one are different on purpose. One hostname check picks the build, so both live in one file rather than two forks.</p>
+      <table>
+        <tr><th>&nbsp;</th><th>laptop</th><th>desktop</th></tr>
+        <tr><td class="kk">Disk readout</td><td class="nn">C only</td><td class="nn">C and E</td></tr>
+        <tr><td class="kk">GAME MODE button</td><td class="nn">yes</td><td class="nn">no</td></tr>
+        <tr><td class="kk">RELAUNCH button</td><td class="nn">no</td><td class="nn">yes</td></tr>
+        <tr><td class="kk">Priority sweep</td><td class="nn">follows GAME MODE, boosts and tames</td><td class="nn">always on, boosts only</td></tr>
+        <tr><td class="kk">Page 6</td><td class="nn">desktop screen control</td><td class="nn">window layout slots A&ndash;G</td></tr>
+      </table>
+      <p class="note">Change <span class="k">IS_DESKTOP</span>, <span class="k">SSH_HOST</span>, <span class="k">SSH_KEY</span> and the tool paths before you run it. Everything else works as it ships.</p>
+    </div>
+
+    <div class="card">
+      <h3>Page 7 &mdash; the eye page</h3>
+      <p>Dark mode, night shift, true tone, and five brightness steps.</p>
+      <ul>
+        <li>The dimming bends the display gamma curve instead of touching the backlight, so a PWM panel cannot start flickering at low brightness &mdash; which is the usual reason dimming makes eyes feel worse, not better.</li>
+        <li>A plain multiply gets refused: Windows rejects any ramp entry sitting more than 32768 away from the straight line, and warm plus dim together blows straight past it. A power curve drops the midtones hard while the white point barely moves, so it reads much darker and every entry stays legal.</li>
+        <li>The table is read back once a second and only rewritten when something else replaced it. Going fullscreen in a game does not quietly switch it off, and there is no flicker from writing a value that is already there.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>Things it does that are easy to get wrong</h3>
+      <ul>
+        <li>The panel pushes itself to the bottom of the window order every three seconds. &ldquo;It did not open&rdquo; is usually &ldquo;it opened and it is buried&rdquo; &mdash; look for a <span class="k">pythonw</span> process before you believe it failed.</li>
+        <li>Every failure is printed on the panel itself. Nothing here reports success into a console you are not watching.</li>
+        <li>The priority sweep runs on a worker thread. One pass across 383 processes costs 19 ms, and a panel that spends that on its own UI thread every second is a panel that causes the lag it was added to remove.</li>
+        <li>A single-instance mutex means a second copy exits rather than drawing a second panel.</li>
+      </ul>
+    </div>
+  </section>
+
   <section class="view" data-t="Updates">
     <div class="vhead">
       <h2>Updates</h2>
