@@ -698,14 +698,36 @@ local function scrubNames()
 end
 
 -- safe spot. the server does no distance check on Shoot, so height costs nothing
+-- the floor is read off the people standing on it, never off our own height,
+-- otherwise every reload anchors another safeheight above the last one
 local safeAnchor = nil
+local groundY = nil
+
+local function readGround()
+    local low = nil
+    for _, e in ipairs(targetList()) do
+        local hb = hitboxOf(e.m)
+        if hb and (not low or hb.Position.Y < low) then
+            low = hb.Position.Y
+        end
+    end
+    if low then
+        groundY = low
+    end
+    return groundY
+end
+
 local function safeSpot()
     local r = root()
     if not r then
         return nil
     end
+    local g = readGround()
     if not safeAnchor then
-        safeAnchor = CFrame.new(r.Position + Vector3.new(0, F.safeheight, 0))
+        local baseY = g or math.min(r.Position.Y, 0)
+        safeAnchor = CFrame.new(Vector3.new(r.Position.X, baseY + F.safeheight, r.Position.Z))
+    elseif g and safeAnchor.Position.Y > g + F.safeheight + 40 then
+        safeAnchor = CFrame.new(Vector3.new(safeAnchor.Position.X, g + F.safeheight, safeAnchor.Position.Z))
     end
     return safeAnchor
 end
@@ -1938,7 +1960,7 @@ task.spawn(function()
                 "",
                 "skin        " .. tostring(ClientData.Inventory and ClientData.Inventory.EquippedSkin),
                 "vape        " .. on .. " on of " .. live .. ", remembered " .. stats.saved,
-                "safe mode   " .. (F.safemode and ("ON  +" .. F.safeheight) or "off"),
+                "safe mode   " .. (F.safemode and ("ON  +" .. F.safeheight .. " over floor " .. tostring(groundY and math.floor(groundY))) or "off"),
                 "name shown  " .. tostring(LP.DisplayName),
                 "",
                 (noticeText ~= "" and ("note  " .. noticeText) or ""),
