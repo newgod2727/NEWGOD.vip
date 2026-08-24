@@ -116,6 +116,8 @@ local LIM = {
     safeheight = 900,
     victimGap = 8,
     killCap = 200,
+    hopafter = 30,
+    safedepth = 160,
     claimEvery = 45,
     caseEvery = 15,
     codeEvery = 300,
@@ -144,7 +146,7 @@ local DEFAULTS = {
     noclip = false,
     infjump = true,
     antivoid = true,
-    safemode = true,
+    safemode = false,
     nopopup = true,
     hidevape = true,
     vapesync = true,
@@ -161,12 +163,19 @@ local DEFAULTS = {
     botsfirst = true,
     norepeat = true,
     watchchat = true,
+    revenge = true,
+    hunt = true,
+    hopaway = false,
+    hopafter = 6,
     speed = 250,
     flyspeed = 400,
     safeheight = 320,
     victimGap = 1.2,
     killCap = 200,
     username = "DEAGLEONTOP",
+    basement = true,
+    safedepth = 5,
+    offlist = {},
 }
 
 local F = {}
@@ -176,9 +185,9 @@ end
 
 local ALWAYS_ON = {
     "autofarm", "autocoin", "autodeploy", "autorespawn", "silent", "esp", "infjump",
-    "antivoid", "safemode", "nopopup", "hidevape", "vapesync", "spoofname", "scrubname",
+    "antivoid", "nopopup", "hidevape", "vapesync", "spoofname", "scrubname",
     "autoclaim", "autospin", "autocase", "autocode", "autoskin", "autovote",
-    "targetBots", "targetPlayers", "botsfirst", "eloguard", "forceon",
+    "targetBots", "targetPlayers", "botsfirst", "eloguard", "forceon", "revenge", "hunt",
 }
 
 local CFG_PATH = "NEWGOD_DEAGLE_cfg.json"
@@ -190,6 +199,11 @@ local function clampCfg()
     F.safeheight = math.clamp(tonumber(F.safeheight) or 320, 60, LIM.safeheight)
     F.victimGap = math.clamp(tonumber(F.victimGap) or 1.2, 0, LIM.victimGap)
     F.killCap = math.clamp(math.floor(tonumber(F.killCap) or 200), 0, LIM.killCap)
+    F.hopafter = math.clamp(math.floor(tonumber(F.hopafter) or 6), 2, LIM.hopafter)
+    F.safedepth = math.clamp(tonumber(F.safedepth) or 5, 2, LIM.safedepth)
+    if type(F.offlist) ~= "table" then
+        F.offlist = {}
+    end
     if type(F.username) ~= "string" or F.username == "" then
         F.username = DEFAULTS.username
     end
@@ -216,7 +230,9 @@ local function loadCfg()
     clampCfg()
     if F.forceon then
         for _, k in ipairs(ALWAYS_ON) do
-            F[k] = true
+            if not F.offlist[k] then
+                F[k] = true
+            end
         end
     end
 end
@@ -225,7 +241,8 @@ loadCfg()
 local stats = {
     shots = 0, landed = 0, miss = 0, dry = 0, coins = 0, claims = 0, spins = 0,
     cases = 0, t0 = os.clock(), gap = HIT_GAP + 0.01, pending = 0, blocked = 0,
-    startElo = nil, saved = 0, streak = 0, backoff = 0, kills0 = nil, killsNow = 0,
+    startElo = nil, saved = 0, streak = 0, backoff = 0, kills0 = nil, killsNow = 0, diedTo = 0,
+    holdFor = 0, holdStart = 0,
 }
 local statusText = "loading"
 local lastErr = ""
@@ -286,6 +303,55 @@ local function botBand(e)
     return "8 bots"
 end
 
+local KILLER_PATH = "NEWGOD_DEAGLE_killers.json"
+local killers = {}
+local killerOrder = {}
+local lastKilledBy = ""
+
+-- the list has to outlive a reload and a rejoin, otherwise he gets a free kill
+-- every time the script restarts
+pcall(function()
+    if isfile and isfile(KILLER_PATH) then
+        local t = HttpService:JSONDecode(readfile(KILLER_PATH))
+        if type(t) == "table" then
+            for _, row in ipairs(t) do
+                if type(row) == "table" and type(row.name) == "string" then
+                    killers[row.name] = tonumber(row.n) or 1
+                    killerOrder[#killerOrder + 1] = row.name
+                end
+            end
+        end
+    end
+end)
+
+local function saveKillers()
+    pcall(function()
+        local t = {}
+        for _, nm in ipairs(killerOrder) do
+            t[#t + 1] = {name = nm, n = killers[nm]}
+        end
+        writefile(KILLER_PATH, HttpService:JSONEncode(t))
+    end)
+end
+
+local function isKiller(model)
+    if not F.revenge then
+        return false
+    end
+    local p = Players:GetPlayerFromCharacter(model)
+    return p ~= nil and killers[p.Name] ~= nil
+end
+
+local function noteKiller(name)
+    if not killers[name] then
+        killers[name] = 0
+        killerOrder[#killerOrder + 1] = name
+    end
+    killers[name] = killers[name] + 1
+    lastKilledBy = name
+    saveKillers()
+end
+
 local function hitboxOf(model)
     return model:FindFirstChild("HeadHitbox") or model:FindFirstChild("Head") or model:FindFirstChild("BodyHitbox")
 end
@@ -320,10 +386,14 @@ local function usable(model, isBot)
         return nil
     end
     local now = os.clock()
-    if (deadUntil[model] or 0) > now then
+    local hold = deadUntil[model] or 0
+    if isKiller(model) then
+        hold = hold - 1.2
+    end
+    if hold > now then
         return nil
     end
-    if isBot == false and F.norepeat then
+    if isBot == false and F.norepeat and not isKiller(model) then
         local p = Players:GetPlayerFromCharacter(model)
         local key = p and p.UserId or model
         if (victimAt[key] or 0) + F.victimGap > now then
@@ -377,7 +447,7 @@ end
 
 local function targetList()
     local now = os.clock()
-    if now - cacheAt > 0.1 then
+    if now - cacheAt > 0.06 then
         cacheList = buildTargets()
         cacheAt = now
     end
@@ -390,23 +460,26 @@ local function pickTarget()
         return nil
     end
     local list = targetList()
-    local best, bd, bestBot = nil, math.huge, false
+    local best, bd, bestBot, bestRev = nil, math.huge, false, false
     for _, e in ipairs(list) do
         local hb = hitboxOf(e.m)
         if hb then
             local d = (hb.Position - r.Position).Magnitude
+            local rev = isKiller(e.m)
             local better
-            if F.botsfirst and e.bot ~= bestBot then
+            if rev ~= bestRev then
+                better = rev
+            elseif F.botsfirst and e.bot ~= bestBot then
                 better = e.bot
             else
                 better = d < bd
             end
             if best == nil or better then
-                best, bd, bestBot = e, d, e.bot
+                best, bd, bestBot, bestRev = e, d, e.bot, rev
             end
         end
     end
-    return best, bd
+    return best, bd, bestRev
 end
 
 local rawFire = Network.FireServer
@@ -706,6 +779,8 @@ end
 -- otherwise every reload anchors another safeheight above the last one
 local safeAnchor = nil
 local groundY = nil
+local mapUnderY = nil
+local mapReadAt = 0
 
 local function readGround()
     local low = nil
@@ -721,13 +796,113 @@ local function readGround()
     return groundY
 end
 
+local function fallY()
+    local fp = workspace:FindFirstChild("FallPart")
+    if fp and fp:IsA("BasePart") then
+        return fp.Position.Y
+    end
+    return -200
+end
+
+-- the underside of the map, measured off the map parts themselves, so the basement
+-- lands between the map and the plane that kills you
+local function readUnder()
+    if mapUnderY and os.clock() - mapReadAt < 10 then
+        return mapUnderY
+    end
+    mapReadAt = os.clock()
+    local low = nil
+    local m = workspace:FindFirstChild("Map")
+    if m then
+        for _, d in ipairs(m:GetDescendants()) do
+            if d:IsA("BasePart") then
+                local b = d.Position.Y - d.Size.Y / 2
+                if not low or b < low then
+                    low = b
+                end
+            end
+        end
+    end
+    mapUnderY = low
+    return mapUnderY
+end
+
+local function basementY()
+    local under = readUnder()
+    local kill = fallY()
+    if not under then
+        under = (groundY or 0) - 12
+    end
+    local want = under - F.safedepth
+    return math.clamp(want, kill + 30, under - 2)
+end
+
+local standPad = nil
+local holdPos = nil
+
+local function killPad()
+    if standPad and standPad.Parent then
+        standPad:Destroy()
+    end
+    standPad = nil
+    if holdPos and holdPos.Parent then
+        holdPos:Destroy()
+    end
+    holdPos = nil
+end
+
+local function makePad(pos)
+    if not standPad or not standPad.Parent then
+        standPad = Instance.new("Part")
+        standPad.Name = "NG_PAD"
+        standPad.Size = Vector3.new(80, 2, 80)
+        standPad.Anchored = true
+        standPad.CanCollide = true
+        standPad.Material = Enum.Material.Neon
+        standPad.Color = GOLD
+        standPad.Transparency = 0.65
+        standPad.Parent = workspace
+    end
+    local want = Vector3.new(pos.X, pos.Y - 3.5, pos.Z)
+    if (standPad.Position - want).Magnitude > 1 then
+        standPad.Position = want
+    end
+end
+
+local function holdAt(pos)
+    local r = root()
+    if not r then
+        return
+    end
+    if not holdPos or not holdPos.Parent then
+        holdPos = Instance.new("BodyPosition")
+        holdPos.Name = "NG_HOLD"
+        holdPos.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+        holdPos.P = 40000
+        holdPos.D = 2500
+        holdPos.Parent = r
+    end
+    holdPos.Position = pos
+end
+
 local function safeSpot()
     local r = root()
     if not r then
         return nil
     end
     local g = readGround()
-    if not safeAnchor then
+    if F.basement then
+        local by = basementY()
+        if not safeAnchor or math.abs(safeAnchor.Position.Y - by) > 3 then
+            local px, pz = r.Position.X, r.Position.Z
+            if safeAnchor then
+                px, pz = safeAnchor.Position.X, safeAnchor.Position.Z
+            end
+            safeAnchor = CFrame.new(Vector3.new(px, by, pz))
+        end
+        return safeAnchor
+    end
+    if not safeAnchor or safeAnchor.Position.Y < (g or 0) then
         local baseY = g or math.min(r.Position.Y, 0)
         safeAnchor = CFrame.new(Vector3.new(r.Position.X, baseY + F.safeheight, r.Position.Z))
     elseif g and safeAnchor.Position.Y > g + F.safeheight + 40 then
@@ -1053,6 +1228,11 @@ local function toggle(page, text, key, onChange)
     repaint[#repaint + 1] = paint
     b.MouseButton1Click:Connect(function()
         F[key] = not F[key]
+        if F[key] then
+            F.offlist[key] = nil
+        else
+            F.offlist[key] = true
+        end
         paint()
         saveCfg()
         if onChange then
@@ -1187,6 +1367,34 @@ local function textbox(page, label, key, onSet)
     return box
 end
 
+local hopAt = 0
+local function serverHop()
+    if os.clock() - hopAt < 45 then
+        return false
+    end
+    hopAt = os.clock()
+    local TS = game:GetService("TeleportService")
+    local ok = false
+    pcall(function()
+        local listing = game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")
+        local data = HttpService:JSONDecode(listing)
+        for _, sv in ipairs(data.data or {}) do
+            if sv.id ~= game.JobId and (sv.playing or 0) < (sv.maxPlayers or 99) then
+                TS:TeleportToPlaceInstance(game.PlaceId, sv.id, LP)
+                ok = true
+                return
+            end
+        end
+    end)
+    if not ok then
+        pcall(function()
+            TS:Teleport(game.PlaceId, LP)
+            ok = true
+        end)
+    end
+    return ok
+end
+
 local pFarm = makeTab("FARM")
 local pAdv = makeTab("ADV")
 local pAuto = makeTab("AUTO")
@@ -1216,8 +1424,16 @@ button(pFarm, "DEPLOY NOW", function()
     setStatus(ensureDeployed() and "deployed" or "round not ready")
 end)
 button(pFarm, "RETURN TO LOBBY", function()
-    rawFire(Network, "Return", true)
-    setStatus("return sent")
+    local ok = false
+    pcall(function()
+        ok = RoundController.ReturnToLobby(nil, true) and true or false
+    end)
+    if not ok then
+        pcall(function()
+            ok = RoundController.ReturnToLobby(nil, false) and true or false
+        end)
+    end
+    setStatus(ok and "back to lobby" or "lobby refused - round controller said no")
 end)
 
 toggle(pAdv, "SILENT AIM", "silent")
@@ -1410,15 +1626,35 @@ end)
 note(pAuto, "half reload skins: Frozen, Samurai, Evil, Ninja. Every other skin is x1. Bought with cash or gems only, never robux.")
 
 toggle(pSet, "FORCE ALL ON AT LOAD", "forceon")
-toggle(pSet, "SAFE MODE - park high", "safemode", function(on)
+toggle(pSet, "SAFE MODE - hold a safe spot", "safemode", function(on)
     if on then
         resetSafeSpot()
     end
 end)
-slider(pSet, "SAFE HEIGHT", "safeheight", 60, LIM.safeheight, resetSafeSpot)
+toggle(pSet, "BASEMENT - under the map", "basement", function()
+    killPad()
+    resetSafeSpot()
+    setStatus(F.basement and ("basement y " .. math.floor(basementY())) or "back to the sky")
+end)
+slider(pSet, "BASEMENT DEPTH", "safedepth", 2, LIM.safedepth, resetSafeSpot)
+slider(pSet, "SKY HEIGHT", "safeheight", 60, LIM.safeheight, resetSafeSpot)
+button(pSet, "GO BASEMENT NOW", function()
+    F.basement = true
+    F.safemode = true
+    F.offlist.safemode = nil
+    resetSafeSpot()
+    local r = root()
+    local by = basementY()
+    if r then
+        r.AssemblyLinearVelocity = Vector3.zero
+        r.CFrame = CFrame.new(Vector3.new(r.Position.X, by, r.Position.Z))
+    end
+    saveCfg()
+    setStatus("basement y " .. math.floor(by) .. ", map bottom " .. tostring(readUnder()) .. ", kill plane " .. fallY())
+end)
 button(pSet, "RESET SAFE SPOT HERE", function()
     resetSafeSpot()
-    setStatus("safe spot = here +" .. F.safeheight)
+    setStatus("safe spot reset")
 end)
 toggle(pSet, "DISABLE POP UP WINDOW", "nopopup")
 toggle(pSet, "HIDE VAPE / OTHER GUI", "hidevape")
@@ -1458,6 +1694,20 @@ button(pSet, "RESET TO DEFAULT", function()
     setStatus("defaults restored")
 end)
 
+toggle(pRisk, "REVENGE - killers go first", "revenge")
+toggle(pRisk, "HUNT - shoot nothing else", "hunt")
+button(pRisk, "CLEAR KILLERS LIST", function()
+    killers = {}
+    killerOrder = {}
+    lastKilledBy = ""
+    saveKillers()
+    setStatus("killers list cleared")
+end)
+button(pRisk, "HOP TO ANOTHER SERVER NOW", function()
+    setStatus(serverHop() and "hopping" or "hop refused, 45s cooldown or no server found")
+end)
+toggle(pRisk, "AUTO HOP OFF A KILLER", "hopaway")
+slider(pRisk, "HOP AFTER N DEATHS", "hopafter", 2, LIM.hopafter)
 toggle(pRisk, "NO REPEAT VICTIM", "norepeat")
 slider(pRisk, "SAME PLAYER GAP", "victimGap", 0, LIM.victimGap)
 slider(pRisk, "KILLS PER MINUTE CAP", "killCap", 0, LIM.killCap)
@@ -1544,6 +1794,12 @@ mini.MouseButton1Click:Connect(function()
     main.Size = collapsed and UDim2.fromOffset(330, 34) or UDim2.fromOffset(330, 430)
 end)
 
+button(pSet, "REBUILD THE PAD", function()
+    killPad()
+    resetSafeSpot()
+    setStatus("pad rebuilt under y " .. math.floor(basementY()))
+end)
+
 panic.MouseButton1Click:Connect(function()
     F.autofarm = false
     F.autocoin = false
@@ -1555,6 +1811,7 @@ panic.MouseButton1Click:Connect(function()
     F.safemode = false
     stopFly()
     clearEsp()
+    killPad()
     setStatus("PANIC - all off")
 end)
 
@@ -1566,24 +1823,25 @@ pcall(function()
         if type(p1) ~= "table" then
             return
         end
-        local v = p1[realName] or p1[LP.Name]
-        if not v then
-            for _, e in pairs(p1) do
-                if type(e) == "table" and e.Killed ~= nil then
-                    v = e
-                    break
+        for killer, v in pairs(p1) do
+            if type(v) == "table" and v.Killed ~= nil then
+                local kname = tostring(killer)
+                local victim = tostring(v.Killed)
+                if victim == realName or victim == LP.Name then
+                    noteKiller(kname)
+                    stats.diedTo = (stats.diedTo or 0) + 1
+                    setStatus("KILLED BY " .. kname .. " x" .. killers[kname] .. " - he is top of the list now")
+                elseif kname == realName or kname == LP.Name then
+                    stats.landed = stats.landed + 1
+                    if stats.pending > 0 then
+                        stats.pending = stats.pending - 1
+                    end
+                    stats.streak = 0
+                    if stats.backoff > 0 then
+                        stats.backoff = stats.backoff - 1
+                        stats.gap = math.max(HIT_GAP + 0.01, stats.gap - 0.05)
+                    end
                 end
-            end
-        end
-        if v and v.Killed ~= nil then
-            stats.landed = stats.landed + 1
-            if stats.pending > 0 then
-                stats.pending = stats.pending - 1
-            end
-            stats.streak = 0
-            if stats.backoff > 0 then
-                stats.backoff = stats.backoff - 1
-                stats.gap = math.max(HIT_GAP + 0.01, stats.gap - 0.05)
             end
         end
     end)
@@ -1617,15 +1875,34 @@ hbConn = RunService.Heartbeat:Connect(function()
     if not killRateOk() then
         return
     end
-    local e = pickTarget()
+    local e, _, isRev = pickTarget()
     if not e then
         stats.dry = stats.dry + 1
         return
     end
+    if F.hunt and F.revenge and not isRev and #killerOrder > 0 then
+        for _, nm in ipairs(killerOrder) do
+            local p = Players:FindFirstChild(nm)
+            if p and p.Character and usable(p.Character, false) then
+                stats.holdFor = (stats.holdFor or 0) + 1
+                if os.clock() - (stats.holdStart or 0) > 2.5 then
+                    stats.holdStart = os.clock()
+                    break
+                end
+                if not stats.holdStart or stats.holdStart == 0 then
+                    stats.holdStart = os.clock()
+                end
+                stats.dry = stats.dry + 1
+                setStatus("hunt: holding for " .. nm)
+                return
+            end
+        end
+        stats.holdStart = 0
+    end
     if fireAt(e) then
         nextShot = now + stats.gap
         stats.pending = stats.pending + 1
-        setStatus("farm -> " .. e.m.Name .. (e.bot and " (bot)" or " (player)"))
+        setStatus((isRev and "REVENGE -> " or "farm -> ") .. e.m.Name .. (e.bot and " (bot)" or " (player)"))
         task.delay(1.4, function()
             if stats.pending > 0 then
                 stats.pending = stats.pending - 1
@@ -1786,6 +2063,9 @@ task.spawn(function()
             if not r then
                 return
             end
+            if F.safemode and F.basement and not F.fly and not F.elobleed then
+                return
+            end
             local vy = voidLine()
             local falling = r.AssemblyLinearVelocity.Y < -110
             if r.Position.Y > vy + 30 and math.abs(r.AssemblyLinearVelocity.Y) < 60 then
@@ -1833,6 +2113,25 @@ task.spawn(function()
     end
 end)
 
+task.spawn(function()
+    while gui.Parent and mine() do
+        if F.hopaway then
+            guard("hopaway", function()
+                for nm, n in pairs(killers) do
+                    if n >= F.hopafter then
+                        notice(nm .. " killed you " .. n .. " times, leaving this server")
+                        if serverHop() then
+                            killers[nm] = 0
+                        end
+                        return
+                    end
+                end
+            end)
+        end
+        task.wait(5)
+    end
+end)
+
 -- someone typing hacker or report in chat is the only real warning this game gives
 local chatHits = 0
 if TextChatService then
@@ -1870,7 +2169,29 @@ renderConn = RunService.RenderStepped:Connect(function()
             end
         end
     end
-    if F.safemode and not F.fly and not F.elobleed and not coinBusy then
+    if F.safemode and F.basement and not F.fly and not F.elobleed then
+        local r = root()
+        local h = hum()
+        local sp = safeSpot()
+        if r and sp and (not h or h.Health <= 0) and r.Position.Y < basementY() - 25 then
+            r.AssemblyLinearVelocity = Vector3.zero
+            r.CFrame = sp
+        end
+        if r and h and h.Health > 0 and sp then
+            makePad(sp.Position)
+            holdAt(sp.Position)
+            local off = (r.Position - sp.Position).Magnitude
+            local pin = F.autofarm and 2.5 or 14
+            if off > pin or r.Position.Y < basementY() - 12 then
+                r.AssemblyLinearVelocity = Vector3.zero
+                r.CFrame = sp
+                if off > 60 then
+                    setStatus("pulled back from y " .. math.floor(r.Position.Y))
+                end
+            end
+        end
+    elseif F.safemode and not F.fly and not F.elobleed and not coinBusy then
+        killPad()
         local r = root()
         local h = hum()
         if r and h and h.Health > 0 then
@@ -1880,6 +2201,8 @@ renderConn = RunService.RenderStepped:Connect(function()
                 r.CFrame = sp
             end
         end
+    elseif not F.safemode or F.fly then
+        killPad()
     end
     if F.fly then
         local r = root()
@@ -1981,16 +2304,28 @@ task.spawn(function()
                 "kills / min " .. string.format("%.1f", stats.killsNow / mins) .. "   hit " .. string.format("%.0f%%", 100 * stats.killsNow / math.max(stats.shots, 1)),
                 "gap now     " .. string.format("%.3f", stats.gap) .. "s   floor " .. LIM.gapFloor,
                 "miss run    " .. stats.streak .. "   backoff " .. stats.backoff,
-                "no-target   " .. stats.dry .. "   event miss " .. stats.miss,
+                "no-target   " .. stats.dry .. "   event miss " .. stats.miss .. "   hunt hold " .. stats.holdFor,
                 "rate held   " .. stats.blocked .. "   cap " .. F.killCap .. "/min",
+                "died to     " .. stats.diedTo .. (lastKilledBy ~= "" and ("   last " .. lastKilledBy) or ""),
                 "coins sent  " .. stats.coins .. (coinBusy and "   ON THE FLOOR NOW" or ""),
                 "claims      " .. stats.claims .. "   spins " .. stats.spins .. "   cases " .. stats.cases,
                 "",
                 "skin        " .. tostring(ClientData.Inventory and ClientData.Inventory.EquippedSkin),
                 "vape        " .. on .. " on of " .. live .. ", remembered " .. stats.saved,
-                "safe mode   " .. (F.safemode and ("ON  +" .. F.safeheight .. " over floor " .. tostring(groundY and math.floor(groundY))) or "off"),
+                "pad         " .. ((standPad and standPad.Parent) and ("standing on it, y " .. math.floor(standPad.Position.Y)) or "none") .. (holdPos and "   frozen" or ""),
+                "safe mode   " .. (F.safemode and (F.basement and ("BASEMENT y " .. math.floor(basementY()) .. "  map bottom " .. tostring(readUnder()) .. "  kill " .. fallY()) or ("SKY +" .. F.safeheight)) or "off"),
                 "name shown  " .. tostring(LP.DisplayName),
                 "",
+                (function()
+                    if #killerOrder == 0 then
+                        return "killers     none yet"
+                    end
+                    local t = {}
+                    for i = 1, math.min(#killerOrder, 5) do
+                        t[#t + 1] = killerOrder[i] .. " x" .. killers[killerOrder[i]]
+                    end
+                    return "killers     " .. table.concat(t, ", ")
+                end)(),
                 (noticeText ~= "" and ("note  " .. noticeText) or ""),
                 "last error  " .. (lastErr == "" and "none" or lastErr),
             }, "\n")
