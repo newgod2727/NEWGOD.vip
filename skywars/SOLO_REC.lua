@@ -61,6 +61,13 @@ end
 local function makeDraggable(name, frame, handle)
 	frame.Active = true
 	handle.Active = true
+	-- Tell HACKFORMAT this panel already has a drag and a saved position.
+	--
+	-- It checks this same attribute before adding its own, and without it the
+	-- panel gets two handlers on one bar: the frame moves twice the mouse delta
+	-- and the position is written to two different files that then fight on the
+	-- next load. One owner per panel, and the owner is the panel's own file.
+	frame:SetAttribute("HFDrag", true)
 	posLoad(name, frame)
 	local UIS = game:GetService("UserInputService")
 	local dragging, startPos, startMouse = false, nil, nil
@@ -369,6 +376,13 @@ local function buildPanel()
 	end)
 	mkBtn("DUMP", -54, 46, function()
 		S.dumped = {}
+		env.__SOLOREC_DUMPED = {}
+		pcall(function()
+			for _, k in ipairs({ "tree", "scripts" }) do
+				local f = DIR .. "/dumped_" .. k .. "_" .. tostring(game.PlaceId) .. ".txt"
+				if isfile(f) and delfile then delfile(f) end
+			end
+		end)
 		log("cmd", "manual dump requested")
 		env.__SOLOREC_DUMP = true
 	end)
@@ -449,7 +463,102 @@ end
 
 -- ---------------------------------------------------------------- sampler
 
+-- HEALTH IS AN ATTRIBUTE IN THIS GAME. Humanoid.Health READS 100 FOR EVERYONE.
+--
+-- 2026-08-24 03:0x, he asked why a named player had just been killed and this
+-- recorder could not answer, because of this:
+--
+--   f2387tgu9hq_r902_samples.log, every line, every player:  hp=100
+--
+-- Eight opponents, three hundred samples, one value. The farm already knew
+-- better - its own hpOf reads the attribute and logs real numbers like 42, 28
+-- and 13 into afk.log - but the recorder was still on Humanoid.Health, which
+-- this game pins at 100 and never moves.
+--
+-- Worse than a wrong column: Humanoid.Died is raised by Health reaching zero,
+-- so it never fired, so not one death has ever been written to a timeline. The
+-- alive counts were the same lie - a body counts as alive until the character
+-- is removed, which is why round end was always declared late.
+--
+-- Both fall back to the Humanoid if a place ever stops publishing the
+-- attribute, so this cannot end up reading nothing at all.
+local function hpOfPlayer(p)
+	local v = tonumber(p and p:GetAttribute("Health"))
+	if v then return v end
+	local ch = p and p.Character
+	local hh = ch and ch:FindFirstChildOfClass("Humanoid")
+	return hh and hh.Health or 0
+end
+
+local function aliveOfPlayer(p)
+	local a = p and p:GetAttribute("Alive")
+	if a ~= nil then return a == true end
+	return hpOfPlayer(p) > 0
+end
+
 local lastPlayers = {}
+
+-- The body is already gone by the time Alive flips, so the death line read
+-- dist=-1.0 dy=0.0 every time. The sampler passes within 0.3s of any death,
+-- so the last place it saw him is the honest answer to where he fell.
+local lastSeen = {}
+
+-- PHASE DETECTOR
+--
+-- His question, 2026-08-24 12:2x: "did viper openn phase?". It could not be
+-- answered from what was recorded, because the sampler only ever wrote a Y and
+-- a distance, and a Y alone cannot tell standing on a block from standing
+-- inside one. This closes that.
+--
+-- A body that is phasing has its torso occupying the same space as a solid
+-- block. Everyone else's torso never does. So each sample asks the world what
+-- solid parts overlap the middle of that torso, with every character filtered
+-- out so his own limbs and the people next to him do not count. Size is cut to
+-- 0.6 so the floor under his feet and the wall beside his shoulder stay out of
+-- it - only a real overlap registers.
+--
+-- One frame inside a block is a streaming hiccup, not a hack, so a name is only
+-- written down after three samples in a row.
+
+local PH = { params = nil, run = {}, filter = {} }
+
+local function phaseInside(rr)
+	if not PH.params then
+		local ok = pcall(function()
+			PH.params = OverlapParams.new()
+			PH.params.FilterType = Enum.RaycastFilterType.Exclude
+			PH.params.MaxParts = 8
+		end)
+		if not ok or not PH.params then return nil end
+	end
+	PH.params.FilterDescendantsInstances = PH.filter
+	local ok, parts = pcall(function()
+		return workspace:GetPartBoundsInBox(rr.CFrame, rr.Size * 0.6, PH.params)
+	end)
+	if not ok or type(parts) ~= "table" then return nil end
+	-- ONLY A REAL MAP BLOCK COUNTS AS COVER.
+	--
+	-- First live round, 2026-08-24 18:32: the detector wrote down SpawnGlass and
+	-- Primary at y -1.5 for ordinary players. Those are the spawn platform and a
+	-- decorative part - everybody standing there tripped it, and since the farm
+	-- now treats a phaser as blacklisted, that would have put innocent players on
+	-- the kill list.
+	--
+	-- Viper was caught inside Dirt, Stone and SmoothStone, which live under
+	-- workspace.BlockContainer with the rest of the island. So that is the only
+	-- place that counts. A body inside a spawn pad is standing on it, not through
+	-- it.
+	for _, part in ipairs(parts) do
+		local good = false
+		pcall(function()
+			good = part.CanCollide == true
+				and part:FindFirstAncestor("BlockContainer") ~= nil
+				and part.Size.Y >= 2
+		end)
+		if good then return part end
+	end
+	return false
+end
 
 local function sample()
 	local r = myRoot()
@@ -460,32 +569,222 @@ local function sample()
 	local myY = r and r.Position.Y or -9999
 	local alivecount = 0
 	local rows = {}
+
+	PH.filter = {}
+	for _, pp in ipairs(Players:GetPlayers()) do
+		if pp.Character then PH.filter[#PH.filter + 1] = pp.Character end
+	end
 	for _, p in ipairs(Players:GetPlayers()) do
 		local ch = p.Character
 		local rr = ch and ch:FindFirstChild("HumanoidRootPart")
 		local hh = ch and ch:FindFirstChildOfClass("Humanoid")
-		local hp = hh and hh.Health or 0
-		if hp > 0 then alivecount = alivecount + 1 end
+		local hp = hpOfPlayer(p)
+		if aliveOfPlayer(p) then alivecount = alivecount + 1 end
 		if rr and p ~= lp then
 			local d = r and (rr.Position - r.Position).Magnitude or -1
-			rows[#rows + 1] = string.format("%s y=%.1f dy=%.1f dist=%.1f hp=%.0f",
-				p.Name, rr.Position.Y, rr.Position.Y - myY, d, hp)
+			lastSeen[p] = { dist = d, dy = rr.Position.Y - myY, hp = hp, at = os.clock() }
+			local inside = phaseInside(rr)
+			local mark = ""
+			if inside then
+				PH.run[p] = (PH.run[p] or 0) + 1
+				if PH.run[p] >= 3 then
+					mark = " PHASE"
+					-- A NAME CANNOT BE RENAMED OUT OF THIS.
+					--
+					-- The farm knows him by name shape - anything starting with
+					-- "viper" that is not one of ours. He has already used at
+					-- least five names and a rename costs him nothing. Standing
+					-- inside solid rock costs him the trick itself, so that is
+					-- what we lock onto instead. Published in memory for the
+					-- farm to read, and appended to a file for the record.
+					local ph = env.__SOLO_PHASERS
+					if type(ph) ~= "table" then ph = {} env.__SOLO_PHASERS = ph end
+					-- Both names. He can change either one, and the farm's own
+					-- prefix rule reads both, so the behaviour lock has to as well.
+					ph[string.lower(tostring(p.Name))] = os.clock()
+					if p.DisplayName and p.DisplayName ~= p.Name then
+						ph[string.lower(tostring(p.DisplayName))] = os.clock()
+					end
+					put("RobloxComm/solo/phase.tsv", string.format("%s\t%s\t%s\t%.1f\t%d\t%s\n",
+						stamp(), tostring(game.JobId):sub(1, 8), p.Name,
+						rr.Position.Y, PH.run[p], tostring(inside.Name)))
+				end
+			else
+				PH.run[p] = 0
+			end
+			rows[#rows + 1] = string.format("%s%s y=%.1f dy=%.1f dist=%.1f hp=%.0f%s",
+				p.Name, (p.DisplayName ~= p.Name) and ("(" .. tostring(p.DisplayName) .. ")") or "",
+				rr.Position.Y, rr.Position.Y - myY, d, hp, mark)
 		end
 	end
 
 	put(base() .. "_samples.log", string.format(
 		"%s  me y=%.1f hp=%.0f tool=%s alive=%d  |  %s\n",
 		stamp(), myY,
-		hum and hum.Health or 0,
+		hpOfPlayer(lp),
 		tool and tool.Name or (bp and bp:FindFirstChildOfClass("Tool") and ("bag:" .. bp:FindFirstChildOfClass("Tool").Name) or "none"),
 		alivecount,
 		table.concat(rows, " ; ")))
 	S.lines = S.lines + 1
 end
 
+-- 0.1 SECOND EYES, WRITTEN ONLY WHEN SOMETHING HAPPENS.
+--
+-- His question, 2026-08-24 05:5x: "did u evne the log system was chekcing eahc
+-- player 0.1 sec psositon also?". It was not. The sampler runs task.wait(0.25)
+-- and measures out at two to three lines a second, so a man who blinks in, hits
+-- and blinks out inside one interval leaves no trace of where he struck from.
+-- That is exactly why I could not say where ViperForTheVipe hit us from, and
+-- why the 14.0 and 16.1 stud numbers I quoted were not real evidence.
+--
+-- Writing every player every 0.1 seconds to disk is what got the team file's
+-- fast tick reverted - six file operations a second per client, times four
+-- clients, landing in the map load window. So this keeps the eyes and drops the
+-- writing: every 0.1 seconds it takes a snapshot into a ring in memory, four
+-- seconds deep, and touches no file at all. The ring is only spilled when
+-- something worth reading happens - my own health falling, or my own death.
+--
+-- The result is 0.1 second resolution exactly at the moment of a hit, which is
+-- the only place it was ever needed.
+local FAST = { buf = {}, n = 0, cap = 40, lastHp = nil, lastDump = 0,
+	seen = {}, hits = {}, black = {} }
+
+-- His own blacklist, read once, lowercased so a case change does not hide anybody.
+pcall(function()
+	for _, p in ipairs({ "RobloxComm/blacklist.txt", "RobloxComm/solo/blacklist.txt" }) do
+		if isfile(p) then
+			for line in readfile(p):gmatch("[^\r\n]+") do
+				local name = line:match("^%s*%d*%s*(%S+)%s*$")
+				if name then FAST.black[string.lower(name)] = true end
+			end
+		end
+	end
+end)
+
+local function fastDump(why)
+	if os.clock() - FAST.lastDump < 3 then return end
+	FAST.lastDump = os.clock()
+	pcall(function()
+		local rows = {}
+		for i = 1, FAST.cap do
+			local slot = ((FAST.n + i) % FAST.cap) + 1
+			local r = FAST.buf[slot]
+			if r then rows[#rows + 1] = r end
+		end
+		table.sort(rows, function(a, b) return a.t < b.t end)
+		local out = { os.date("%Y-%m-%d %H:%M:%S") .. "  " .. why
+			.. "  round " .. tostring(S.round) .. "  job " .. tostring(game.JobId):sub(1, 8) }
+		local t0 = rows[1] and rows[1].t or 0
+		for _, r in ipairs(rows) do
+			table.sort(r.who, function(a, b) return a.d < b.d end)
+			local near = {}
+			for i = 1, math.min(3, #r.who) do
+				local w = r.who[i]
+				near[#near + 1] = string.format("%s d=%.1f y=%.1f hp=%.0f", w.n, w.d, w.y, w.h)
+			end
+			out[#out + 1] = string.format("  +%.1fs  me y=%.1f hp=%.0f  |  %s",
+				r.t - t0, r.y, r.hp, table.concat(near, " ; "))
+		end
+		put("RobloxComm/solo/hit_" .. lp.Name .. ".log", table.concat(out, string.char(10)) .. string.char(10) .. string.char(10))
+	end)
+end
+env.__SOLOREC_FASTDUMP = fastDump
+
+task.spawn(function()
+	while alive() do
+		task.wait(0.1)
+		if S.on then
+			pcall(function()
+				local r = myRoot()
+				if not r then return end
+				local myHp = hpOfPlayer(lp)
+				local row = { t = os.clock(), y = r.Position.Y, hp = myHp or 0, who = {} }
+				for _, p in ipairs(Players:GetPlayers()) do
+					if p ~= lp then
+						local ch = p.Character
+						local rr = ch and ch:FindFirstChild("HumanoidRootPart")
+						if rr then
+							row.who[#row.who + 1] = {
+								n = p.Name,
+								d = (rr.Position - r.Position).Magnitude,
+								y = rr.Position.Y,
+								h = hpOfPlayer(p) or 0,
+							}
+						end
+					end
+				end
+				FAST.n = FAST.n + 1
+				FAST.buf[(FAST.n % FAST.cap) + 1] = row
+				if FAST.lastHp and myHp and myHp < FAST.lastHp then
+					fastDump(string.format("i lost %.0f health, %.0f left", FAST.lastHp - myHp, myHp))
+				end
+				FAST.lastHp = myHp
+
+				-- CATCH HIM ON THE WAY IN, NOT ONLY AFTER HE HAS HIT US.
+				--
+				-- His ask, 2026-08-24 05:5x: a way to detect Viper on the server and
+				-- learn from him. Dumping only on damage records the hit but misses
+				-- the approach, and the approach is the part worth having - the
+				-- 0.1 second frames where he closes 100 studs are his hack's timing.
+				--
+				-- Two ways in. By name, from the blacklist he already keeps, so a
+				-- known account is caught the moment it is near. By shape, so a NEW
+				-- account of his is caught anyway: tonight's measured signature is a
+				-- jump of more than 60 studs inside one 0.1s frame, which no walking
+				-- player can do.
+				for _, w in ipairs(row.who) do
+					local prev = FAST.seen[w.n]
+					local jump = prev and math.abs(w.d - prev) or 0
+					FAST.seen[w.n] = w.d
+					local known = FAST.black[string.lower(w.n)] == true
+					if (known and w.d < 60) or jump > 60 then
+						FAST.hits[w.n] = (FAST.hits[w.n] or 0) + 1
+						fastDump(string.format("%s %s at %.0f studs, moved %.0f studs in 0.1s (seen %d times)",
+							w.n, known and "[BLACKLIST]" or "[jumped]", w.d, jump, FAST.hits[w.n]))
+					end
+				end
+			end)
+		end
+	end
+end)
+
 -- ---------------------------------------------------------------- hooks
 
 local function watchPlayer(p)
+	-- Alive, not Humanoid.Died. See the note above the sampler: Died is raised by
+	-- Health hitting zero and Health never moves here, so this connection existed
+	-- for three days and fired nothing.
+	pcall(function()
+		p:GetAttributeChangedSignal("Alive"):Connect(function()
+			if p:GetAttribute("Alive") ~= false then return end
+			S.deaths = S.deaths + 1
+			local r = myRoot()
+			local ch = p.Character
+			local rr = ch and ch:FindFirstChild("HumanoidRootPart")
+			local d = (r and rr) and (rr.Position - r.Position).Magnitude or -1
+			local dy = (r and rr) and (rr.Position.Y - r.Position.Y) or 0
+			local was = lastSeen[p]
+			local lastHp = -1
+			if was and (d < 0) then d = was.dist dy = was.dy end
+			if was then lastHp = was.hp end
+			local left = 0
+			for _, q in ipairs(Players:GetPlayers()) do
+				if aliveOfPlayer(q) then left = left + 1 end
+			end
+			-- DISPLAY NAME, NOT JUST THE USERNAME.
+			--
+			-- 2026-08-24 03:1x. He asked twice about one of our decoy names and
+			-- "jay_skywars" and I answered both times that no such player existed -
+			-- 23338 recorded rows, zero hits. They are his own bots' DISPLAY names:
+			-- F8H21QEIAKNI21 shows in game as Jay_skywars. Every log this recorder
+			-- writes used p.Name, which is the one name he never sees on screen.
+			local disp = tostring(p.DisplayName)
+			log("death", string.format("%s%s died  dist=%.1f dy=%.1f  last_hp=%.0f  alive_left=%d  t=%.1fs  lvl=%s kills=%s",
+				p.Name, disp ~= p.Name and (" (" .. disp .. ")") or "",
+				d, dy, lastHp, left, os.clock() - S.roundStart,
+				tostring(p:GetAttribute("Level")), tostring(p:GetAttribute("Kills"))))
+		end)
+	end)
 	local function onChar(ch)
 		local hum = ch:WaitForChild("Humanoid", 8)
 		if not hum then return end
@@ -499,8 +798,7 @@ local function watchPlayer(p)
 				p.Name, d, dy, (function()
 					local n = 0
 					for _, q in ipairs(Players:GetPlayers()) do
-						local h = q.Character and q.Character:FindFirstChildOfClass("Humanoid")
-						if h and h.Health > 0 then n = n + 1 end
+						if aliveOfPlayer(q) then n = n + 1 end
 					end
 					return n
 				end)(), os.clock() - S.roundStart))
@@ -513,13 +811,84 @@ end
 pcall(function()
 	for _, p in ipairs(Players:GetPlayers()) do watchPlayer(p) end
 	Players.PlayerAdded:Connect(function(p)
-		log("join", p.Name .. " (" .. tostring(p.UserId) .. ")")
+		log("join", p.Name .. " [" .. tostring(p.DisplayName) .. "] (" .. tostring(p.UserId) .. ")")
 		watchPlayer(p)
 	end)
 	Players.PlayerRemoving:Connect(function(p)
 		log("leave", p.Name)
 	end)
 end)
+
+-- HIS ADVERTISING IS A FINGERPRINT, AND IT WORKS ON ACCOUNTS WE HAVE NEVER SEEN.
+--
+-- Measured 2026-08-24 across 551 chat logs: the rival posts on a fixed cadence
+-- of about three seconds and cycles the same six strings, and ViperForTheVipe
+-- and ViperInTheSkywars emit the identical set, so it is one script wearing
+-- several accounts. That is the hole in a hand written blacklist closed for
+-- free - a brand new account of his announces itself within three seconds of
+-- joining, before it has touched anybody.
+--
+-- The match is deliberately EXACT against the six known lines, not a search for
+-- the word viper. Real players say his name all the time - the same logs carry
+-- "viper es hacker" and "not viper" from ordinary people - and blacklisting one
+-- of them would point our whole fleet at an innocent player with a score
+-- nothing can outrank. Exact strings cost us a rename and buy us no false
+-- positives, which is the right side to be wrong on.
+local VIPER_LINES = {
+	["viper to ruin your day"] = true,
+	["viper to save the game! (i hope)"] = true,
+	["hellooo viper is here!"] = true,
+	["helloooo viper is here!"] = true,
+	["viper on top!"] = true,
+	["let's make the owner of this game drop a update! come support viper"] = true,
+	["think of viper as the viper role in among us.. with a match dissolve time of 20!"] = true,
+}
+
+local BL_PATH = "RobloxComm/blacklist.txt"
+
+local function alreadyListed(name)
+	local hit = false
+	pcall(function()
+		if not isfile(BL_PATH) then return end
+		local low = string.lower(name)
+		for line in readfile(BL_PATH):gmatch("[^\r\n]+") do
+			local nm = line:match("^%s*%d*%s*(%S+)%s*$")
+			if nm and string.lower(nm) == low then hit = true return end
+		end
+	end)
+	return hit
+end
+
+local function catchViper(who, text)
+	if who == nil or who == "?" or who == "system" then return end
+	if not VIPER_LINES[string.lower((tostring(text):gsub("^%s+", ""):gsub("%s+$", "")))] then return end
+
+	-- Never point the fleet at ourselves. The team module owns that question.
+	local fr = env.__SOLOTEAM_FRIEND
+	if type(fr) == "function" then
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p.Name == who then
+				local ok, mine = pcall(fr, p)
+				if ok and mine then return end
+			end
+		end
+	end
+	if alreadyListed(who) then return end
+
+	pcall(function()
+		local n = 0
+		if isfile(BL_PATH) then
+			for _ in readfile(BL_PATH):gmatch("[^\r\n]+") do n = n + 1 end
+		end
+		appendfile(BL_PATH, tostring(n + 1) .. " " .. who .. string.char(10))
+		put("RobloxComm/solo/viper_caught.tsv",
+			os.date("%Y-%m-%d %H:%M:%S") .. string.char(9)
+			.. tostring(game.JobId):sub(1, 8) .. string.char(9)
+			.. who .. string.char(9)
+			.. tostring(text):sub(1, 90) .. string.char(10))
+		warn("[solo rec] new viper account caught by its own advertising: " .. who)
+	end)
+end
 
 pcall(function()
 	if TextChatService and TextChatService.MessageReceived then
@@ -528,6 +897,7 @@ pcall(function()
 			local who = "?"
 			pcall(function() who = m.TextSource and m.TextSource.Name or "system" end)
 			put(base() .. "_chat.log", stamp() .. "  " .. who .. ": " .. tostring(m.Text) .. "\n")
+			pcall(catchViper, who, m.Text)
 		end)
 	end
 end)
@@ -548,9 +918,46 @@ S.err = ""
 
 -- ---------------------------------------------------------------- dumps
 
+-- 2026-08-22: these two used to run once a ROUND, and they appended.
+--
+-- Measured on the desktop: tree_8542275097.txt had reached 78.3 MB and
+-- scripts_8542275097.txt 78.5 MB, with src_8542275097_ClickToMoveController.lua
+-- at 33.3 MB - one copy of the same dump per round per loaded copy of this
+-- file, and there were twenty six copies by 14:26. The map tree and the script
+-- list do not change between rounds of the same place, so they are now once per
+-- place per Luau VM, and they OVERWRITE instead of appending.
+-- ONCE PER PLACE, EVER - AND THE FLAG HAS TO LIVE ON DISK.
+--
+-- Measured 2026-08-22 17:34: scripts_8542275097.txt and twenty five decompiled
+-- src_*.lua files were being rewritten on every round. The named long-frame
+-- log had already pointed at this window - 3.69s, 3.78s, 3.89s, 4.06s, one per
+-- round - and decompiling twenty five scripts is exactly what four seconds
+-- looks like.
+--
+-- The guard was getgenv, and getgenv is wiped by every teleport, so "once per
+-- place" quietly meant "once per round". A four second frame during a map load
+-- is what killed Player_50270 at 17:19:00, so this is not housekeeping.
+--
+-- The map tree and the script list do not change between rounds of the same
+-- place, so the flag belongs somewhere a teleport cannot reach: a file. The
+-- DUMP button deletes the flags, so he can still force a fresh one by hand.
+local function dumpFlag(kind)
+	return DIR .. "/dumped_" .. kind .. "_" .. tostring(game.PlaceId) .. ".txt"
+end
+
+local function alreadyDumped(kind)
+	local done = false
+	pcall(function() done = isfile(dumpFlag(kind)) end)
+	return done
+end
+
+local function markDumped(kind)
+	pcall(function() writefile(dumpFlag(kind), os.date("%Y-%m-%d %H:%M:%S")) end)
+end
+
 local function dumpTree()
-	if S.dumped.tree then return end
-	S.dumped.tree = true
+	if alreadyDumped("tree") then return end
+	markDumped("tree")
 	local out = {}
 	local function walk(inst, depth, path)
 		if depth > 3 then return end
@@ -574,7 +981,7 @@ local function dumpTree()
 			pcall(walk, ps, 0, "PlayerScripts")
 		end
 	end)
-	put(DIR .. "/tree_" .. tostring(game.PlaceId) .. ".txt", table.concat(out, "\n") .. "\n")
+	pcall(function() writefile(DIR .. "/tree_" .. tostring(game.PlaceId) .. ".txt", table.concat(out, "\n") .. "\n") end)
 	log("dump", "tree written, " .. #out .. " lines")
 end
 
@@ -605,8 +1012,8 @@ local function dumpChests()
 end
 
 local function dumpScripts()
-	if S.dumped.scripts then return end
-	S.dumped.scripts = true
+	if alreadyDumped("scripts") then return end
+	markDumped("scripts")
 	local names = {}
 	local saved = 0
 	local function scan(root, tag)
@@ -624,7 +1031,7 @@ local function dumpScripts()
 						end)
 						if src and #src > 40 then
 							saved = saved + 1
-							put(DIR .. "/src_" .. tostring(game.PlaceId) .. "_" .. d.Name .. ".lua", src)
+							pcall(function() writefile(DIR .. "/src_" .. tostring(game.PlaceId) .. "_" .. d.Name .. ".lua", src) end)
 						end
 					end
 				end
@@ -635,7 +1042,7 @@ local function dumpScripts()
 	scan(game:GetService("ReplicatedStorage"), "RS")
 	local ps = lp:FindFirstChild("PlayerScripts")
 	if ps then scan(ps, "PS") end
-	put(DIR .. "/scripts_" .. tostring(game.PlaceId) .. ".txt", table.concat(names, "\n") .. "\n")
+	pcall(function() writefile(DIR .. "/scripts_" .. tostring(game.PlaceId) .. ".txt", table.concat(names, "\n") .. "\n") end)
 	log("dump", #names .. " scripts listed, " .. saved .. " decompiled")
 end
 
@@ -779,6 +1186,7 @@ local function rosterPass()
 			if hint then e.flags[hint] = true end
 		end
 		pcall(function()
+			e.display = p.DisplayName or e.display
 			e.level = p:GetAttribute("Level") or e.level
 			e.kills = p:GetAttribute("Kills") or e.kills
 			e.wins = p:GetAttribute("Wins") or e.wins
@@ -789,8 +1197,7 @@ local function rosterPass()
 		end)
 		local ch = p.Character
 		local rr = ch and ch:FindFirstChild("HumanoidRootPart")
-		local h = ch and ch:FindFirstChildOfClass("Humanoid")
-		if rr and h and h.Health > 0 then
+		if rr and aliveOfPlayer(p) then
 			e.samples = e.samples + 1
 			local pos = rr.Position
 			local dt = now - e.lastAt
@@ -827,21 +1234,47 @@ local function flagList(e)
 	return #out > 0 and table.concat(out, "+") or "-"
 end
 
+-- MY OWN BOTS ARE NOT SUSPECTS.
+--
+-- 2026-08-24 02:44, watchlist.tsv tail: BRTH_TKKFCBKOA blinking+flying,
+-- F8H21QEIAKNI21 blinking, f2387tgu9hq blinking+flying. Every one of those is
+-- ours, and they earn the flags honestly - a farm that teleports under people
+-- IS blinking and IS in the air. The list exists to find the other kind, so a
+-- list topped by our own three accounts every round is a list he cannot use.
+--
+-- They stay in players_master.tsv, which is the full record of who was there.
+-- Only the flagged-suspect file skips them.
+local function myOwnAccount(id)
+	local n = tonumber(id)
+	if not n then return false end
+	local ok, res = pcall(function()
+		local Pl = game:GetService("Players")
+		if Pl.LocalPlayer and Pl.LocalPlayer.UserId == n then return true end
+		local fn = env.__SOLOTEAM_FRIEND
+		if not fn then return false end
+		for _, pl in ipairs(Pl:GetPlayers()) do
+			if pl.UserId == n then return fn(pl) == true end
+		end
+		return false
+	end)
+	return ok and res == true
+end
+
 local function writeRoster(tag)
 	local rows, watch = {}, {}
 	for _, e in pairs(roster) do
 		local fl = flagList(e)
 		local row = table.concat({
-			e.name, tostring(e.id), tostring(e.level or "?"), tostring(e.kills or "?"),
+			e.name, tostring(e.display or e.name), tostring(e.id), tostring(e.level or "?"), tostring(e.kills or "?"),
 			tostring(e.wins or "?"), tostring(e.streak or "?"), tostring(e.title or "-"),
 			tostring(e.team or "-"), string.format("%.1f", e.maxAir),
 			string.format("%.1f", e.maxJump), tostring(e.blinks), tostring(e.samples), fl,
 		}, TAB)
 		rows[#rows + 1] = row
-		if fl ~= "-" then watch[#watch + 1] = row end
+		if fl ~= "-" and not myOwnAccount(e.id) then watch[#watch + 1] = row end
 	end
 	table.sort(rows)
-	local head = table.concat({ "name", "userid", "level", "kills", "wins", "streak",
+	local head = table.concat({ "name", "display", "userid", "level", "kills", "wins", "streak",
 		"title", "team", "max_air_s", "max_step", "blinks", "samples", "flags" }, TAB) .. NL
 	put(base() .. "_roster.tsv", head .. table.concat(rows, NL) .. NL)
 	local stampNow = os.date("%Y-%m-%d %H:%M:%S")
@@ -882,23 +1315,46 @@ end)
 
 -- ---------------------------------------------------------------- loops
 
+-- The three dumps are the heaviest thing this file ever does, so each one says
+-- its name while it runs. HACKFORMAT prints that name next to any long frame.
+local function named(what, fn)
+	env.__SOLO_BUSY = what
+	pcall(fn)
+	env.__SOLO_BUSY = nil
+end
+
 task.spawn(function()
 	newRound()
-	pcall(dumpTree)
-	pcall(dumpChests)
-	pcall(dumpScripts)
+	named("rec dump tree", dumpTree)
+	named("rec dump chests", dumpChests)
+	named("rec dump scripts", dumpScripts)
 	while alive() do
 		task.wait(0.25)
 		if S.on then
 			local foes = 0
 			for _, pp in ipairs(Players:GetPlayers()) do
-				local hh = pp.Character and pp.Character:FindFirstChildOfClass("Humanoid")
-				if hh and hh.Health > 0 then foes = foes + 1 end
+				if aliveOfPlayer(pp) then foes = foes + 1 end
 			end
 			if S.autoStop and S.roundOpen and foes <= 1 then
 				S.roundOpen = false
-				log("round", "round end detected, recording auto stopped, telling the farm to queue")
-				S.on = false
+				-- THE RECORDER NO LONGER SWITCHES ITSELF OFF HERE.
+				--
+				-- His question, 2026-08-24 03:2x: "tell me was that while enter then
+				-- game start logging, then end game log? it shoudl eahc time ogggin
+				-- gbr,o ... so u just cant see the whole round waht happend".
+				--
+				-- He was right, and it is worse than it looks. log() itself begins
+				-- with "if not S.on and not S.always then return end", so S.on = false
+				-- did not merely stop the sampler - it stopped every line this file
+				-- writes. The window was "more than one man alive" to "one or fewer",
+				-- which threw away the pen before the drop, the whole tail after the
+				-- last kill, the win itself, the queue and the teleport out. Every
+				-- question about how a round ENDED was being asked of a log that had
+				-- already stopped writing.
+				--
+				-- The round boundary is still marked, it just no longer gags the file.
+				-- S.on stays his: the START/PAUSE button on the panel still owns it.
+				log("round", "round end detected, telling the farm to queue - recording stays on")
 				pcall(function()
 					if env.__SOLOFARM_CLOSE then env.__SOLOFARM_CLOSE("round end") end
 					if env.__SOLOFARM_QUEUE then env.__SOLOFARM_QUEUE() end
@@ -919,16 +1375,17 @@ task.spawn(function()
 				newRound()
 				task.spawn(function()
 					task.wait(3)
-					pcall(dumpChests)
+					named("rec dump chests", dumpChests)
 				end)
 			end
 			pcall(sample)
 			if env.__SOLOREC_DUMP then
 				env.__SOLOREC_DUMP = false
 				S.dumped = {}
-				pcall(dumpTree)
-				pcall(dumpChests)
-				pcall(dumpScripts)
+				env.__SOLOREC_DUMPED = {}
+				named("rec dump tree", dumpTree)
+				named("rec dump chests", dumpChests)
+				named("rec dump scripts", dumpScripts)
 			end
 		end
 		pcall(paint)
@@ -950,7 +1407,7 @@ task.spawn(function()
 			for k, v in pairs(S.seenRemote) do seen[#seen + 1] = k .. "=" .. v end
 			table.sort(seen)
 			pcall(function()
-				writefile(DIR .. "/live_status.txt", table.concat({
+				writefile(DIR .. "/live_status_" .. lp.Name .. ".txt", table.concat({
 					"gen " .. MYGEN,
 					"when " .. os.date("%Y-%m-%d %H:%M:%S"),
 					"round " .. S.round,
