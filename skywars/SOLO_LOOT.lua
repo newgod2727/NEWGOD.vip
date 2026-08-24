@@ -45,6 +45,32 @@ local function put(file, text)
 	end)
 end
 
+-- Called at line 302 and at line 663 and defined nowhere, so both calls raised
+-- "attempt to call a nil value" every round on every client - 220 of them
+-- between 06:00 and 19:11 today, and the whole "write the heavy map files once
+-- per map instead of once per round" change silently never happened, because
+-- the error fired before the guard could skip anything.
+--
+-- The flag is the map fingerprint plus what is being dumped, so a map we have
+-- already written is skipped and a map we have never seen is written in full.
+-- Returns true when this map has already been dumped for this kind; the first
+-- caller gets false and claims it in the same call, so two clients racing on
+-- one machine still write it at most twice, not every round forever.
+local function mapDumped(kind)
+	local done = false
+	pcall(function()
+		if not isfolder("RobloxComm") then makefolder("RobloxComm") end
+		if not isfolder(DIR) then makefolder(DIR) end
+		local flag = DIR .. "/mapdump_" .. tostring(L.fp) .. "_" .. tostring(kind) .. ".flag"
+		if isfile(flag) then
+			done = true
+		else
+			writefile(flag, os.date("%Y-%m-%d %H:%M:%S") .. " " .. tostring(kind))
+		end
+	end)
+	return done
+end
+
 local function stamp()
 	return os.date("%H:%M:%S")
 end
@@ -237,6 +263,17 @@ end
 
 local chestIndex = {}
 
+-- Anything that walks the map or builds a long string says so, so a long frame
+-- caught by HACKFORMAT comes with the name of what was running.
+local ENV = getgenv and getgenv() or _G
+local function busy(name, fn)
+	ENV.__SOLO_BUSY = name
+	local ok, err = pcall(fn)
+	ENV.__SOLO_BUSY = nil
+	if not ok then return nil, err end
+	return true
+end
+
 local function censusChests(tag)
 	local rows = {}
 	local detail = {}
@@ -288,12 +325,14 @@ local function censusChests(tag)
 		os.date("%Y-%m-%d %H:%M:%S"), L.round, L.fp, tag,
 		byTier[1], byTier[2], byTier[3], byTier[4], n, how))
 	L.chests = n
-	local head = "id\tname\ttier\tx\ty\tz\tdist\topened\tclass\tchildren\n"
-	put(DIR .. "/" .. lp.Name .. "_r" .. string.format("%03d", L.round) .. "_chests_" .. tag .. ".tsv",
-		head .. table.concat(rows, "\n") .. "\n")
-	if #detail > 0 then
-		put(DIR .. "/" .. lp.Name .. "_r" .. string.format("%03d", L.round) .. "_chest_detail_" .. tag .. ".txt",
-			table.concat(detail, "\n") .. "\n")
+	if not mapDumped("chests_" .. tag) then
+		local head = "id\tname\ttier\tx\ty\tz\tdist\topened\tclass\tchildren\n"
+		put(DIR .. "/map_" .. tostring(L.fp) .. "_chests_" .. tag .. ".tsv",
+			head .. table.concat(rows, "\n") .. "\n")
+		if #detail > 0 then
+			put(DIR .. "/map_" .. tostring(L.fp) .. "_chest_detail_" .. tag .. ".txt",
+				table.concat(detail, "\n") .. "\n")
+		end
 	end
 	return n
 end
@@ -337,15 +376,26 @@ local SWORD_DAMAGE = {
 	OnyxSword = 32,
 }
 
+-- One resolver, used by BOTH the printed line and the best_sword decision.
+-- 2026-08-24 02:3x - they had drifted apart and it cost every sword reading.
+-- describeItem fell through to entry.Type, the best_sword branch below did not,
+-- and this game's chest entries carry Type, not Id/Item/Name. Counted over the
+-- last 3000 rows of chest_contents_master.tsv: 1251 rows listed a sword and
+-- 1251 of them wrote best=none. Not one exception, so it was never the data.
+local function idOf(entry)
+	local id = entry.Id or entry.Item or entry.Name or entry.Type
+	if id == nil and type(entry) == "table" then
+		for k, v in pairs(entry) do
+			if type(v) == "string" and k ~= "Slot" then id = v break end
+		end
+	end
+	return id
+end
+
 local function describeItem(entry)
 	local bits = {}
 	pcall(function()
-		local id = entry.Id or entry.Item or entry.Name or entry.Type
-		if id == nil and type(entry) == "table" then
-			for k, v in pairs(entry) do
-				if type(v) == "string" and k ~= "Slot" then id = v break end
-			end
-		end
+		local id = idOf(entry)
 		bits[#bits + 1] = tostring(id)
 		if entry.Amount then bits[#bits + 1] = "x" .. tostring(entry.Amount) end
 		local dmg = SWORD_DAMAGE[tostring(id)]
@@ -381,7 +431,7 @@ local function watchChestEvent()
 							local d = describeItem(entry)
 							items[#items + 1] = "slot" .. tostring(entry.Slot or "?") .. "=" .. d
 							pcall(function()
-								local id = tostring(entry.Id or entry.Item or entry.Name or "")
+								local id = tostring(idOf(entry) or "")
 								local dm = SWORD_DAMAGE[id]
 								if dm and dm > bestDmg then bestDmg = dm; best = id end
 							end)
@@ -600,8 +650,11 @@ local function openRound(n)
 		"chest centre " .. fp.centre,
 		"workspace top " .. fp.top,
 	}
-	put(DIR .. "/" .. lp.Name .. "_r" .. string.format("%03d", n) .. "_map.txt",
-		table.concat(head, "\n") .. "\n\nchest positions sorted:\n" .. table.concat(fp.positions, "\n") .. "\n")
+	-- The t=0 map dump is gone, not gated. Its own comment further down says
+	-- why: at t=0 the chest folder is still empty, so this hashed an empty list
+	-- and every map came out as the same 00001505. It was a 20 to 176 KB write,
+	-- every round, of a fingerprint that was known to be wrong. The settled one
+	-- below is the real record and it is written once per map.
 
 	put(DIR .. "/map_master.tsv", string.format("%s\tr%03d\t%s\t%s\t%s\t%d\t%s\t%s\n",
 		os.date("%Y-%m-%d %H:%M:%S"), n, lp.Name, tostring(game.PlaceId),
@@ -610,18 +663,27 @@ local function openRound(n)
 	xpOpen()
 
 	task.spawn(function()
-		censusChests("start")
-		censusSpawns()
-		for _, wait_s in ipairs({ 6, 9, 15 }) do
-			task.wait(wait_s)
-			censusChests("plus" .. tostring(wait_s + 0) .. "s")
+		busy("loot census start", function() censusChests("start") end)
+		busy("loot census spawns", censusSpawns)
+		-- task.wait takes a DURATION, not a deadline. The old loop waited 6, then
+		-- another 9, then another 15, so the file called plus9s was really taken
+		-- at t=15 and plus15s at t=30. A census whose label lies is worse than no
+		-- census. Wait the difference instead.
+		local at = 0
+		for _, mark in ipairs({ 6, 9, 15 }) do
+			task.wait(mark - at)
+			at = mark
+			busy("loot census plus" .. tostring(mark) .. "s", function()
+				censusChests("plus" .. tostring(mark) .. "s")
+			end)
 		end
 		-- The map streams in after the round opens, so the fingerprint taken at
 		-- t=0 hashed an empty chest list and every map came out as the same
 		-- 00001505. Take it again once the chests are really there, and only
 		-- then write the row that says which map this was.
 		if L.chests > 0 then
-			local again = fingerprint()
+			local again
+			busy("loot map fingerprint", function() again = fingerprint() end)
 			L.fp = again.hash
 			local TAB = string.char(9)
 			local NL = string.char(10)
@@ -635,14 +697,16 @@ local function openRound(n)
 				.. again.centre .. TAB
 				.. tostring(L.tiers) .. TAB
 				.. "SETTLED" .. NL)
-			put(DIR .. "/" .. lp.Name .. "_r" .. string.format("%03d", L.round) .. "_map.txt",
-				NL .. NL .. "SETTLED FINGERPRINT - taken after the map finished streaming" .. NL
-				.. "fingerprint " .. again.hash .. NL
-				.. "chest count " .. tostring(again.chestCount) .. NL
-				.. "chest centre " .. again.centre .. NL
-				.. "tiers " .. tostring(L.tiers) .. NL .. NL
-				.. "chest positions sorted:" .. NL
-				.. table.concat(again.positions, NL) .. NL)
+			if not mapDumped("map") then
+				put(DIR .. "/map_" .. tostring(again.hash) .. ".txt",
+					NL .. NL .. "SETTLED FINGERPRINT - taken after the map finished streaming" .. NL
+					.. "fingerprint " .. again.hash .. NL
+					.. "chest count " .. tostring(again.chestCount) .. NL
+					.. "chest centre " .. again.centre .. NL
+					.. "tiers " .. tostring(L.tiers) .. NL .. NL
+					.. "chest positions sorted:" .. NL
+					.. table.concat(again.positions, NL) .. NL)
+			end
 		end
 	end)
 
