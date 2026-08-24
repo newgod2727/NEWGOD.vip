@@ -244,7 +244,7 @@ local stats = {
     shots = 0, landed = 0, miss = 0, dry = 0, coins = 0, claims = 0, spins = 0,
     cases = 0, t0 = os.clock(), gap = HIT_GAP + 0.01, pending = 0, blocked = 0,
     startElo = nil, saved = 0, streak = 0, backoff = 0, kills0 = nil, killsNow = 0, diedTo = 0,
-    holdFor = 0, holdStart = 0,
+    holdFor = 0, holdStart = 0, eventMap = false,
 }
 local statusText = "loading"
 local lastErr = ""
@@ -947,9 +947,10 @@ local function findPhaseSpot()
         return a.vol > b.vol
     end)
     -- biggest first, and the first one that really has solid material inside wins
+    local under = readUnder()
     for i = 1, math.min(#ranked, 25) do
         local pt = pointInside(ranked[i].part)
-        if pt then
+        if pt and (not under or pt.Y > under + 2) then
             return ranked[i].part, pt
         end
     end
@@ -2135,14 +2136,31 @@ task.spawn(function()
             guard("autocoin", function()
                 rawFire(Network, "RequestEventCoins")
                 local f = workspace:FindFirstChild("LocalEventCoins")
-                local live = f and #f:GetChildren() or 0
+                if not f then
+                    stats.eventMap = false
+                    return
+                end
+                local live = #f:GetChildren()
                 if live == 0 then
                     return
                 end
-                setStatus("event on, " .. live .. " coins - grabbing")
-                stats.coins = stats.coins + sweepCoins()
+                stats.eventMap = true
+                -- event map. clear the whole board, then check again, until it is empty
+                local rounds = 0
+                while live > 0 and rounds < 6 and mine() and F.autocoin do
+                    setStatus("EVENT MAP - " .. live .. " coins left, taking them")
+                    stats.coins = stats.coins + sweepCoins()
+                    rounds = rounds + 1
+                    rawFire(Network, "RequestEventCoins")
+                    task.wait(0.25)
+                    f = workspace:FindFirstChild("LocalEventCoins")
+                    live = f and #f:GetChildren() or 0
+                end
+                if live == 0 then
+                    setStatus("event map cleared, " .. stats.coins .. " coins total")
+                end
             end)
-            task.wait(F.fastcoin and 0.6 or 4)
+            task.wait(F.fastcoin and 0.5 or 4)
         else
             task.wait(2)
         end
@@ -2346,12 +2364,40 @@ if TextChatService then
     end)
 end
 
+local surfaceY = nil
+local underBlocks = 0
+
+local function neverBelowMap()
+    local r = root()
+    if not r then
+        return
+    end
+    local under = readUnder()
+    if not under then
+        return
+    end
+    if groundY and groundY > under then
+        surfaceY = groundY
+    end
+    local floorLine = under + 2
+    if r.Position.Y >= floorLine then
+        return
+    end
+    underBlocks = underBlocks + 1
+    F.basement = false
+    local lift = (surfaceY or (under + 20)) + 6
+    r.AssemblyLinearVelocity = Vector3.zero
+    r.CFrame = CFrame.new(Vector3.new(r.Position.X, lift, r.Position.Z))
+    setStatus("BLOCKED going under the map, pulled up to y " .. math.floor(lift) .. " (x" .. underBlocks .. ")")
+end
+
 local renderConn
 renderConn = RunService.RenderStepped:Connect(function()
     if not mine() then
         renderConn:Disconnect()
         return
     end
+    neverBelowMap()
     if F.noclip then
         local c = LP.Character
         if c then
@@ -2509,6 +2555,7 @@ task.spawn(function()
                 "no-target   " .. stats.dry .. "   event miss " .. stats.miss .. "   hunt hold " .. stats.holdFor,
                 "rate held   " .. stats.blocked .. "   cap " .. F.killCap .. "/min",
                 "died to     " .. stats.diedTo .. (lastKilledBy ~= "" and ("   last " .. lastKilledBy) or ""),
+                "event map   " .. (stats.eventMap and "YES - clearing coins" or "no") ,
                 "coins sent  " .. stats.coins .. (coinBusy and "   ON THE FLOOR NOW" or ""),
                 "claims      " .. stats.claims .. "   spins " .. stats.spins .. "   cases " .. stats.cases,
                 "",
@@ -2518,7 +2565,7 @@ task.spawn(function()
                 "phase held  " .. phaseIn .. " of " .. math.floor(phaseChecks / 30) .. " checks",
                 "pad         " .. ((standPad and standPad.Parent) and ("standing on it, y " .. math.floor(standPad.Position.Y)) or "none") .. (holdPos and "   frozen" or ""),
                 "safe mode   " .. (F.safemode and (F.phase and "PHASE in a wall" or ("SKY +" .. F.safeheight)) or "off"),
-                "basement    banned, never used",
+                "basement    banned, blocked " .. underBlocks .. " times",
                 "name shown  " .. tostring(LP.DisplayName),
                 "",
                 (function()
