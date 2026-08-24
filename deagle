@@ -449,13 +449,16 @@ local function killRateOk()
     return true
 end
 
+local coinBusy = false
+
 local function sweepCoins()
     local f = workspace:FindFirstChild("LocalEventCoins")
     local r = root()
-    if not f or not r or not inRound() then
+    if not f or not r then
         return 0
     end
     local home = r.CFrame
+    coinBusy = true
     local n = 0
     for _, c in ipairs(f:GetChildren()) do
         local id = c:GetAttribute("CoinId")
@@ -471,6 +474,7 @@ local function sweepCoins()
         r.AssemblyLinearVelocity = Vector3.zero
         r.CFrame = home
     end
+    coinBusy = false
     return n
 end
 
@@ -1677,6 +1681,12 @@ task.spawn(function()
     while gui.Parent and mine() do
         if F.autocoin then
             guard("autocoin", function()
+                -- going down to a coin puts him on the floor in front of everyone,
+                -- so only do it when there is nobody alive to shoot him
+                if inRound() and #targetList() > 0 then
+                    setStatus("coins: waiting, " .. #targetList() .. " alive down there")
+                    return
+                end
                 rawFire(Network, "RequestEventCoins")
                 task.wait(0.3)
                 stats.coins = stats.coins + sweepCoins()
@@ -1777,9 +1787,10 @@ task.spawn(function()
                 return
             end
             local vy = voidLine()
+            local falling = r.AssemblyLinearVelocity.Y < -110
             if r.Position.Y > vy + 30 and math.abs(r.AssemblyLinearVelocity.Y) < 60 then
                 safeCF = r.CFrame
-            elseif F.antivoid and r.Position.Y < vy then
+            elseif F.antivoid and (r.Position.Y < vy or (falling and r.Position.Y < vy + 90)) then
                 r.AssemblyLinearVelocity = Vector3.zero
                 if safeCF then
                     r.CFrame = safeCF
@@ -1790,7 +1801,7 @@ task.spawn(function()
                 end
             end
         end)
-        task.wait(0.25)
+        task.wait(0.1)
     end
 end)
 
@@ -1859,10 +1870,10 @@ renderConn = RunService.RenderStepped:Connect(function()
             end
         end
     end
-    if F.safemode and not F.fly and not F.elobleed then
+    if F.safemode and not F.fly and not F.elobleed and not coinBusy then
         local r = root()
         local h = hum()
-        if r and h and h.Health > 0 and inRound() then
+        if r and h and h.Health > 0 then
             local sp = safeSpot()
             if sp then
                 r.AssemblyLinearVelocity = Vector3.zero
@@ -1902,6 +1913,23 @@ UserInputService.JumpRequest:Connect(function()
         if h then
             h:ChangeState(Enum.HumanoidStateType.Jumping)
         end
+    end
+end)
+
+LP:GetAttributeChangedSignal("InRound"):Connect(function()
+    if not mine() then
+        return
+    end
+    if LP:GetAttribute("InRound") == false then
+        local r = root()
+        if r and groundY then
+            pcall(function()
+                r.AssemblyLinearVelocity = Vector3.zero
+                r.CFrame = CFrame.new(Vector3.new(r.Position.X, groundY + 5, r.Position.Z))
+            end)
+        end
+        resetSafeSpot()
+        setStatus("round over - set down on the floor, not dropped")
     end
 end)
 
@@ -1955,7 +1983,7 @@ task.spawn(function()
                 "miss run    " .. stats.streak .. "   backoff " .. stats.backoff,
                 "no-target   " .. stats.dry .. "   event miss " .. stats.miss,
                 "rate held   " .. stats.blocked .. "   cap " .. F.killCap .. "/min",
-                "coins sent  " .. stats.coins,
+                "coins sent  " .. stats.coins .. (coinBusy and "   ON THE FLOOR NOW" or ""),
                 "claims      " .. stats.claims .. "   spins " .. stats.spins .. "   cases " .. stats.cases,
                 "",
                 "skin        " .. tostring(ClientData.Inventory and ClientData.Inventory.EquippedSkin),
