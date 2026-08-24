@@ -172,8 +172,8 @@ loadCfg()
 
 local stats = {
     shots = 0, landed = 0, miss = 0, dry = 0, coins = 0, claims = 0, spins = 0,
-    cases = 0, t0 = os.clock(), gap = HIT_GAP + 0.005, pending = 0, blocked = 0,
-    startElo = nil, saved = 0,
+    cases = 0, t0 = os.clock(), gap = HIT_GAP + 0.01, pending = 0, blocked = 0,
+    startElo = nil, saved = 0, streak = 0, backoff = 0,
 }
 local statusText = "loading"
 local lastErr = ""
@@ -251,6 +251,9 @@ local function usable(model, isBot)
         return nil
     end
     if model:GetAttribute("Alive") == false then
+        return nil
+    end
+    if model:GetAttribute("Dead") == true then
         return nil
     end
     if model:GetAttribute("SpawnProtection") == true then
@@ -1504,7 +1507,11 @@ pcall(function()
             if stats.pending > 0 then
                 stats.pending = stats.pending - 1
             end
-            stats.gap = math.max(LIM.gapFloor, stats.gap - 0.01)
+            stats.streak = 0
+            if stats.backoff > 0 then
+                stats.backoff = stats.backoff - 1
+                stats.gap = math.max(HIT_GAP + 0.01, stats.gap - 0.05)
+            end
         end
     end)
 end)
@@ -1546,11 +1553,17 @@ hbConn = RunService.Heartbeat:Connect(function()
         nextShot = now + stats.gap
         stats.pending = stats.pending + 1
         setStatus("farm -> " .. e.m.Name .. (e.bot and " (bot)" or " (player)"))
-        task.delay(0.75, function()
+        task.delay(1.4, function()
             if stats.pending > 0 then
                 stats.pending = stats.pending - 1
                 stats.miss = stats.miss + 1
-                stats.gap = math.min(LIM.gapCeil, math.min(MISS_GAP, stats.gap + 0.02))
+                stats.streak = stats.streak + 1
+                -- five in a row is the server refusing, anything less is a dead target
+                if stats.streak >= 5 then
+                    stats.streak = 0
+                    stats.backoff = 3
+                    stats.gap = math.min(LIM.gapCeil, math.min(MISS_GAP, stats.gap + 0.05))
+                end
             end
         end)
     end
@@ -1863,6 +1876,7 @@ task.spawn(function()
                 "shots sent  " .. stats.shots .. "   landed " .. stats.landed,
                 "kills / min " .. string.format("%.1f", stats.landed / mins),
                 "gap now     " .. string.format("%.3f", stats.gap) .. "s   floor " .. LIM.gapFloor,
+                "miss run    " .. stats.streak .. "   backoff " .. stats.backoff,
                 "no-target   " .. stats.dry .. "   miss " .. stats.miss,
                 "rate held   " .. stats.blocked .. "   cap " .. F.killCap .. "/min",
                 "coins sent  " .. stats.coins,
