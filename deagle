@@ -146,7 +146,7 @@ local DEFAULTS = {
     noclip = false,
     infjump = true,
     antivoid = true,
-    safemode = false,
+    safemode = true,
     nopopup = true,
     hidevape = true,
     vapesync = true,
@@ -185,7 +185,7 @@ end
 
 local ALWAYS_ON = {
     "autofarm", "autocoin", "autodeploy", "autorespawn", "silent", "esp", "infjump",
-    "antivoid", "nopopup", "hidevape", "vapesync", "spoofname", "scrubname",
+    "antivoid", "safemode", "phase", "nopopup", "hidevape", "vapesync", "spoofname", "scrubname",
     "autoclaim", "autospin", "autocase", "autocode", "autoskin", "autovote",
     "targetBots", "targetPlayers", "botsfirst", "eloguard", "forceon", "revenge", "hunt",
 }
@@ -883,6 +883,78 @@ local function holdAt(pos)
         holdPos.Parent = r
     end
     holdPos.Position = pos
+end
+
+-- phase: stand inside a solid block. a real player cannot walk into one, so the only
+-- thing that still reaches is another script, and those are on the killers list
+local phaseCF = nil
+local phasePart = nil
+
+local function insideSolid(pos, ignorePart)
+    local params = OverlapParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {LP.Character, standPad}
+    local hits = workspace:GetPartBoundsInBox(CFrame.new(pos), Vector3.new(3, 5, 3), params)
+    for _, h in ipairs(hits) do
+        if h:IsA("BasePart") and h.CanCollide and (not ignorePart or h == ignorePart) then
+            return h
+        end
+    end
+    return nil
+end
+
+local function findPhaseSpot()
+    local me = root()
+    local here = me and me.Position or Vector3.new(0, 0, 0)
+    local map = workspace:FindFirstChild("Map")
+    if not map then
+        return nil
+    end
+    local best, bestScore = nil, -math.huge
+    for _, d in ipairs(map:GetDescendants()) do
+        if d:IsA("BasePart") and d.CanCollide and d.Transparency < 0.9 then
+            local sz = d.Size
+            local thin = math.min(sz.X, sz.Y, sz.Z)
+            if thin >= 7 then
+                local dist = (d.Position - here).Magnitude
+                local score = (sz.X * sz.Y * sz.Z) / 1000 - dist * 0.35
+                if score > bestScore then
+                    local solid = insideSolid(d.Position, d)
+                    if solid then
+                        best, bestScore = d, score
+                    end
+                end
+            end
+        end
+    end
+    return best
+end
+
+local function enterPhase()
+    local part = findPhaseSpot()
+    if not part then
+        return nil
+    end
+    phasePart = part
+    phaseCF = CFrame.new(part.Position)
+    return phaseCF
+end
+
+local function clearPhase()
+    phaseCF = nil
+    phasePart = nil
+end
+
+local function noclipMe()
+    local c = LP.Character
+    if not c then
+        return
+    end
+    for _, d in ipairs(c:GetDescendants()) do
+        if d:IsA("BasePart") and d.CanCollide then
+            d.CanCollide = false
+        end
+    end
 end
 
 local function safeSpot()
@@ -1631,6 +1703,31 @@ toggle(pSet, "SAFE MODE - hold a safe spot", "safemode", function(on)
         resetSafeSpot()
     end
 end)
+toggle(pSet, "PHASE - stand inside a wall", "phase", function()
+    clearPhase()
+    killPad()
+    resetSafeSpot()
+    setStatus(F.phase and "phase on" or "phase off")
+end)
+button(pSet, "PHASE NOW - pick a block", function()
+    F.phase = true
+    F.safemode = true
+    F.offlist.safemode = nil
+    F.offlist.phase = nil
+    clearPhase()
+    local cf = enterPhase()
+    saveCfg()
+    if cf and phasePart then
+        local r = root()
+        if r then
+            r.AssemblyLinearVelocity = Vector3.zero
+            r.CFrame = cf
+        end
+        setStatus("inside " .. phasePart.Name .. " " .. tostring(phasePart.Size) .. " at y " .. math.floor(cf.Position.Y))
+    else
+        setStatus("no block on this map is thick enough")
+    end
+end)
 toggle(pSet, "BASEMENT - under the map", "basement", function()
     killPad()
     resetSafeSpot()
@@ -1812,6 +1909,7 @@ panic.MouseButton1Click:Connect(function()
     stopFly()
     clearEsp()
     killPad()
+    clearPhase()
     setStatus("PANIC - all off")
 end)
 
@@ -2063,7 +2161,23 @@ task.spawn(function()
             if not r then
                 return
             end
-            if F.safemode and F.basement and not F.fly and not F.elobleed then
+            if F.safemode and F.phase and not F.fly and not F.elobleed then
+        killPad()
+        local r = root()
+        local h = hum()
+        if r and h and h.Health > 0 then
+            if not phaseCF or not phasePart or not phasePart.Parent then
+                enterPhase()
+            end
+            if phaseCF then
+                noclipMe()
+                r.AssemblyLinearVelocity = Vector3.zero
+                -- rewrite the ORIGINAL point every frame. reading the pushed position
+                -- back is what lets physics squeeze the body out one notch at a time
+                r.CFrame = phaseCF
+            end
+        end
+    elseif F.safemode and F.basement and not F.fly and not F.elobleed then
                 return
             end
             local vy = voidLine()
@@ -2312,6 +2426,7 @@ task.spawn(function()
                 "",
                 "skin        " .. tostring(ClientData.Inventory and ClientData.Inventory.EquippedSkin),
                 "vape        " .. on .. " on of " .. live .. ", remembered " .. stats.saved,
+                "phase       " .. (phasePart and ("inside " .. phasePart.Name .. " y " .. math.floor(phaseCF.Position.Y)) or "not in a wall"),
                 "pad         " .. ((standPad and standPad.Parent) and ("standing on it, y " .. math.floor(standPad.Position.Y)) or "none") .. (holdPos and "   frozen" or ""),
                 "safe mode   " .. (F.safemode and (F.basement and ("BASEMENT y " .. math.floor(basementY()) .. "  map bottom " .. tostring(readUnder()) .. "  kill " .. fallY()) or ("SKY +" .. F.safeheight)) or "off"),
                 "name shown  " .. tostring(LP.DisplayName),
