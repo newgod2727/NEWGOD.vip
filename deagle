@@ -106,6 +106,9 @@ local HIT_GAP = 0.9
 local MISS_GAP = 1.1
 local ELO_NO_BOTS = 1250
 local SPIN_COOLDOWN = 900
+local MAIN_PLACE = 84556640895285
+local RANKED_PLACE = 112087763192016
+local GREEK_PLACE = 94334870778766
 local FAST_SKINS = {["Frozen Deagle"] = true, ["Samurai Deagle"] = true, ["Evil Deagle"] = true, ["Ninja Deagle"] = true}
 
 local LIM = {
@@ -244,7 +247,7 @@ local stats = {
     shots = 0, landed = 0, miss = 0, dry = 0, coins = 0, claims = 0, spins = 0,
     cases = 0, t0 = os.clock(), gap = HIT_GAP + 0.01, pending = 0, blocked = 0,
     startElo = nil, saved = 0, streak = 0, backoff = 0, kills0 = nil, killsNow = 0, diedTo = 0,
-    holdFor = 0, holdStart = 0, eventMap = false,
+    holdFor = 0, holdStart = 0, eventMap = false, achClaimed = 0,
 }
 local statusText = "loading"
 local lastErr = ""
@@ -1645,18 +1648,33 @@ local CLAIMS = {
     "ClaimTimeReward", "ClaimGreekDailyPoints",
 }
 
+local function claimsWork()
+    return game.PlaceId ~= GREEK_PLACE
+end
+
 local function claimPass()
+    if not claimsWork() then
+        setStatus("claims held - this place ignores them, will fire when you are back")
+        return
+    end
     for _, v in ipairs(CLAIMS) do
         rawFire(Network, v, nil)
         task.wait(0.25)
     end
     rawFire(Network, "RequestGreekRewardState")
     task.wait(0.2)
+    stats.achClaimed = stats.achClaimed or 0
     local items = ClientData.Achievements and ClientData.Achievements.Items or {}
     for id, v in pairs(items) do
-        if (v.EarnedTier or 0) > (v.ClaimedTier or 0) then
-            rawFire(Network, "ClaimAchievement", id)
-            task.wait(0.2)
+        if type(v) == "table" then
+            local ready = tonumber(v.ReadyCount) or 0
+            local gap = (tonumber(v.EarnedTier) or 0) - (tonumber(v.ClaimedTier) or 0)
+            local n = math.max(ready, gap)
+            for _ = 1, math.min(n, 10) do
+                rawFire(Network, "ClaimAchievement", id)
+                stats.achClaimed = stats.achClaimed + 1
+                task.wait(0.2)
+            end
         end
     end
     local tasks = ClientData.DailyTasks and ClientData.DailyTasks.Tasks or {}
@@ -1749,6 +1767,23 @@ local function equipBestOwnedSkin()
     return nil
 end
 
+button(pAuto, "CLAIM ACHIEVEMENTS NOW", function()
+    local items = ClientData.Achievements and ClientData.Achievements.Items or {}
+    local fired = 0
+    for id, v in pairs(items) do
+        if type(v) == "table" then
+            local ready = tonumber(v.ReadyCount) or 0
+            local gap = (tonumber(v.EarnedTier) or 0) - (tonumber(v.ClaimedTier) or 0)
+            for _ = 1, math.min(math.max(ready, gap), 10) do
+                rawFire(Network, "ClaimAchievement", id)
+                fired = fired + 1
+                task.wait(0.2)
+            end
+        end
+    end
+    stats.achClaimed = stats.achClaimed + fired
+    setStatus("achievement claims sent " .. fired)
+end)
 button(pAuto, "CLAIM EVERYTHING NOW", function()
     claimPass()
     setStatus("claim pass done")
@@ -2179,8 +2214,12 @@ end)
 task.spawn(function()
     while gui.Parent and mine() do
         if F.autoclaim then
-            guard("autoclaim", claimPass)
-            task.wait(LIM.claimEvery)
+            if claimsWork() then
+                guard("autoclaim", claimPass)
+                task.wait(LIM.claimEvery)
+            else
+                task.wait(5)
+            end
         else
             task.wait(5)
         end
@@ -2557,6 +2596,8 @@ task.spawn(function()
                 "died to     " .. stats.diedTo .. (lastKilledBy ~= "" and ("   last " .. lastKilledBy) or ""),
                 "event map   " .. (stats.eventMap and "YES - clearing coins" or "no") ,
                 "coins sent  " .. stats.coins .. (coinBusy and "   ON THE FLOOR NOW" or ""),
+                "achievements " .. tostring(ClientData.Achievements and ClientData.Achievements.ReadyCount) .. " ready, claimed " .. stats.achClaimed,
+                "claims here  " .. (claimsWork() and "server answers" or "IGNORED in this place"),
                 "claims      " .. stats.claims .. "   spins " .. stats.spins .. "   cases " .. stats.cases,
                 "",
                 "skin        " .. tostring(ClientData.Inventory and ClientData.Inventory.EquippedSkin),
