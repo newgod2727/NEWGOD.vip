@@ -185,7 +185,7 @@ end
 
 local ALWAYS_ON = {
     "autofarm", "autocoin", "autodeploy", "autorespawn", "silent", "esp", "infjump",
-    "antivoid", "nopopup", "hidevape", "vapesync", "spoofname", "scrubname",
+    "antivoid", "nopopup", "autohide", "fastcoin", "hidevape", "vapesync", "spoofname", "scrubname",
     "autoclaim", "autospin", "autocase", "autocode", "autoskin", "autovote",
     "targetBots", "targetPlayers", "botsfirst", "eloguard", "forceon", "revenge", "hunt",
 }
@@ -204,6 +204,8 @@ local function clampCfg()
     if type(F.offlist) ~= "table" then
         F.offlist = {}
     end
+    -- under the map is banned for good. it killed the farm and it is never used again
+    F.basement = false
     if type(F.username) ~= "string" or F.username == "" then
         F.username = DEFAULTS.username
     end
@@ -532,15 +534,17 @@ local function sweepCoins()
     end
     local home = r.CFrame
     coinBusy = true
+    local dwell = F.fastcoin and 0.07 or 0.25
+    local settle = F.fastcoin and 0.04 or 0.1
     local n = 0
     for _, c in ipairs(f:GetChildren()) do
         local id = c:GetAttribute("CoinId")
         if id and r.Parent then
             r.CFrame = CFrame.new(c:GetPivot().Position + Vector3.new(0, 3, 0))
-            task.wait(0.25)
+            task.wait(dwell)
             rawFire(Network, "CollectEventCoin", id, r.Position)
             n = n + 1
-            task.wait(0.1)
+            task.wait(settle)
         end
     end
     if r.Parent then
@@ -905,39 +909,60 @@ local function insideSolid(pos, ignorePart)
     return nil
 end
 
+local PHASE_SAMPLES = {
+    Vector3.new(0, 0, 0),
+    Vector3.new(0, 0.25, 0), Vector3.new(0, -0.25, 0),
+    Vector3.new(0.25, 0, 0), Vector3.new(-0.25, 0, 0),
+    Vector3.new(0, 0, 0.25), Vector3.new(0, 0, -0.25),
+    Vector3.new(0.3, 0.2, 0.3), Vector3.new(-0.3, 0.2, -0.3),
+    Vector3.new(0.3, -0.2, -0.3), Vector3.new(-0.3, -0.2, 0.3),
+}
+
+local function pointInside(part)
+    local sz = part.Size
+    for _, f in ipairs(PHASE_SAMPLES) do
+        local pt = part.CFrame:PointToWorldSpace(Vector3.new(sz.X * f.X, sz.Y * f.Y, sz.Z * f.Z))
+        if insideSolid(pt, part) then
+            return pt
+        end
+    end
+    return nil
+end
+
 local function findPhaseSpot()
-    local me = root()
-    local here = me and me.Position or Vector3.new(0, 0, 0)
     local map = workspace:FindFirstChild("Map")
     if not map then
-        return nil
+        return nil, nil
     end
-    local best, bestScore = nil, -math.huge
+    local ranked = {}
     for _, d in ipairs(map:GetDescendants()) do
         if d:IsA("BasePart") and d.CanCollide and d.Transparency < 0.9 then
             local sz = d.Size
-            local thin = math.min(sz.X, sz.Y, sz.Z)
-            if thin >= 12 then
-                local dist = (d.Position - here).Magnitude
-                local score = thin * 12 + (sz.X * sz.Y * sz.Z) / 8000 - dist * 0.15
-                if score > bestScore then
-                    if insideSolid(d.Position, d) then
-                        best, bestScore = d, score
-                    end
-                end
+            if math.min(sz.X, sz.Y, sz.Z) >= 10 then
+                ranked[#ranked + 1] = {part = d, vol = sz.X * sz.Y * sz.Z}
             end
         end
     end
-    return best
+    table.sort(ranked, function(a, b)
+        return a.vol > b.vol
+    end)
+    -- biggest first, and the first one that really has solid material inside wins
+    for i = 1, math.min(#ranked, 25) do
+        local pt = pointInside(ranked[i].part)
+        if pt then
+            return ranked[i].part, pt
+        end
+    end
+    return nil, nil
 end
 
 local function enterPhase()
-    local part = findPhaseSpot()
-    if not part then
+    local part, pt = findPhaseSpot()
+    if not part or not pt then
         return nil
     end
     phasePart = part
-    phaseCF = CFrame.new(part.Position)
+    phaseCF = CFrame.new(pt)
     return phaseCF
 end
 
@@ -1495,15 +1520,49 @@ toggle(pFarm, "TARGET BOTS", "targetBots")
 toggle(pFarm, "TARGET PLAYERS", "targetPlayers")
 toggle(pFarm, "BOTS FIRST", "botsfirst")
 toggle(pFarm, "ELO GUARD", "eloguard")
-button(pFarm, "KILL ALL NOW", function()
-    local n = 0
-    for _, e in ipairs(buildTargets()) do
-        if fireAt(e) then
-            n = n + 1
-            task.wait(stats.gap)
+local ALL_KEYS = {
+    "autofarm", "autocoin", "autodeploy", "autorespawn", "targetBots", "targetPlayers",
+    "botsfirst", "eloguard", "silent", "esp", "infjump", "antivoid", "autoclaim",
+    "autospin", "autocase", "autocode", "autoskin", "autovote", "nopopup", "hidevape",
+    "vapesync", "spoofname", "scrubname", "autohide", "fastcoin", "revenge", "hunt",
+}
+
+local allBtn
+allBtn = button(pFarm, "TURN ALL ON", function()
+    local allOn = true
+    for _, k in ipairs(ALL_KEYS) do
+        if not F[k] then
+            allOn = false
+            break
         end
     end
-    setStatus("kill all fired " .. n)
+    for _, k in ipairs(ALL_KEYS) do
+        F[k] = not allOn
+        if allOn then
+            F.offlist[k] = true
+        else
+            F.offlist[k] = nil
+        end
+    end
+    if allOn then
+        F.safemode = false
+        F.phase = false
+        F.fly = false
+        F.noclip = false
+        F.offlist.safemode = true
+        F.offlist.phase = true
+        stopFly()
+        clearEsp()
+        killPad()
+        clearPhase()
+        restoreCollide()
+    end
+    allBtn.Text = allOn and "TURN ALL ON" or "TURN ALL OFF"
+    saveCfg()
+    for _, fn in ipairs(repaint) do
+        pcall(fn)
+    end
+    setStatus(allOn and "everything off, body released" or "everything on")
 end)
 button(pFarm, "DEPLOY NOW", function()
     setStatus(ensureDeployed() and "deployed" or "round not ready")
@@ -1565,6 +1624,14 @@ button(pAdv, "TP UP 300", function()
     end
 end)
 
+toggle(pAuto, "AUTO KILL ALL POP UP", "nopopup")
+button(pAuto, "KILL POP UPS NOW", function()
+    hookPopups()
+    killPopups()
+    setStatus("every offer, prompt and ad panel hidden")
+end)
+toggle(pAuto, "AUTO HIDE - biggest hide spot", "autohide")
+toggle(pAuto, "FAST COIN", "fastcoin")
 toggle(pAuto, "AUTO CLAIM ALL", "autoclaim")
 toggle(pAuto, "AUTO FREE SPIN", "autospin")
 toggle(pAuto, "AUTO OPEN CASES", "autocase")
@@ -1741,27 +1808,7 @@ button(pSet, "PHASE NOW - pick a block", function()
         setStatus("no block on this map is thick enough")
     end
 end)
-toggle(pSet, "BASEMENT - under the map", "basement", function()
-    killPad()
-    resetSafeSpot()
-    setStatus(F.basement and ("basement y " .. math.floor(basementY())) or "back to the sky")
-end)
-slider(pSet, "BASEMENT DEPTH", "safedepth", 2, LIM.safedepth, resetSafeSpot)
 slider(pSet, "SKY HEIGHT", "safeheight", 60, LIM.safeheight, resetSafeSpot)
-button(pSet, "GO BASEMENT NOW", function()
-    F.basement = true
-    F.safemode = true
-    F.offlist.safemode = nil
-    resetSafeSpot()
-    local r = root()
-    local by = basementY()
-    if r then
-        r.AssemblyLinearVelocity = Vector3.zero
-        r.CFrame = CFrame.new(Vector3.new(r.Position.X, by, r.Position.Z))
-    end
-    saveCfg()
-    setStatus("basement y " .. math.floor(by) .. ", map bottom " .. tostring(readUnder()) .. ", kill plane " .. fallY())
-end)
 button(pSet, "RESET SAFE SPOT HERE", function()
     resetSafeSpot()
     setStatus("safe spot reset")
@@ -1923,12 +1970,6 @@ button(pSet, "BACK TO NORMAL", function()
     end
     setStatus("body released - collisions back, nothing is holding you")
 end)
-button(pSet, "REBUILD THE PAD", function()
-    killPad()
-    resetSafeSpot()
-    setStatus("pad rebuilt under y " .. math.floor(basementY()))
-end)
-
 panic.MouseButton1Click:Connect(function()
     F.autofarm = false
     F.autocoin = false
@@ -2092,19 +2133,18 @@ task.spawn(function()
     while gui.Parent and mine() do
         if F.autocoin then
             guard("autocoin", function()
-                -- going down to a coin puts him on the floor in front of everyone,
-                -- so only do it when there is nobody alive to shoot him
-                if inRound() and #targetList() > 0 then
-                    setStatus("coins: waiting, " .. #targetList() .. " alive down there")
+                rawFire(Network, "RequestEventCoins")
+                local f = workspace:FindFirstChild("LocalEventCoins")
+                local live = f and #f:GetChildren() or 0
+                if live == 0 then
                     return
                 end
-                rawFire(Network, "RequestEventCoins")
-                task.wait(0.3)
+                setStatus("event on, " .. live .. " coins - grabbing")
                 stats.coins = stats.coins + sweepCoins()
             end)
-            task.wait(4)
+            task.wait(F.fastcoin and 0.6 or 4)
         else
-            task.wait(1)
+            task.wait(2)
         end
     end
 end)
@@ -2197,34 +2237,6 @@ task.spawn(function()
             if not r then
                 return
             end
-            if F.safemode and F.phase and not F.fly and not F.elobleed then
-        killPad()
-        local r = root()
-        local h = hum()
-        if r and h and h.Health > 0 then
-            if not phaseCF or not phasePart or not phasePart.Parent then
-                enterPhase()
-            end
-            if phaseCF then
-                noclipMe()
-                r.AssemblyLinearVelocity = Vector3.zero
-                -- rewrite the ORIGINAL point every frame. reading the pushed position
-                -- back is what lets physics squeeze the body out one notch at a time
-                r.CFrame = phaseCF
-                phaseChecks = phaseChecks + 1
-                if phaseChecks % 30 == 0 then
-                    if insideSolid(phaseCF.Position, nil) then
-                        phaseIn = phaseIn + 1
-                    else
-                        clearPhase()
-                        setStatus("that block did not hold, picking another")
-                    end
-                end
-            end
-        end
-    elseif F.safemode and F.basement and not F.fly and not F.elobleed then
-                return
-            end
             local vy = voidLine()
             local falling = r.AssemblyLinearVelocity.Y < -110
             if r.Position.Y > vy + 30 and math.abs(r.AssemblyLinearVelocity.Y) < 60 then
@@ -2291,6 +2303,28 @@ task.spawn(function()
     end
 end)
 
+task.spawn(function()
+    while gui.Parent and mine() do
+        if F.autohide then
+            guard("autohide", function()
+                if not F.safemode or not F.phase then
+                    F.safemode = true
+                    F.phase = true
+                    F.basement = false
+                    clearPhase()
+                end
+                if not phaseCF or not phasePart or not phasePart.Parent then
+                    local cf = enterPhase()
+                    if cf and phasePart then
+                        setStatus("hiding inside " .. phasePart.Name .. " " .. tostring(phasePart.Size))
+                    end
+                end
+            end)
+        end
+        task.wait(2)
+    end
+end)
+
 -- someone typing hacker or report in chat is the only real warning this game gives
 local chatHits = 0
 if TextChatService then
@@ -2328,24 +2362,28 @@ renderConn = RunService.RenderStepped:Connect(function()
             end
         end
     end
-    if F.safemode and F.basement and not F.fly and not F.elobleed then
+    if F.safemode and F.phase and not F.fly and not F.elobleed then
+        killPad()
         local r = root()
         local h = hum()
-        local sp = safeSpot()
-        if r and sp and (not h or h.Health <= 0) and r.Position.Y < basementY() - 25 then
-            r.AssemblyLinearVelocity = Vector3.zero
-            r.CFrame = sp
-        end
-        if r and h and h.Health > 0 and sp then
-            makePad(sp.Position)
-            holdAt(sp.Position)
-            local off = (r.Position - sp.Position).Magnitude
-            local pin = F.autofarm and 2.5 or 14
-            if off > pin or r.Position.Y < basementY() - 12 then
+        if r and h and h.Health > 0 then
+            if not phaseCF or not phasePart or not phasePart.Parent then
+                enterPhase()
+            end
+            if phaseCF then
+                noclipMe()
                 r.AssemblyLinearVelocity = Vector3.zero
-                r.CFrame = sp
-                if off > 60 then
-                    setStatus("pulled back from y " .. math.floor(r.Position.Y))
+                -- rewrite the ORIGINAL point every frame. reading the pushed position
+                -- back is what lets physics squeeze the body out one notch at a time
+                r.CFrame = phaseCF
+                phaseChecks = phaseChecks + 1
+                if phaseChecks % 30 == 0 then
+                    if insideSolid(phaseCF.Position, nil) then
+                        phaseIn = phaseIn + 1
+                    else
+                        clearPhase()
+                        setStatus("that block did not hold, picking another")
+                    end
                 end
             end
         end
@@ -2424,6 +2462,7 @@ LP.CharacterAdded:Connect(function()
     if not mine() then
         return
     end
+    clearPhase()
     resetSafeSpot()
     local h = hum()
     if h then
@@ -2478,7 +2517,8 @@ task.spawn(function()
                 "phase       " .. (phasePart and ("inside " .. phasePart.Name .. " " .. tostring(phasePart.Size) .. " y " .. math.floor(phaseCF.Position.Y)) or "not in a wall"),
                 "phase held  " .. phaseIn .. " of " .. math.floor(phaseChecks / 30) .. " checks",
                 "pad         " .. ((standPad and standPad.Parent) and ("standing on it, y " .. math.floor(standPad.Position.Y)) or "none") .. (holdPos and "   frozen" or ""),
-                "safe mode   " .. (F.safemode and (F.basement and ("BASEMENT y " .. math.floor(basementY()) .. "  map bottom " .. tostring(readUnder()) .. "  kill " .. fallY()) or ("SKY +" .. F.safeheight)) or "off"),
+                "safe mode   " .. (F.safemode and (F.phase and "PHASE in a wall" or ("SKY +" .. F.safeheight)) or "off"),
+                "basement    banned, never used",
                 "name shown  " .. tostring(LP.DisplayName),
                 "",
                 (function()
