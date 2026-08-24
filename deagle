@@ -146,7 +146,7 @@ local DEFAULTS = {
     noclip = false,
     infjump = true,
     antivoid = true,
-    safemode = true,
+    safemode = false,
     nopopup = true,
     hidevape = true,
     vapesync = true,
@@ -185,7 +185,7 @@ end
 
 local ALWAYS_ON = {
     "autofarm", "autocoin", "autodeploy", "autorespawn", "silent", "esp", "infjump",
-    "antivoid", "safemode", "phase", "nopopup", "hidevape", "vapesync", "spoofname", "scrubname",
+    "antivoid", "nopopup", "hidevape", "vapesync", "spoofname", "scrubname",
     "autoclaim", "autospin", "autocase", "autocode", "autoskin", "autovote",
     "targetBots", "targetPlayers", "botsfirst", "eloguard", "forceon", "revenge", "hunt",
 }
@@ -889,6 +889,8 @@ end
 -- thing that still reaches is another script, and those are on the killers list
 local phaseCF = nil
 local phasePart = nil
+local phaseChecks = 0
+local phaseIn = 0
 
 local function insideSolid(pos, ignorePart)
     local params = OverlapParams.new()
@@ -915,12 +917,11 @@ local function findPhaseSpot()
         if d:IsA("BasePart") and d.CanCollide and d.Transparency < 0.9 then
             local sz = d.Size
             local thin = math.min(sz.X, sz.Y, sz.Z)
-            if thin >= 7 then
+            if thin >= 12 then
                 local dist = (d.Position - here).Magnitude
-                local score = (sz.X * sz.Y * sz.Z) / 1000 - dist * 0.35
+                local score = thin * 12 + (sz.X * sz.Y * sz.Z) / 8000 - dist * 0.15
                 if score > bestScore then
-                    local solid = insideSolid(d.Position, d)
-                    if solid then
+                    if insideSolid(d.Position, d) then
                         best, bestScore = d, score
                     end
                 end
@@ -943,6 +944,18 @@ end
 local function clearPhase()
     phaseCF = nil
     phasePart = nil
+end
+
+local function restoreCollide()
+    local c = LP.Character
+    if not c then
+        return
+    end
+    for _, d in ipairs(c:GetDescendants()) do
+        if d:IsA("BasePart") and d.Name ~= "HumanoidRootPart" and not d.CanCollide then
+            d.CanCollide = true
+        end
+    end
 end
 
 local function noclipMe()
@@ -1891,6 +1904,25 @@ mini.MouseButton1Click:Connect(function()
     main.Size = collapsed and UDim2.fromOffset(330, 34) or UDim2.fromOffset(330, 430)
 end)
 
+button(pSet, "BACK TO NORMAL", function()
+    F.safemode = false
+    F.phase = false
+    F.basement = false
+    F.noclip = false
+    F.fly = false
+    F.offlist.safemode = true
+    F.offlist.phase = true
+    stopFly()
+    killPad()
+    clearPhase()
+    resetSafeSpot()
+    restoreCollide()
+    saveCfg()
+    for _, fn in ipairs(repaint) do
+        pcall(fn)
+    end
+    setStatus("body released - collisions back, nothing is holding you")
+end)
 button(pSet, "REBUILD THE PAD", function()
     killPad()
     resetSafeSpot()
@@ -1906,11 +1938,15 @@ panic.MouseButton1Click:Connect(function()
     F.silent = false
     F.infjump = false
     F.safemode = false
+    F.safemode = false
+    F.phase = false
+    F.basement = false
     stopFly()
     clearEsp()
     killPad()
     clearPhase()
-    setStatus("PANIC - all off")
+    restoreCollide()
+    setStatus("PANIC - all off, body back to normal")
 end)
 
 showPage("FARM")
@@ -2175,6 +2211,15 @@ task.spawn(function()
                 -- rewrite the ORIGINAL point every frame. reading the pushed position
                 -- back is what lets physics squeeze the body out one notch at a time
                 r.CFrame = phaseCF
+                phaseChecks = phaseChecks + 1
+                if phaseChecks % 30 == 0 then
+                    if insideSolid(phaseCF.Position, nil) then
+                        phaseIn = phaseIn + 1
+                    else
+                        clearPhase()
+                        setStatus("that block did not hold, picking another")
+                    end
+                end
             end
         end
     elseif F.safemode and F.basement and not F.fly and not F.elobleed then
@@ -2317,6 +2362,10 @@ renderConn = RunService.RenderStepped:Connect(function()
         end
     elseif not F.safemode or F.fly then
         killPad()
+        clearPhase()
+        if not F.noclip then
+            restoreCollide()
+        end
     end
     if F.fly then
         local r = root()
@@ -2426,7 +2475,8 @@ task.spawn(function()
                 "",
                 "skin        " .. tostring(ClientData.Inventory and ClientData.Inventory.EquippedSkin),
                 "vape        " .. on .. " on of " .. live .. ", remembered " .. stats.saved,
-                "phase       " .. (phasePart and ("inside " .. phasePart.Name .. " y " .. math.floor(phaseCF.Position.Y)) or "not in a wall"),
+                "phase       " .. (phasePart and ("inside " .. phasePart.Name .. " " .. tostring(phasePart.Size) .. " y " .. math.floor(phaseCF.Position.Y)) or "not in a wall"),
+                "phase held  " .. phaseIn .. " of " .. math.floor(phaseChecks / 30) .. " checks",
                 "pad         " .. ((standPad and standPad.Parent) and ("standing on it, y " .. math.floor(standPad.Position.Y)) or "none") .. (holdPos and "   frozen" or ""),
                 "safe mode   " .. (F.safemode and (F.basement and ("BASEMENT y " .. math.floor(basementY()) .. "  map bottom " .. tostring(readUnder()) .. "  kill " .. fallY()) or ("SKY +" .. F.safeheight)) or "off"),
                 "name shown  " .. tostring(LP.DisplayName),
