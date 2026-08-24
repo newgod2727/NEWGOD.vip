@@ -76,10 +76,28 @@ local NOT_MINE = {
 	VRHub = true, TouchGui = true, ControlGui = true, BubbleChat = true,
 }
 
+-- ONLY WHERE THE EXECUTOR PUTS THINGS. NOT ALL OF CoreGui.
+--
+-- Measured 2026-08-22 15:2x on this client. gethui() answers RobloxGui and its
+-- children are ours: SoloPlay, SoloRec, SoloFarm, SoloTeam, XpBar and Vape.
+-- CoreGui's own children are not, and the NOT_MINE list below only names about
+-- a dozen of them - it does not name ExperienceChat, SystemScrim,
+-- PurchasePromptApp, TeleportEffectGui, ShortcutBar, FoundationOverlay,
+-- CaptureOverlay, InExperienceInterventionApp or any of the rest that were
+-- sitting there when this was counted.
+--
+-- Scanning CoreGui therefore meant repainting Roblox's own overlays gold,
+-- forcing DisplayOrder 9200 on them and hanging drag handlers off them. This
+-- file is supposed to format HIS panels, not take over the platform's UI, so it
+-- reads gethui only and falls back to CoreGui just for the executors that do
+-- not provide one.
 local function containers()
 	local out = {}
 	local h = gethui and gethui()
-	if h then out[#out + 1] = h end
+	if h then
+		out[#out + 1] = h
+		return out
+	end
 	pcall(function() out[#out + 1] = game:GetService("CoreGui") end)
 	return out
 end
@@ -220,15 +238,36 @@ local function repairGui(gui)
 	end)
 end
 
+-- ONCE PER FRAME INSTANCE, NEVER IN A LOOP.
+--
+-- Measured 2026-08-22 15:27: format.log had one "pulled TopFrame back on
+-- screen" line every single second, without end. The repaint pass runs once a
+-- second, and a frame that its own script parks off screen on purpose - a
+-- hidden or animated panel - gets yanked back, put away again by its owner, and
+-- yanked back a second later. We were fighting somebody else's UI forever and
+-- writing a log line about it each time.
+--
+-- The repair this is for is a real one and it happens once: a panel whose saved
+-- position came off a bigger screen opens outside the viewport and cannot be
+-- reached. Doing that a second time is not a repair, it is a tug of war.
+--
+-- Invisible frames are skipped outright. A frame nobody can see is not stranded.
 local function pullOnScreen(top)
 	pcall(function()
+		if top:GetAttribute("HFPulled") then return end
+		if top.Visible == false then return end
 		local cam = workspace.CurrentCamera
 		if not cam then return end
 		local vp = cam.ViewportSize
+		-- Before the camera has a real viewport this reads 1x1, and then every
+		-- panel on the right hand side of a 1920 wide screen looks off screen and
+		-- gets dragged to 24,120. Measured 15:29:39 - it moved his SoloTeam panel.
+		if vp.X < 200 or vp.Y < 200 then return end
 		local p = top.AbsolutePosition
 		if p.X < -40 or p.Y < -10 or p.X > vp.X - 40 or p.Y > vp.Y - 20 then
+			top:SetAttribute("HFPulled", true)
 			top.Position = UDim2.new(0, 24, 0, 120)
-			note("pulled " .. top.Name .. " back on screen")
+			note("pulled " .. top:GetFullName() .. " back on screen (once)")
 		end
 	end)
 end
@@ -307,17 +346,78 @@ end
 local reqFn = (syn and syn.request) or (http and http.request) or http_request or request
 	or (fluxus and fluxus.request)
 
-local function httpJson(method, url, bodyTable)
-	local out
+-- A SILENT SINK IS THE SAME AS NO SINK, SO THIS ONE REPORTS.
+--
+-- Measured 2026-08-22 16:0x by POSTing the real payload at the real URL from
+-- outside the game:
+--   POST /exec                -> 302, redirect to script.googleusercontent.com
+--   follow it keeping the body -> 405, "Sorry, unable to open the file at this
+--                                 time" - the Google Drive not-found page
+--
+-- So the deployment behind that URL does not exist, and every event this file
+-- has ever sent went nowhere. It could never be noticed because httpJson threw
+-- the result away and swallowed every error inside a pcall.
+--
+-- Now the status code is kept, written to RobloxComm/hf/sync.txt, and a failed
+-- batch is appended to sync_backlog.jsonl instead of being lost. When he
+-- redeploys the Apps Script and pastes the new /exec URL in, the backlog is
+-- already sitting there.
+-- DECLARED BEFORE syncNote READS IT, 2026-08-24, found by luau-lsp.
+--
+-- SYNC_URL was declared 49 lines BELOW the function that prints it, so inside
+-- syncNote it was a nil global: the "" test failed, SYNC_URL:sub(1, 64) was
+-- called on nil, it threw, the surrounding pcall ate it, and sync.txt was never
+-- written. The status file that exists to tell us the sync is broken was itself
+-- broken. Declared empty here and assigned below, so both halves see one local.
+local SYNC_URL = ""
+local syncState = { ok = 0, fail = 0, code = "-", when = "-", why = "" }
+HF.sync = syncState
+
+local function syncNote()
 	pcall(function()
-		if not reqFn then return end
+		if not isfolder("RobloxComm") then makefolder("RobloxComm") end
+		if not isfolder(DIR) then makefolder(DIR) end
+		writefile(DIR .. "/sync.txt", table.concat({
+			"last attempt " .. syncState.when,
+			"http         " .. tostring(syncState.code),
+			"delivered    " .. syncState.ok,
+			"failed       " .. syncState.fail,
+			"why          " .. (syncState.why ~= "" and syncState.why or "-"),
+			"url          " .. (SYNC_URL == "" and "(not set)" or SYNC_URL:sub(1, 64) .. "..."),
+			"backlog      RobloxComm/hf/sync_backlog.jsonl",
+		}, string.char(10)) .. string.char(10))
+	end)
+end
+
+local function httpJson(method, url, bodyTable)
+	local out, code, err
+	pcall(function()
+		if not reqFn then err = "no request function in this executor" return end
 		local opt = { Url = url, Method = method,
 			Headers = { ["Content-Type"] = "application/json" } }
 		if bodyTable then opt.Body = Http:JSONEncode(bodyTable) end
 		local res = reqFn(opt)
-		out = res and (res.Body or res.body)
+		if res then
+			out = res.Body or res.body
+			code = res.StatusCode or res.status_code or res.Status
+		end
 	end)
-	return out
+	syncState.when = os.date("%Y-%m-%d %H:%M:%S")
+	syncState.code = code or "no answer"
+	local good = type(code) == "number" and code >= 200 and code < 300
+	if good then
+		syncState.ok = syncState.ok + 1
+		syncState.why = ""
+	else
+		syncState.fail = syncState.fail + 1
+		syncState.why = err or ("http " .. tostring(code)
+			.. (type(out) == "string" and out:find("unable to open the file", 1, true)
+				and " - the apps script deployment is gone, redeploy it and paste the new /exec url"
+				or ""))
+		if syncState.fail == 1 then note("sync FAILED: " .. syncState.why) end
+	end
+	syncNote()
+	return out, good
 end
 
 -- ------------------------------------------------------------ sync
@@ -332,7 +432,7 @@ end
 -- top turns it on and nothing else changes. Game and server only, nothing off
 -- the game.
 
-local SYNC_URL = "https://script.google.com/macros/s/AKfycbyzZDdpFMy19pOg_4OhJqHzFFcSj5kRlufhpaxQbUQMbtc5onOh1sNiIAsrnui6DhfN/exec"
+SYNC_URL = "https://script.google.com/macros/s/AKfycbyzZDdpFMy19pOg_4OhJqHzFFcSj5kRlufhpaxQbUQMbtc5onOh1sNiIAsrnui6DhfN/exec"
 
 local queue = {}
 local seenErr = {}
@@ -397,20 +497,60 @@ local function signalError(msg)
 	local box = seenErr[key]
 	if box then box.n = box.n + 1 return end
 	seenErr[key] = { n = 1 }
-	push("error", { msg = key })
+	-- It was push(), and push has never existed in this file. Every error the
+	-- game raised therefore raised a SECOND error - "attempt to call a nil
+	-- value" at this line - which raised a third, which is where the
+	-- "cannot resume dead coroutine" lines come from. Measured 17:07 and
+	-- 17:11 on his three clients, in pairs, every time.
+	signal("error", { msg = key })
 end
 
+-- Nothing is thrown away. A batch that did not land is written to disk so the
+-- record survives a dead sink, a restart and a redeploy.
 local function flush()
 	if SYNC_URL == "" or #queue == 0 then return end
 	local batch = {}
 	for _, e in ipairs(queue) do batch[#batch + 1] = e end
 	queue = {}
-	httpJson("POST", SYNC_URL, { events = batch })
+	local _, good = httpJson("POST", SYNC_URL, { events = batch })
+	if good then return end
+	pcall(function()
+		if not isfolder("RobloxComm") then makefolder("RobloxComm") end
+		if not isfolder(DIR) then makefolder(DIR) end
+		local path = DIR .. "/sync_backlog.jsonl"
+		local text = ""
+		for _, e in ipairs(batch) do
+			text = text .. Http:JSONEncode(e) .. string.char(10)
+		end
+		if isfile(path) then
+			-- Keep the file from growing without end: past a megabyte, start again
+			-- from the newest half rather than let a dead sink fill the disk.
+			if #readfile(path) > 1000000 then
+				local keep = readfile(path)
+				writefile(path, keep:sub(#keep - 400000))
+			end
+			appendfile(path, text)
+		else
+			writefile(path, text)
+		end
+	end)
 end
 
+-- NEVER ON THE LOAD THREAD.
+--
+-- Caught 2026-08-22 15:44:50 by the named long-frame log: "long frame 3.59s
+-- during=entry loading hackformat farm=nil". The cost is inside fingerprint(),
+-- which calls MarketplaceService:GetProductInfo to learn the game's name - a
+-- blocking web request, and it was being made from signal("start") the moment
+-- this file loaded, which is during the map stream that kills this client.
+--
+-- The check-in is not urgent. It is telemetry. It waits.
 local function startSync()
 	if SYNC_URL == "" then return end
-	signal("start")
+	task.spawn(function()
+		task.wait(6)
+		pcall(signal, "start")
+	end)
 	task.spawn(function()
 		while alive() do
 			task.wait(10)
@@ -558,8 +698,16 @@ local function watchFrames()
 				if n >= 30 then HF._fps = math.floor(n / acc + 0.5) acc, n = 0, 0 end
 			end
 			if dt > 0.45 then
-				note(string.format("long frame %.2fs", dt))
-				signal("hang", { dt = math.floor(dt * 100) / 100 })
+				-- A long frame with no name is a mystery every time it happens.
+				-- Anything in this project that walks the whole workspace or
+				-- builds a big string sets __SOLO_BUSY around itself, so the line
+				-- says WHICH pass was in the middle of it - which is the whole
+				-- difference between "the client froze again" and a fix.
+				local who = tostring(env.__SOLO_BUSY or "-")
+				local ph = "-"
+				pcall(function() ph = tostring(env.__SOLOFARM and env.__SOLOFARM.phase) end)
+				note(string.format("long frame %.2fs  during=%s  farm=%s", dt, who, ph))
+				signal("hang", { dt = math.floor(dt * 100) / 100, during = who })
 			end
 		end
 	end)
@@ -579,12 +727,58 @@ local function beat()
 	end)
 end
 
+-- THE PANELS WERE NEVER UNCLICKABLE. THERE WAS NO POINTER.
+--
+-- His report, 2026-08-24 04:5x: "i want to k why they not pressbael, that was
+-- suepr annoying".
+--
+-- Measured on a live client, twenty samples over two seconds:
+--   MouseBehavior    = LockCenter   20 of 20
+--   MouseIconEnabled = false
+--
+-- Everything I would have blamed was already fine. Every panel had Active=true
+-- on both the frame and its title bar, every DisplayOrder was sane, and asking
+-- the engine what sits at each panel's own coordinates returned nothing that
+-- captures input. SkyWars simply locks the mouse to the middle of the screen and
+-- hides the cursor, and it re-locks every frame - so a one-off unlock does
+-- nothing and the panels can never be pressed.
+--
+-- The farm does not use the mouse. It writes CFrame and fires remotes. So the
+-- lock buys nothing and costs him every button on every panel.
+local function freeMouse()
+	task.spawn(function()
+		local told = false
+		while alive() do
+			RunService.Heartbeat:Wait()
+			pcall(function()
+				if UIS.MouseBehavior ~= Enum.MouseBehavior.Default then
+					UIS.MouseBehavior = Enum.MouseBehavior.Default
+					if not told then
+						told = true
+						note("mouse was locked to centre, holding it free so the panels are pressable")
+					end
+				end
+				if not UIS.MouseIconEnabled then UIS.MouseIconEnabled = true end
+			end)
+		end
+	end)
+end
+
 local function guardVoid()
 	task.spawn(function()
 		local lastGood
 		while alive() do
 			task.wait(0.4)
 			pcall(function()
+				-- ONE OWNER FOR THE BODY.
+				--
+				-- SOLO_FARM has its own anti void on Heartbeat with its own last
+				-- safe position and its own measured floor. Two catchers pulling
+				-- the same character to two different saved spots is the tug of
+				-- war that parks a bot under the map - the EggWars farm already
+				-- paid for that lesson once. When the farm is loaded it owns the
+				-- body and this one stands down.
+				if env.__SOLOFARM then return end
 				local ch = Players.LocalPlayer.Character
 				local hrp = ch and ch:FindFirstChild("HumanoidRootPart")
 				if not hrp then return end
@@ -650,6 +844,55 @@ local function boostLighting()
 	end
 end
 
+-- A PROPERTY THE ENGINE REFUSES IS SILENT, AND THAT IS WHY IT KILLED A CLIENT.
+--
+-- Writing a run-time-locked property does NOT throw. It prints one warning and
+-- leaves the value alone, so pcall sees success and the loop happily writes it
+-- again on the next object, and the next round, for ever. One such line
+-- produced 20,863 warnings in a 22 minute client log on 2026-08-24, in bursts
+-- of 550 to 620 inside a single second - and that burst is a long frame, which
+-- is what Roblox's HangMonitor kills the process for.
+--
+-- So: write it, READ IT BACK, and if it did not take, put the property name in
+-- a set and never write it again this session. One warning instead of twenty
+-- thousand, and the name of the offender lands in a file so the next session
+-- does not have to find it from a crash log.
+local refusedProp = {
+	-- READ-BACK CANNOT SEE THIS ONE, SO IT IS BANNED BY NAME.
+	--
+	-- 2026-08-25 00:4x, seven clients: refused_props.tsv correctly caught
+	-- Material on Terrain, but RenderFidelity never appeared in it - the write
+	-- reads back as the value we asked for, so trySet believes it worked. The
+	-- engine disagrees: six live clients still logged 2,266 to 3,022 lines of
+	-- "Cannot change SolidModel RenderFidelity during Run-Time" in four minutes.
+	-- The property is accepted into the instance and ignored by the renderer.
+	--
+	-- A read-back check can only catch a refusal the engine writes back. This
+	-- one it does not, so the name goes in the set up front and nothing ever
+	-- attempts it again. The global MeshPartDetailLevel switch does the same job
+	-- and is accepted - quality.tsv has it in every row with refused empty.
+	RenderFidelity = true,
+}
+local function trySet(inst, prop, val)
+	if refusedProp[prop] then return false end
+	local ok = pcall(function() inst[prop] = val end)
+	local back = nil
+	if ok then pcall(function() back = inst[prop] end) end
+	if ok and back == val then return true end
+	refusedProp[prop] = true
+	pcall(function()
+		local line = os.date("%Y-%m-%d %H:%M:%S") .. string.char(9)
+			.. tostring(prop) .. string.char(9)
+			.. "asked=" .. tostring(val) .. string.char(9)
+			.. "got=" .. tostring(back) .. string.char(9)
+			.. "on=" .. tostring(inst.ClassName) .. string.char(9)
+			.. "NEVER WRITTEN AGAIN THIS SESSION" .. string.char(10)
+		local p = "RobloxComm/solo/refused_props.tsv"
+		if isfile(p) then appendfile(p, line) else writefile(p, line) end
+	end)
+	return false
+end
+
 local function boostSweep()
 	local seen, hit = 0, 0
 	for _, inst in ipairs(workspace:GetDescendants()) do
@@ -658,12 +901,15 @@ local function boostSweep()
 			pcall(function() inst.Enabled = false end)
 			hit = hit + 1
 		elseif inst:IsA("MeshPart") then
-			pcall(function() inst.RenderFidelity = Enum.RenderFidelity.Performance end)
+			-- Refused at run time, see the note above trySet. The pcall swallowed
+			-- the failure but not the warning, and the warning is what costs the
+			-- frame. This guard file must not be the thing that hangs the client.
+			trySet(inst, "RenderFidelity", Enum.RenderFidelity.Performance)
+			trySet(inst, "CastShadow", false)
+			trySet(inst, "Reflectance", 0)
 		elseif inst:IsA("BasePart") then
-			pcall(function()
-				inst.CastShadow = false
-				inst.Reflectance = 0
-			end)
+			trySet(inst, "CastShadow", false)
+			trySet(inst, "Reflectance", 0)
 		elseif inst:IsA("Decal") or inst:IsA("Texture") then
 			pcall(function() inst.Transparency = 1 end)
 		end
@@ -676,6 +922,19 @@ end
 
 local function boost()
 	if boostedJob == tostring(game.JobId) then return end
+	-- ONE OWNER FOR THE RENDER SETTINGS, and it is his QUALITY button.
+	--
+	-- SOLO_PLAY carries the ABCD downgrade behind a button he presses, and two
+	-- scripts writing the same render settings is the shape of bug that wastes a
+	-- night. Worse here: both walk workspace:GetDescendants(), and that walk is
+	-- the long frame this whole file exists to prevent - measured 3500 ms at
+	-- 15:20 on a round change. So when SOLO_PLAY is loaded, this stands down and
+	-- says so.
+	if env.__SOLOPLAY then
+		boostedJob = tostring(game.JobId)
+		note("boost stood down, SOLO_PLAY owns quality on this client")
+		return
+	end
 	boostedJob = tostring(game.JobId)
 	note("BOOST START")
 	boostLighting()
@@ -685,12 +944,28 @@ end
 
 -- ------------------------------------------------------------ run
 
-pcall(function()
-	local line = 'loadstring(game:HttpGet("https://newgod.vip/format"))()'
-	if queue_on_teleport then queue_on_teleport(line)
-	elseif queueonteleport then queueonteleport(line)
-	elseif syn and syn.queue_on_teleport then syn.queue_on_teleport(line) end
-end)
+-- Do not queue yourself when something else is already re-loading you.
+--
+-- SOLO_ENTRY loads this file and queues ITSELF for the far side of every
+-- teleport, so a second queue here means two copies of hackformat per round -
+-- and two copies per round compounding is exactly the bug that had SOLO_ENTRY
+-- loading twenty six times a teleport. The entry sets __HF_NO_QUEUE before it
+-- loads this file; a lone user pasting the public link sets nothing and keeps
+-- the self queue.
+--
+-- The local workspace copy wins over the http one when it exists: same bytes,
+-- no round trip, and it still works when the site is down.
+if not env.__HF_NO_QUEUE then
+	pcall(function()
+		local line = 'loadstring(game:HttpGet("https://newgod.vip/format"))()'
+		if isfile and isfile("HACKFORMAT.lua") then
+			line = 'loadstring(readfile("HACKFORMAT.lua"))()'
+		end
+		if queue_on_teleport then queue_on_teleport(line)
+		elseif queueonteleport then queueonteleport(line)
+		elseif syn and syn.queue_on_teleport then syn.queue_on_teleport(line) end
+	end)
+end
 
 note("hackformat " .. HF.VERSION .. " up, place " .. tostring(game.PlaceId))
 
@@ -698,6 +973,7 @@ guardTerrain()
 guardIdle()
 guardKick()
 guardVoid()
+freeMouse()
 catchErrors()
 watchFrames()
 beat()
