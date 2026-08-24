@@ -65,6 +65,13 @@ end
 local function makeDraggable(name, frame, handle)
 	frame.Active = true
 	handle.Active = true
+	-- Tell HACKFORMAT this panel already has a drag and a saved position.
+	--
+	-- It checks this same attribute before adding its own, and without it the
+	-- panel gets two handlers on one bar: the frame moves twice the mouse delta
+	-- and the position is written to two different files that then fight on the
+	-- next load. One owner per panel, and the owner is the panel's own file.
+	frame:SetAttribute("HFDrag", true)
 	posLoad(name, frame)
 	local UIS = game:GetService("UserInputService")
 	local dragging, startPos, startMouse = false, nil, nil
@@ -99,7 +106,34 @@ local function alive() return env.__XPBAR_GEN == MYGEN end
 local lp = Players.LocalPlayer
 while not lp do task.wait(0.2) lp = Players.LocalPlayer end
 
-for _, h in ipairs({ (gethui and gethui()) or nil, game:GetService("CoreGui"), lp:FindFirstChild("PlayerGui") }) do
+-- See the note in SOLO_FARM: gethui() answers RobloxGui, PlayerGui holds its own
+-- copies, and PlayerGui is not always there when this first runs. Three XpBars
+-- were counted on screen at 15:0x for exactly that reason.
+local function xpSweep(keep)
+	local hosts = {}
+	pcall(function() if gethui then hosts[#hosts + 1] = gethui() end end)
+	pcall(function() hosts[#hosts + 1] = game:GetService("CoreGui") end)
+	pcall(function() hosts[#hosts + 1] = game:GetService("CoreGui"):FindFirstChild("RobloxGui") end)
+	pcall(function() hosts[#hosts + 1] = lp:FindFirstChild("PlayerGui") end)
+	for _, h in ipairs(hosts) do
+		if h then
+			pcall(function()
+				for _, c in ipairs(h:GetChildren()) do
+					if c:IsA("ScreenGui") and c.Name == "XpBar" and c ~= keep then c:Destroy() end
+				end
+			end)
+		end
+	end
+end
+xpSweep(nil)
+task.spawn(function()
+	for _ = 1, 4 do
+		task.wait(2)
+		if not alive() then return end
+		pcall(xpSweep, env.__XPBAR_GUI)
+	end
+end)
+for _, h in ipairs({}) do
 	if h then
 		pcall(function()
 			for _, c in ipairs(h:GetChildren()) do
