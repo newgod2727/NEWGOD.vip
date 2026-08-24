@@ -176,7 +176,10 @@ local DEFAULTS = {
     victimGap = 1.2,
     killCap = 200,
     username = "DEAGLEONTOP",
-    basement = true,
+    basement = false,
+    phase = true,
+    autohide = true,
+    fastcoin = true,
     safedepth = 5,
     offlist = {},
 }
@@ -1518,6 +1521,8 @@ local pInfo = makeTab("INFO")
 
 toggle(pFarm, "AUTO FARM", "autofarm")
 toggle(pFarm, "AUTO COIN", "autocoin")
+toggle(pFarm, "FAST COIN", "fastcoin")
+toggle(pFarm, "AUTO HIDE - biggest hide spot", "autohide")
 toggle(pFarm, "AUTO DEPLOY", "autodeploy")
 toggle(pFarm, "AUTO RESPAWN", "autorespawn")
 toggle(pFarm, "TARGET BOTS", "targetBots")
@@ -1628,14 +1633,41 @@ button(pAdv, "TP UP 300", function()
     end
 end)
 
+local AUTO_KEYS = {
+    "autoclaim", "autospin", "autocase", "autocode", "autoskin", "autovote", "nopopup",
+}
+
+local autoBtn
+autoBtn = button(pAuto, "ALL AUTO ON", function()
+    local allOn = true
+    for _, k in ipairs(AUTO_KEYS) do
+        if not F[k] then
+            allOn = false
+            break
+        end
+    end
+    for _, k in ipairs(AUTO_KEYS) do
+        F[k] = not allOn
+        if allOn then
+            F.offlist[k] = true
+        else
+            F.offlist[k] = nil
+        end
+    end
+    autoBtn.Text = allOn and "ALL AUTO ON" or "ALL AUTO OFF"
+    saveCfg()
+    for _, fn in ipairs(repaint) do
+        pcall(fn)
+    end
+    setStatus(allOn and "every auto on this page is off" or "every auto on this page is on")
+end)
+
 toggle(pAuto, "AUTO KILL ALL POP UP", "nopopup")
 button(pAuto, "KILL POP UPS NOW", function()
     hookPopups()
     killPopups()
     setStatus("every offer, prompt and ad panel hidden")
 end)
-toggle(pAuto, "AUTO HIDE - biggest hide spot", "autohide")
-toggle(pAuto, "FAST COIN", "fastcoin")
 toggle(pAuto, "AUTO CLAIM ALL", "autoclaim")
 toggle(pAuto, "AUTO FREE SPIN", "autospin")
 toggle(pAuto, "AUTO OPEN CASES", "autocase")
@@ -2364,11 +2396,13 @@ task.spawn(function()
     while gui.Parent and mine() do
         if F.autohide then
             guard("autohide", function()
+                if coinBusy then
+                    return
+                end
                 if not F.safemode or not F.phase then
                     F.safemode = true
                     F.phase = true
                     F.basement = false
-                    clearPhase()
                 end
                 if not phaseCF or not phasePart or not phasePart.Parent then
                     local cf = enterPhase()
@@ -2447,7 +2481,7 @@ renderConn = RunService.RenderStepped:Connect(function()
             end
         end
     end
-    if F.safemode and F.phase and not F.fly and not F.elobleed then
+    if F.safemode and F.phase and not F.fly and not F.elobleed and not coinBusy then
         killPad()
         local r = root()
         local h = hum()
@@ -2547,7 +2581,6 @@ LP.CharacterAdded:Connect(function()
     if not mine() then
         return
     end
-    clearPhase()
     resetSafeSpot()
     local h = hum()
     if h then
