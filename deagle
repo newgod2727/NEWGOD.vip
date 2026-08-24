@@ -114,7 +114,7 @@ local DEFAULTS = {
     safeheight = 320,
     victimGap = 1.2,
     killCap = 200,
-    username = "NewGodOnTop",
+    username = "DEAGLEONTOP",
 }
 
 local F = {}
