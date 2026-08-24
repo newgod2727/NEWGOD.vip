@@ -10,6 +10,58 @@ local TextChatService = game:GetService("TextChatService")
 
 local LP = Players.LocalPlayer
 
+-- the name goes first, before anything is required and before one frame is drawn,
+-- so no label ever renders the real account even once
+local realName = LP.Name
+local realDisplay = LP.DisplayName
+local wantName = "DEAGLEONTOP"
+local spoofOn = true
+pcall(function()
+    if isfile and isfile("NEWGOD_DEAGLE_cfg.json") then
+        local t = HttpService:JSONDecode(readfile("NEWGOD_DEAGLE_cfg.json"))
+        if type(t.username) == "string" and t.username ~= "" then
+            wantName = t.username
+        end
+        if type(t.spoofname) == "boolean" then
+            spoofOn = t.spoofname
+        end
+    end
+end)
+pcall(function()
+    if spoofOn then
+        LP.DisplayName = wantName
+    end
+end)
+
+local function swapText(d)
+    if not spoofOn then
+        return
+    end
+    if d:IsA("TextLabel") or d:IsA("TextButton") then
+        local t = d.Text
+        if t and t ~= "" and string.find(t, realName, 1, true) then
+            pcall(function()
+                d.Text = string.gsub(t, realName, wantName)
+            end)
+        end
+    end
+end
+
+for _, h in ipairs({LP:FindFirstChild("PlayerGui"), game:GetService("CoreGui")}) do
+    if h then
+        pcall(function()
+            h.DescendantAdded:Connect(swapText)
+        end)
+    end
+end
+LP.ChildAdded:Connect(function(c)
+    if c:IsA("PlayerGui") then
+        pcall(function()
+            c.DescendantAdded:Connect(swapText)
+        end)
+    end
+end)
+
 local function nukeOldPanels()
     local hosts = {game:GetService("CoreGui")}
     pcall(function()
@@ -173,7 +225,7 @@ loadCfg()
 local stats = {
     shots = 0, landed = 0, miss = 0, dry = 0, coins = 0, claims = 0, spins = 0,
     cases = 0, t0 = os.clock(), gap = HIT_GAP + 0.01, pending = 0, blocked = 0,
-    startElo = nil, saved = 0, streak = 0, backoff = 0,
+    startElo = nil, saved = 0, streak = 0, backoff = 0, kills0 = nil, killsNow = 0,
 }
 local statusText = "loading"
 local lastErr = ""
@@ -601,20 +653,15 @@ local function hideVape()
     end
 end
 
--- username on screen. server still owns the real one, this only cleans his screen
-local realName = LP.Name
-local realDisplay = LP.DisplayName
-pcall(function()
-    local n = Players:GetNameFromUserIdAsync(LP.UserId)
-    if type(n) == "string" and n ~= "" then
-        realName = n
-    end
-end)
-
+-- server still owns the real account, this only cleans his screen
 local function applyName()
+    spoofOn = F.spoofname
+    if F.username ~= "" then
+        wantName = F.username
+    end
     pcall(function()
-        if F.spoofname and F.username ~= "" then
-            LP.DisplayName = F.username
+        if spoofOn then
+            LP.DisplayName = wantName
         else
             LP.DisplayName = realDisplay
         end
@@ -625,7 +672,7 @@ local function scrubNames()
     if not F.scrubname or not F.spoofname then
         return
     end
-    local want = F.username
+    local want = wantName
     local hosts = {LP:FindFirstChild("PlayerGui"), game:GetService("CoreGui")}
     for _, h in ipairs(hosts) do
         if h then
@@ -1858,6 +1905,13 @@ task.spawn(function()
             if not stats.startElo and tonumber(d.Elo) then
                 stats.startElo = tonumber(d.Elo)
             end
+            local k = tonumber(d.Kills)
+            if k then
+                if not stats.kills0 then
+                    stats.kills0 = k
+                end
+                stats.killsNow = k - stats.kills0
+            end
             local mins = math.max((os.clock() - stats.t0) / 60, 0.01)
             status.Text = " " .. statusText
             local live, on = vapeSnapshot()
@@ -1873,11 +1927,11 @@ task.spawn(function()
                 "greek pts   " .. tostring(d.GreekPoints),
                 "",
                 "targets now " .. #targetList() .. "   players " .. (#Players:GetPlayers() - 1),
-                "shots sent  " .. stats.shots .. "   landed " .. stats.landed,
-                "kills / min " .. string.format("%.1f", stats.landed / mins),
+                "shots sent  " .. stats.shots .. "   killed " .. stats.killsNow,
+                "kills / min " .. string.format("%.1f", stats.killsNow / mins) .. "   hit " .. string.format("%.0f%%", 100 * stats.killsNow / math.max(stats.shots, 1)),
                 "gap now     " .. string.format("%.3f", stats.gap) .. "s   floor " .. LIM.gapFloor,
                 "miss run    " .. stats.streak .. "   backoff " .. stats.backoff,
-                "no-target   " .. stats.dry .. "   miss " .. stats.miss,
+                "no-target   " .. stats.dry .. "   event miss " .. stats.miss,
                 "rate held   " .. stats.blocked .. "   cap " .. F.killCap .. "/min",
                 "coins sent  " .. stats.coins,
                 "claims      " .. stats.claims .. "   spins " .. stats.spins .. "   cases " .. stats.cases,
@@ -1903,6 +1957,13 @@ pcall(function()
 end)
 
 applyName()
+task.spawn(function()
+    local t0 = os.clock()
+    while mine() and os.clock() - t0 < 10 do
+        guard("namefast", scrubNames)
+        task.wait(0.15)
+    end
+end)
 hookPopups()
 vapeSnapshot()
 saveCfg()
