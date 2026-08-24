@@ -462,6 +462,42 @@ local function targetList()
     return cacheList
 end
 
+local floorY = nil
+local floorAt = 0
+local floorFrom = "none"
+
+-- the play floor is where living people stand, not the lowest decoration in the
+-- map folder. measured on the ranked map: other players at y 2, lowest map part
+-- at y -33, so the old reference let the body sit 7 studs underground and
+-- called it fine
+local function readFloor()
+    local now = os.clock()
+    if floorY and now - floorAt < 1 then
+        return floorY
+    end
+    floorAt = now
+    local ys = {}
+    for _, e in ipairs(targetList()) do
+        local hb = hitboxOf(e.m)
+        if hb then
+            ys[#ys + 1] = hb.Position.Y
+        end
+    end
+    if #ys > 0 then
+        table.sort(ys)
+        floorY = ys[math.ceil(#ys / 2)]
+        floorFrom = #ys .. " players"
+        return floorY
+    end
+    local sp = workspace:FindFirstChildWhichIsA("SpawnLocation", true)
+    if sp then
+        floorY = sp.Position.Y
+        floorFrom = "spawn"
+        return floorY
+    end
+    return floorY
+end
+
 local function pickTarget()
     local r = root()
     if not r then
@@ -953,10 +989,10 @@ local function findPhaseSpot()
         return a.vol > b.vol
     end)
     -- biggest first, and the first one that really has solid material inside wins
-    local under = readUnder()
+    local floor = readFloor()
     for i = 1, math.min(#ranked, 25) do
         local pt = pointInside(ranked[i].part)
-        if pt and (not under or pt.Y > under + 2) then
+        if pt and (not floor or pt.Y >= floor - 4) then
             return ranked[i].part, pt
         end
     end
@@ -2469,31 +2505,25 @@ if TextChatService then
     end)
 end
 
-local surfaceY = nil
 local underBlocks = 0
-
 local function neverBelowMap()
     local r = root()
     if not r then
         return
     end
-    local under = readUnder()
-    if not under then
+    local floor = readFloor()
+    if not floor then
         return
     end
-    if groundY and groundY > under then
-        surfaceY = groundY
-    end
-    local floorLine = under + 2
-    if r.Position.Y >= floorLine then
+    if r.Position.Y >= floor - 8 then
         return
     end
     underBlocks = underBlocks + 1
     F.basement = false
-    local lift = (surfaceY or (under + 20)) + 6
+    local lift = floor + 6
     r.AssemblyLinearVelocity = Vector3.zero
     r.CFrame = CFrame.new(Vector3.new(r.Position.X, lift, r.Position.Z))
-    setStatus("BLOCKED going under the map, pulled up to y " .. math.floor(lift) .. " (x" .. underBlocks .. ")")
+    setStatus("UNDER THE FLOOR at y " .. math.floor(r.Position.Y) .. ", floor is " .. math.floor(floor) .. " - pulled up (x" .. underBlocks .. ")")
 end
 
 local renderConn
@@ -2673,7 +2703,7 @@ task.spawn(function()
                 "phase held  " .. phaseIn .. " of " .. math.floor(phaseChecks / 30) .. " checks",
                 "pad         " .. ((standPad and standPad.Parent) and ("standing on it, y " .. math.floor(standPad.Position.Y)) or "none") .. (holdPos and "   frozen" or ""),
                 "safe mode   " .. (F.safemode and (F.phase and "PHASE in a wall" or ("SKY +" .. F.safeheight)) or "off"),
-                "basement    banned, blocked " .. underBlocks .. " times",
+                "floor       y " .. tostring(floorY and math.floor(floorY)) .. " from " .. floorFrom .. ", blocked " .. underBlocks,
                 "name shown  " .. tostring(LP.DisplayName),
                 "",
                 (function()
