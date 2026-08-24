@@ -250,7 +250,7 @@ local stats = {
     shots = 0, landed = 0, miss = 0, dry = 0, coins = 0, claims = 0, spins = 0,
     cases = 0, t0 = os.clock(), gap = HIT_GAP + 0.01, pending = 0, blocked = 0,
     startElo = nil, saved = 0, streak = 0, backoff = 0, kills0 = nil, killsNow = 0, diedTo = 0,
-    holdFor = 0, holdStart = 0, eventMap = false, achClaimed = 0,
+    holdFor = 0, holdStart = 0, eventMap = false, achClaimed = 0, spinRefused = 0,
 }
 local statusText = "loading"
 local lastErr = ""
@@ -1719,13 +1719,40 @@ local function claimPass()
     stats.claims = stats.claims + 1
 end
 
-local function spinNow()
+local spinState = {Spins = 0, NextFreeSpinTime = 0, FreeSpinPlaytime = 0, at = 0}
+
+pcall(function()
+    Network.OnClientEvent("SpinWheelState", function(p1)
+        if type(p1) == "table" then
+            spinState.Spins = tonumber(p1.Spins) or 0
+            spinState.NextFreeSpinTime = tonumber(p1.NextFreeSpinTime) or 0
+            spinState.FreeSpinPlaytime = tonumber(p1.FreeSpinPlaytime) or 0
+            spinState.at = os.time()
+        end
+    end)
+end)
+pcall(function()
+    Network.OnClientEvent("SpinWheelError", function(p1)
+        stats.spinRefused = (stats.spinRefused or 0) + 1
+        setStatus("spin refused: " .. tostring(p1))
+    end)
+end)
+
+local function spinNow(force)
     rawFire(Network, "RequestSpinWheelState")
-    task.wait(0.4)
+    task.wait(0.6)
+    local owed = spinState.Spins > 0
+    local due = spinState.NextFreeSpinTime > 0 and os.time() >= spinState.NextFreeSpinTime
+    if not force and not owed and not due then
+        return false
+    end
     rawFire(Network, "RequestSpinWheelSpin")
     task.wait(4.4)
     rawFire(Network, "SpinWheelAnimationFinished")
     stats.spins = stats.spins + 1
+    task.wait(0.5)
+    rawFire(Network, "RequestSpinWheelState")
+    return true
 end
 
 local function openCases()
@@ -1821,8 +1848,7 @@ button(pAuto, "CLAIM EVERYTHING NOW", function()
     setStatus("claim pass done")
 end)
 button(pAuto, "FREE SPIN NOW", function()
-    spinNow()
-    setStatus("spin sent")
+    setStatus(spinNow(true) and "spin sent" or "no spin to use")
 end)
 button(pAuto, "OPEN ALL CASES NOW", function()
     setStatus("opened " .. openCases() .. " cases")
@@ -2261,8 +2287,14 @@ end)
 task.spawn(function()
     while gui.Parent and mine() do
         if F.autospin then
-            guard("autospin", spinNow)
-            task.wait(SPIN_COOLDOWN + 15)
+            guard("autospin", function()
+                spinNow(false)
+            end)
+            local wait = 30
+            if spinState.NextFreeSpinTime > 0 then
+                wait = math.clamp(spinState.NextFreeSpinTime - os.time() + 3, 15, SPIN_COOLDOWN)
+            end
+            task.wait(wait)
         else
             task.wait(10)
         end
@@ -2631,6 +2663,8 @@ task.spawn(function()
                 "coins sent  " .. stats.coins .. (coinBusy and "   ON THE FLOOR NOW" or ""),
                 "achievements " .. tostring(ClientData.Achievements and ClientData.Achievements.ReadyCount) .. " ready, claimed " .. stats.achClaimed,
                 "claims here  " .. (claimsWork() and "server answers" or "IGNORED in this place"),
+                "spins       " .. spinState.Spins .. " banked, next in " .. math.max(0, spinState.NextFreeSpinTime - os.time()) .. "s, playtime " .. math.floor(spinState.FreeSpinPlaytime) .. "/" .. SPIN_COOLDOWN,
+                "spin used   " .. stats.spins .. "   refused " .. stats.spinRefused,
                 "claims      " .. stats.claims .. "   spins " .. stats.spins .. "   cases " .. stats.cases,
                 "",
                 "skin        " .. tostring(ClientData.Inventory and ClientData.Inventory.EquippedSkin),
