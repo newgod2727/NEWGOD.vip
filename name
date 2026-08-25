@@ -105,9 +105,9 @@ local function apply()
             paintOne(d)
         end
     end
-    for _, host in ipairs({LP:FindFirstChild("PlayerGui"), game:GetService("CoreGui")}) do
-        if host then
-            for _, d in ipairs(host:GetDescendants()) do
+    for _, hostGui in ipairs({LP:FindFirstChild("PlayerGui"), game:GetService("CoreGui")}) do
+        if hostGui then
+            for _, d in ipairs(hostGui:GetDescendants()) do
                 paintOne(d)
             end
         end
@@ -124,10 +124,10 @@ end
 
 apply()
 
-for _, host in ipairs({LP:FindFirstChild("PlayerGui"), game:GetService("CoreGui")}) do
-    if host then
+for _, hostGui in ipairs({LP:FindFirstChild("PlayerGui"), game:GetService("CoreGui")}) do
+    if hostGui then
         pcall(function()
-            host.DescendantAdded:Connect(function(d)
+            hostGui.DescendantAdded:Connect(function(d)
                 if mine() and F.on then
                     paintOne(d)
                 end
