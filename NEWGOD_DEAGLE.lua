@@ -168,6 +168,7 @@ local DEFAULTS = {
     norepeat = true,
     watchchat = true,
     antiafk = true,
+    rankedkillonly = true,
     revenge = true,
     hunt = true,
     speed = 250,
@@ -193,7 +194,7 @@ local ALWAYS_ON = {
     "autofarm", "autocoin", "autodeploy", "autorespawn", "silent", "esp", "infjump",
     "antivoid", "nopopup", "autohide", "fastcoin", "hidevape", "vapesync", "spoofname", "scrubname",
     "autoclaim", "autospin", "autocase", "autocode", "autoskin", "autovote",
-    "targetBots", "targetPlayers", "botsfirst", "eloguard", "forceon", "revenge", "hunt", "antiafk",
+    "targetBots", "targetPlayers", "botsfirst", "eloguard", "forceon", "revenge", "hunt", "antiafk", "rankedkillonly",
 }
 
 local CFG_PATH = "NEWGOD_DEAGLE_cfg.json"
@@ -398,7 +399,7 @@ local function usable(model, isBot)
     local now = os.clock()
     local hold = deadUntil[model] or 0
     if isKiller(model) then
-        hold = hold - 1.2
+        hold = hold - 0.4
     end
     if hold > now then
         return nil
@@ -624,11 +625,8 @@ end
 -- over the game and none of them are needed to play
 local POPUP_GUIS = {
     "OneTimeOfferGui", "RoundStatsGui", "RankStatsGui", "VotingGui", "EventUI",
-    "ExclusiveShopGuiNEW", "ExclusiveButtons", "FreeButtons", "DivineBundleGui",
-    "AbyssBundleGui", "GiftList", "DailyShopGui", "LevelUpGui", "RankUpGui",
-    "UnboxGui", "CaseOpeningGui", "CaseInspectGui", "GroupRewardGui", "RewardsGui",
-    "TimeRewardsGui", "PopupsGui", "NotificationGui", "NewFrames", "CodeGui",
-    "SellConfirmGui", "BackgroundBlur", "EdgeBlur", "BlackGui",
+    "DivineBundleGui", "AbyssBundleGui", "ExclusiveButtons", "FreeButtons",
+    "LevelUpGui", "RankUpGui", "UnboxGui",
 }
 
 local popupHooked2 = {}
@@ -1096,23 +1094,17 @@ local function findPhaseSpot()
         return a.vol > b.vol
     end)
     -- biggest first, and the first one that really has solid material inside wins
-    -- prefer a spot at or above where people stand, but a solid one below is far
-    -- better than no spot at all. measured on the ranked map: the only block big
-    -- enough to hold a body is the floor slab itself, solid at 9 of 9 samples.
+    -- never below where people stand, encased or not. the floor slab counts as
+    -- under the map to whatever kills him down there, measured at about one death
+    -- a second. if this map has no block above the floor, hide simply does nothing.
     local floor = readFloor()
-    local fallbackPart, fallbackPt = nil, nil
     for i = 1, math.min(#ranked, 25) do
         local pt = pointInside(ranked[i].part)
-        if pt then
-            if not floor or pt.Y >= floor - 4 then
-                return ranked[i].part, pt
-            end
-            if not fallbackPart then
-                fallbackPart, fallbackPt = ranked[i].part, pt
-            end
+        if pt and (not floor or pt.Y >= floor - 2) then
+            return ranked[i].part, pt
         end
     end
-    return fallbackPart, fallbackPt
+    return nil, nil
 end
 
 local function enterPhase()
@@ -1353,7 +1345,7 @@ title.Font = Enum.Font.GothamBold
 title.TextSize = 15
 title.TextColor3 = GOLD
 title.TextXAlignment = Enum.TextXAlignment.Left
-title.Text = "NEWGOD DEAGLE  " .. BUILD
+title.Text = "NEWGOD DEAGLE"
 title.Parent = bar
 
 local mini = Instance.new("TextButton")
@@ -1656,6 +1648,7 @@ local pRisk = makeTab("RISK")
 local pInfo = makeTab("INFO")
 
 toggle(pFarm, "AUTO FARM", "autofarm")
+toggle(pFarm, "RANKED = KILL ONLY", "rankedkillonly")
 toggle(pFarm, "AUTO COIN", "autocoin")
 toggle(pFarm, "FAST COIN", "fastcoin")
 toggle(pFarm, "AUTO HIDE - biggest hide spot", "autohide")
@@ -1825,7 +1818,14 @@ local CLAIMS = {
 }
 
 local function claimsWork()
-    return game.PlaceId ~= GREEK_PLACE
+    if game.PlaceId == GREEK_PLACE then
+        return false
+    end
+    -- ranked is a kill only mode, his rule. nothing is collected in there.
+    if F.rankedkillonly and game.PlaceId == RANKED_PLACE then
+        return false
+    end
+    return true
 end
 
 local function claimPass()
@@ -2370,6 +2370,9 @@ task.spawn(function()
     while gui.Parent and mine() do
         if F.autocoin then
             guard("autocoin", function()
+                if F.rankedkillonly and game.PlaceId == RANKED_PLACE then
+                    return
+                end
                 rawFire(Network, "RequestEventCoins")
                 local f = workspace:FindFirstChild("LocalEventCoins")
                 if not f then
@@ -2620,10 +2623,6 @@ local function neverBelowMap()
         return
     end
     if r.Position.Y >= floor - 8 then
-        return
-    end
-    -- encased in rock is allowed and is the whole point. open air down there is not.
-    if insideSolid(r.Position, nil) then
         return
     end
     underBlocks = underBlocks + 1
