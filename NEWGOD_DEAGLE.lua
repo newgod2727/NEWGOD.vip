@@ -121,7 +121,6 @@ local LIM = {
     safeheight = 900,
     victimGap = 8,
     killCap = 200,
-    hopafter = 30,
     safedepth = 160,
     claimEvery = 45,
     caseEvery = 15,
@@ -168,10 +167,9 @@ local DEFAULTS = {
     botsfirst = true,
     norepeat = true,
     watchchat = true,
+    antiafk = true,
     revenge = true,
     hunt = true,
-    hopaway = false,
-    hopafter = 6,
     speed = 250,
     flyspeed = 400,
     safeheight = 320,
@@ -195,7 +193,7 @@ local ALWAYS_ON = {
     "autofarm", "autocoin", "autodeploy", "autorespawn", "silent", "esp", "infjump",
     "antivoid", "nopopup", "autohide", "fastcoin", "hidevape", "vapesync", "spoofname", "scrubname",
     "autoclaim", "autospin", "autocase", "autocode", "autoskin", "autovote",
-    "targetBots", "targetPlayers", "botsfirst", "eloguard", "forceon", "revenge", "hunt",
+    "targetBots", "targetPlayers", "botsfirst", "eloguard", "forceon", "revenge", "hunt", "antiafk",
 }
 
 local CFG_PATH = "NEWGOD_DEAGLE_cfg.json"
@@ -207,7 +205,6 @@ local function clampCfg()
     F.safeheight = math.clamp(tonumber(F.safeheight) or 320, 60, LIM.safeheight)
     F.victimGap = math.clamp(tonumber(F.victimGap) or 1.2, 0, LIM.victimGap)
     F.killCap = math.clamp(math.floor(tonumber(F.killCap) or 200), 0, LIM.killCap)
-    F.hopafter = math.clamp(math.floor(tonumber(F.hopafter) or 6), 2, LIM.hopafter)
     F.safedepth = math.clamp(tonumber(F.safedepth) or 5, 2, LIM.safedepth)
     if type(F.offlist) ~= "table" then
         F.offlist = {}
@@ -314,6 +311,8 @@ local function botBand(e)
 end
 
 local KILLER_PATH = "NEWGOD_DEAGLE_killers.json"
+local killersHere = {}
+local loadedAt = os.clock()
 local killers = {}
 local killerOrder = {}
 local lastKilledBy = ""
@@ -358,6 +357,7 @@ local function noteKiller(name)
         killerOrder[#killerOrder + 1] = name
     end
     killers[name] = killers[name] + 1
+    killersHere[name] = (killersHere[name] or 0) + 1
     lastKilledBy = name
     saveKillers()
 end
@@ -633,25 +633,50 @@ local POPUP_GUIS = {
 
 local popupHooked2 = {}
 
+local function clearScreenEffects()
+    local L = game:GetService("Lighting")
+    for _, e in ipairs(L:GetDescendants()) do
+        if (e:IsA("BlurEffect") or e:IsA("DepthOfFieldEffect")) and e.Enabled then
+            e.Enabled = false
+        end
+    end
+end
+
+local function killClickCatchers(frame)
+    for _, d in ipairs(frame:GetDescendants()) do
+        if (d:IsA("ImageButton") or d:IsA("TextButton")) and d.Active
+           and d.AbsoluteSize.X > 1000 and d.AbsoluteSize.Y > 500 then
+            d.Active = false
+            d.Visible = false
+        end
+    end
+end
+
 local function hidePopupFrames()
     local pg = LP:FindFirstChild("PlayerGui")
     local mg = pg and pg:FindFirstChild("MainGui")
     if not mg then
         return
     end
+    clearScreenEffects()
     for _, name in ipairs(POPUP_GUIS) do
         local f = mg:FindFirstChild(name)
         if f then
             if f:IsA("GuiObject") then
                 if f.Visible then
                     f.Visible = false
+                    killClickCatchers(f)
+                    clearScreenEffects()
                 end
+                killClickCatchers(f)
                 if not popupHooked2[f] then
                     popupHooked2[f] = true
                     -- put it back down the instant the game raises it again
                     f:GetPropertyChangedSignal("Visible"):Connect(function()
                         if F.nopopup and f.Visible then
                             f.Visible = false
+                            killClickCatchers(f)
+                            clearScreenEffects()
                         end
                     end)
                 end
@@ -1046,7 +1071,7 @@ local function pointInside(part)
         local pt = part.CFrame:PointToWorldSpace(Vector3.new(sz.X * f.X, sz.Y * f.Y, sz.Z * f.Z))
         -- the bounds test only rules a point OUT cheaply; whether it is really
         -- buried is a question only the world can answer
-        if pointIsInPart(pt, part) and insideSolid(pt, nil) then
+        if insideSolid(pt, nil) then
             return pt
         end
     end
@@ -1062,7 +1087,7 @@ local function findPhaseSpot()
     for _, d in ipairs(map:GetDescendants()) do
         if d:IsA("BasePart") and d.CanCollide and d.Transparency < 0.9 then
             local sz = d.Size
-            if math.min(sz.X, sz.Y, sz.Z) >= 10 then
+            if math.min(sz.X, sz.Y, sz.Z) >= 8 then
                 ranked[#ranked + 1] = {part = d, vol = sz.X * sz.Y * sz.Z}
             end
         end
@@ -1071,14 +1096,23 @@ local function findPhaseSpot()
         return a.vol > b.vol
     end)
     -- biggest first, and the first one that really has solid material inside wins
+    -- prefer a spot at or above where people stand, but a solid one below is far
+    -- better than no spot at all. measured on the ranked map: the only block big
+    -- enough to hold a body is the floor slab itself, solid at 9 of 9 samples.
     local floor = readFloor()
+    local fallbackPart, fallbackPt = nil, nil
     for i = 1, math.min(#ranked, 25) do
         local pt = pointInside(ranked[i].part)
-        if pt and (not floor or pt.Y >= floor - 4) then
-            return ranked[i].part, pt
+        if pt then
+            if not floor or pt.Y >= floor - 4 then
+                return ranked[i].part, pt
+            end
+            if not fallbackPart then
+                fallbackPart, fallbackPt = ranked[i].part, pt
+            end
         end
     end
-    return nil, nil
+    return fallbackPart, fallbackPt
 end
 
 local function enterPhase()
@@ -1614,34 +1648,6 @@ local function textbox(page, label, key, onSet)
     return box
 end
 
-local hopAt = 0
-local function serverHop()
-    if os.clock() - hopAt < 45 then
-        return false
-    end
-    hopAt = os.clock()
-    local TS = game:GetService("TeleportService")
-    local ok = false
-    pcall(function()
-        local listing = game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")
-        local data = HttpService:JSONDecode(listing)
-        for _, sv in ipairs(data.data or {}) do
-            if sv.id ~= game.JobId and (sv.playing or 0) < (sv.maxPlayers or 99) then
-                TS:TeleportToPlaceInstance(game.PlaceId, sv.id, LP)
-                ok = true
-                return
-            end
-        end
-    end)
-    if not ok then
-        pcall(function()
-            TS:Teleport(game.PlaceId, LP)
-            ok = true
-        end)
-    end
-    return ok
-end
-
 local pFarm = makeTab("FARM")
 local pAdv = makeTab("ADV")
 local pAuto = makeTab("AUTO")
@@ -1793,6 +1799,14 @@ autoBtn = button(pAuto, "ALL AUTO ON", function()
 end)
 
 toggle(pAuto, "AUTO KILL ALL POP UP", "nopopup")
+button(pAuto, "UNSTICK SCREEN - blur and clicks", function()
+    clearScreenEffects()
+    local mg = LP.PlayerGui:FindFirstChild("MainGui")
+    if mg then
+        killClickCatchers(mg)
+    end
+    setStatus("blur cleared, full screen click catchers removed")
+end)
 button(pAuto, "KILL POP UPS NOW", function()
     hookPopups()
     killPopups()
@@ -2080,18 +2094,15 @@ toggle(pRisk, "HUNT - shoot nothing else", "hunt")
 button(pRisk, "CLEAR KILLERS LIST", function()
     killers = {}
     killerOrder = {}
+    killersHere = {}
     lastKilledBy = ""
     saveKillers()
     setStatus("killers list cleared")
 end)
-button(pRisk, "HOP TO ANOTHER SERVER NOW", function()
-    setStatus(serverHop() and "hopping" or "hop refused, 45s cooldown or no server found")
-end)
-toggle(pRisk, "AUTO HOP OFF A KILLER", "hopaway")
-slider(pRisk, "HOP AFTER N DEATHS", "hopafter", 2, LIM.hopafter)
 toggle(pRisk, "NO REPEAT VICTIM", "norepeat")
 slider(pRisk, "SAME PLAYER GAP", "victimGap", 0, LIM.victimGap)
 slider(pRisk, "KILLS PER MINUTE CAP", "killCap", 0, LIM.killCap)
+toggle(pRisk, "ANTI AFK - no teleport", "antiafk")
 toggle(pRisk, "WATCH CHAT FOR HACKER", "watchchat")
 toggle(pRisk, "ELO BLEED - lose on purpose", "elobleed")
 button(pRisk, "LOW PROFILE PRESET", function()
@@ -2539,25 +2550,6 @@ end)
 
 task.spawn(function()
     while gui.Parent and mine() do
-        if F.hopaway then
-            guard("hopaway", function()
-                for nm, n in pairs(killers) do
-                    if n >= F.hopafter then
-                        notice(nm .. " killed you " .. n .. " times, leaving this server")
-                        if serverHop() then
-                            killers[nm] = 0
-                        end
-                        return
-                    end
-                end
-            end)
-        end
-        task.wait(5)
-    end
-end)
-
-task.spawn(function()
-    while gui.Parent and mine() do
         if F.autohide then
             guard("autohide", function()
                 if coinsMoving() then
@@ -2578,6 +2570,22 @@ task.spawn(function()
         end
         task.wait(2)
     end
+end)
+
+local afkKicksDodged = 0
+pcall(function()
+    local VirtualUser = game:GetService("VirtualUser")
+    LP.Idled:Connect(function()
+        if not mine() or not F.antiafk then
+            return
+        end
+        pcall(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
+        end)
+        afkKicksDodged = afkKicksDodged + 1
+        setStatus("anti afk: idle kick dodged x" .. afkKicksDodged .. " (nothing moved)")
+    end)
 end)
 
 -- someone typing hacker or report in chat is the only real warning this game gives
@@ -2612,6 +2620,10 @@ local function neverBelowMap()
         return
     end
     if r.Position.Y >= floor - 8 then
+        return
+    end
+    -- encased in rock is allowed and is the whole point. open air down there is not.
+    if insideSolid(r.Position, nil) then
         return
     end
     underBlocks = underBlocks + 1
@@ -2803,6 +2815,7 @@ task.spawn(function()
                 "miss run    " .. stats.streak .. "   backoff " .. stats.backoff,
                 "no-target   " .. stats.dry .. "   event miss " .. stats.miss .. "   hunt hold " .. stats.holdFor,
                 "rate held   " .. stats.blocked .. "   cap " .. F.killCap .. "/min",
+                "anti afk    " .. (F.antiafk and ("on, dodged " .. afkKicksDodged) or "off"),
                 "died to     " .. stats.diedTo .. (lastKilledBy ~= "" and ("   last " .. lastKilledBy) or ""),
                 "event map   " .. (stats.eventMap and "YES - clearing coins" or "no") ,
                 "coins sent  " .. stats.coins .. (coinsMoving() and "   ON THE FLOOR NOW" or ""),
