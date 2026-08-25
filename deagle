@@ -1,5 +1,7 @@
 -- NEWGOD DEAGLE v2
 
+local BUILD = "2026-08-25 07:37"
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -495,7 +497,20 @@ local function readFloor()
         floorFrom = "spawn"
         return floorY
     end
-    return floorY
+    if floorY then
+        floorFrom = "last known"
+        return floorY
+    end
+    -- never seen a living soul yet. remember the highest place this body has
+    -- actually stood, which is the only floor we can prove
+    local h = hum()
+    local r = root()
+    if h and r and h.FloorMaterial ~= Enum.Material.Air then
+        floorY = r.Position.Y
+        floorFrom = "own footing"
+        return floorY
+    end
+    return nil
 end
 
 local function pickTarget()
@@ -566,7 +581,11 @@ local function killRateOk()
     return true
 end
 
-local coinBusy = false
+local coinBusyUntil = 0
+
+local function coinsMoving()
+    return os.clock() < coinBusyUntil
+end
 
 local function sweepCoins()
     local f = workspace:FindFirstChild("LocalEventCoins")
@@ -574,8 +593,11 @@ local function sweepCoins()
     if not f or not r then
         return 0
     end
+    if r.Anchored then
+        r.Anchored = false
+    end
     local home = r.CFrame
-    coinBusy = true
+    coinBusyUntil = os.clock() + 12
     local dwell = F.fastcoin and 0.07 or 0.25
     local settle = F.fastcoin and 0.04 or 0.1
     local n = 0
@@ -593,11 +615,57 @@ local function sweepCoins()
         r.AssemblyLinearVelocity = Vector3.zero
         r.CFrame = home
     end
-    coinBusy = false
+    coinBusyUntil = 0
     return n
 end
 
 -- pop up window killer
+-- read off MainGui, not guessed. these are the top level frames that pop up
+-- over the game and none of them are needed to play
+local POPUP_GUIS = {
+    "OneTimeOfferGui", "RoundStatsGui", "RankStatsGui", "VotingGui", "EventUI",
+    "ExclusiveShopGuiNEW", "ExclusiveButtons", "FreeButtons", "DivineBundleGui",
+    "AbyssBundleGui", "GiftList", "DailyShopGui", "LevelUpGui", "RankUpGui",
+    "UnboxGui", "CaseOpeningGui", "CaseInspectGui", "GroupRewardGui", "RewardsGui",
+    "TimeRewardsGui", "PopupsGui", "NotificationGui", "NewFrames", "CodeGui",
+    "SellConfirmGui", "BackgroundBlur", "EdgeBlur", "BlackGui",
+}
+
+local popupHooked2 = {}
+
+local function hidePopupFrames()
+    local pg = LP:FindFirstChild("PlayerGui")
+    local mg = pg and pg:FindFirstChild("MainGui")
+    if not mg then
+        return
+    end
+    for _, name in ipairs(POPUP_GUIS) do
+        local f = mg:FindFirstChild(name)
+        if f then
+            if f:IsA("GuiObject") then
+                if f.Visible then
+                    f.Visible = false
+                end
+                if not popupHooked2[f] then
+                    popupHooked2[f] = true
+                    -- put it back down the instant the game raises it again
+                    f:GetPropertyChangedSignal("Visible"):Connect(function()
+                        if F.nopopup and f.Visible then
+                            f.Visible = false
+                        end
+                    end)
+                end
+            else
+                for _, c in ipairs(f:GetChildren()) do
+                    if c:IsA("GuiObject") and c.Visible then
+                        c.Visible = false
+                    end
+                end
+            end
+        end
+    end
+end
+
 local MONETIZE_NAMES = {
     "ExclusiveButtons", "FreeButtons", "StarterPackButton", "DivineBundleButton",
     "AbyssBundleButton", "RoundMonetization", "OneTimeOffer", "BoostOffer",
@@ -606,6 +674,7 @@ local MONETIZE_NAMES = {
 }
 
 local function killPopups()
+    hidePopupFrames()
     local pg = LP:FindFirstChild("PlayerGui")
     if pg then
         for _, sg in ipairs(pg:GetChildren()) do
@@ -942,6 +1011,7 @@ local function insideSolid(pos, ignorePart)
     local params = OverlapParams.new()
     params.FilterType = Enum.RaycastFilterType.Exclude
     params.FilterDescendantsInstances = {LP.Character, standPad}
+    params.MaxParts = 200
     local hits = workspace:GetPartBoundsInBox(CFrame.new(pos), Vector3.new(3, 5, 3), params)
     for _, h in ipairs(hits) do
         if h:IsA("BasePart") and h.CanCollide and (not ignorePart or h == ignorePart) then
@@ -949,6 +1019,16 @@ local function insideSolid(pos, ignorePart)
         end
     end
     return nil
+end
+
+-- whether a point is inside a part is a question about that part, so answer it with
+-- the part's own bounds instead of asking the world what happens to be nearby
+local function pointIsInPart(pt, part)
+    local lp = part.CFrame:PointToObjectSpace(pt)
+    local sz = part.Size
+    return math.abs(lp.X) <= sz.X / 2 - 1.6
+       and math.abs(lp.Y) <= sz.Y / 2 - 2.6
+       and math.abs(lp.Z) <= sz.Z / 2 - 1.6
 end
 
 local PHASE_SAMPLES = {
@@ -964,7 +1044,9 @@ local function pointInside(part)
     local sz = part.Size
     for _, f in ipairs(PHASE_SAMPLES) do
         local pt = part.CFrame:PointToWorldSpace(Vector3.new(sz.X * f.X, sz.Y * f.Y, sz.Z * f.Z))
-        if insideSolid(pt, part) then
+        -- the bounds test only rules a point OUT cheaply; whether it is really
+        -- buried is a question only the world can answer
+        if pointIsInPart(pt, part) and insideSolid(pt, nil) then
             return pt
         end
     end
@@ -1009,9 +1091,17 @@ local function enterPhase()
     return phaseCF
 end
 
+local function unanchorMe()
+    local r = root()
+    if r and r.Anchored then
+        r.Anchored = false
+    end
+end
+
 local function clearPhase()
     phaseCF = nil
     phasePart = nil
+    unanchorMe()
 end
 
 local function restoreCollide()
@@ -1079,6 +1169,10 @@ end
 local function ensureDeployed()
     if inRound() and alive() then
         return true
+    end
+    local r0 = root()
+    if r0 and r0.Anchored then
+        r0.Anchored = false
     end
     if ClientData.RoundOnGoing ~= true then
         return false
@@ -1225,7 +1319,7 @@ title.Font = Enum.Font.GothamBold
 title.TextSize = 15
 title.TextColor3 = GOLD
 title.TextXAlignment = Enum.TextXAlignment.Left
-title.Text = "NEWGOD DEAGLE"
+title.Text = "NEWGOD DEAGLE  " .. BUILD
 title.Parent = bar
 
 local mini = Instance.new("TextButton")
@@ -1702,7 +1796,7 @@ toggle(pAuto, "AUTO KILL ALL POP UP", "nopopup")
 button(pAuto, "KILL POP UPS NOW", function()
     hookPopups()
     killPopups()
-    setStatus("every offer, prompt and ad panel hidden")
+    setStatus("hidden: join event, one time offer, round stats, map voting and 24 more")
 end)
 toggle(pAuto, "AUTO CLAIM ALL", "autoclaim")
 toggle(pAuto, "AUTO FREE SPIN", "autospin")
@@ -2092,6 +2186,7 @@ button(pSet, "BACK TO NORMAL", function()
     stopFly()
     killPad()
     clearPhase()
+    unanchorMe()
     resetSafeSpot()
     restoreCollide()
     saveCfg()
@@ -2116,6 +2211,7 @@ panic.MouseButton1Click:Connect(function()
     clearEsp()
     killPad()
     clearPhase()
+    unanchorMe()
     restoreCollide()
     setStatus("PANIC - all off, body back to normal")
 end)
@@ -2464,7 +2560,7 @@ task.spawn(function()
     while gui.Parent and mine() do
         if F.autohide then
             guard("autohide", function()
-                if coinBusy then
+                if coinsMoving() then
                     return
                 end
                 if not F.safemode or not F.phase then
@@ -2526,6 +2622,11 @@ local function neverBelowMap()
     setStatus("UNDER THE FLOOR at y " .. math.floor(r.Position.Y) .. ", floor is " .. math.floor(floor) .. " - pulled up (x" .. underBlocks .. ")")
 end
 
+local DBG = {branch = "none", phaseSet = false, part = "none", cfY = -9999, n = 0}
+pcall(function()
+    getgenv().NEWGOD_DBG = DBG
+end)
+
 local renderConn
 renderConn = RunService.RenderStepped:Connect(function()
     if not mine() then
@@ -2543,22 +2644,33 @@ renderConn = RunService.RenderStepped:Connect(function()
             end
         end
     end
-    if F.safemode and F.phase and not F.fly and not F.elobleed and not coinBusy then
+    DBG.n = DBG.n + 1
+    DBG.phaseSet = phaseCF ~= nil
+    DBG.part = phasePart and (phasePart.Name .. " " .. tostring(phasePart.Size)) or "none"
+    DBG.cfY = phaseCF and phaseCF.Position.Y or -9999
+    DBG.gate = tostring(F.safemode) .. "/" .. tostring(F.phase) .. "/fly=" .. tostring(F.fly)
+        .. "/bleed=" .. tostring(F.elobleed) .. "/coins=" .. tostring(coinsMoving())
+    if F.safemode and F.phase and not F.fly and not F.elobleed and not coinsMoving() then
+        DBG.branch = "phase"
         killPad()
         local r = root()
         local h = hum()
         if r and h and h.Health > 0 then
             if not phaseCF or not phasePart or not phasePart.Parent then
-                enterPhase()
+                local got = enterPhase()
+                DBG.lastEnter = got and "ok" or "FAILED to find a block"
             end
+            DBG.inPhaseBody = true
             if phaseCF then
+                DBG.wrote = true
                 noclipMe()
+                unanchorMe()
+                -- rewrite the ORIGINAL point every frame. anchoring the root was
+                -- tried and measured worse: inside fell from 92% to 2%
                 r.AssemblyLinearVelocity = Vector3.zero
-                -- rewrite the ORIGINAL point every frame. reading the pushed position
-                -- back is what lets physics squeeze the body out one notch at a time
                 r.CFrame = phaseCF
                 phaseChecks = phaseChecks + 1
-                if phaseChecks % 30 == 0 then
+                if phaseChecks % 60 == 0 then
                     if insideSolid(phaseCF.Position, nil) then
                         phaseIn = phaseIn + 1
                     else
@@ -2568,7 +2680,9 @@ renderConn = RunService.RenderStepped:Connect(function()
                 end
             end
         end
-    elseif F.safemode and not F.fly and not F.elobleed and not coinBusy then
+    elseif F.safemode and not F.fly and not F.elobleed and not coinsMoving() then
+        DBG.branch = "sky"
+        unanchorMe()
         killPad()
         local r = root()
         local h = hum()
@@ -2582,6 +2696,7 @@ renderConn = RunService.RenderStepped:Connect(function()
     elseif not F.safemode or F.fly then
         killPad()
         clearPhase()
+        unanchorMe()
         if not F.noclip then
             restoreCollide()
         end
@@ -2690,7 +2805,7 @@ task.spawn(function()
                 "rate held   " .. stats.blocked .. "   cap " .. F.killCap .. "/min",
                 "died to     " .. stats.diedTo .. (lastKilledBy ~= "" and ("   last " .. lastKilledBy) or ""),
                 "event map   " .. (stats.eventMap and "YES - clearing coins" or "no") ,
-                "coins sent  " .. stats.coins .. (coinBusy and "   ON THE FLOOR NOW" or ""),
+                "coins sent  " .. stats.coins .. (coinsMoving() and "   ON THE FLOOR NOW" or ""),
                 "achievements " .. tostring(ClientData.Achievements and ClientData.Achievements.ReadyCount) .. " ready, claimed " .. stats.achClaimed,
                 "claims here  " .. (claimsWork() and "server answers" or "IGNORED in this place"),
                 "spins       " .. spinState.Spins .. " banked, next in " .. math.max(0, spinState.NextFreeSpinTime - os.time()) .. "s, playtime " .. math.floor(spinState.FreeSpinPlaytime) .. "/" .. SPIN_COOLDOWN,
@@ -2700,9 +2815,10 @@ task.spawn(function()
                 "skin        " .. tostring(ClientData.Inventory and ClientData.Inventory.EquippedSkin),
                 "vape        " .. on .. " on of " .. live .. ", remembered " .. stats.saved,
                 "phase       " .. (phasePart and ("inside " .. phasePart.Name .. " " .. tostring(phasePart.Size) .. " y " .. math.floor(phaseCF.Position.Y)) or "not in a wall"),
-                "phase held  " .. phaseIn .. " of " .. math.floor(phaseChecks / 30) .. " checks",
+                "phase held  " .. phaseIn .. " of " .. math.floor(phaseChecks / 30) .. " checks, anchored " .. tostring(root() and root().Anchored),
                 "pad         " .. ((standPad and standPad.Parent) and ("standing on it, y " .. math.floor(standPad.Position.Y)) or "none") .. (holdPos and "   frozen" or ""),
                 "safe mode   " .. (F.safemode and (F.phase and "PHASE in a wall" or ("SKY +" .. F.safeheight)) or "off"),
+                "build       " .. BUILD,
                 "floor       y " .. tostring(floorY and math.floor(floorY)) .. " from " .. floorFrom .. ", blocked " .. underBlocks,
                 "name shown  " .. tostring(LP.DisplayName),
                 "",
@@ -2747,4 +2863,4 @@ local e0 = elo()
 if e0 and e0 >= ELO_NO_BOTS then
     notice("elo " .. math.floor(e0) .. " is over " .. ELO_NO_BOTS .. ", server gives 0 bots. RISK tab has ELO BLEED.")
 end
-setStatus("v2 loaded - everything auto on, 6 tabs")
+setStatus("v2 build " .. BUILD .. " - everything auto on, 6 tabs")
