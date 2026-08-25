@@ -700,6 +700,40 @@ return GROUP .. &quot; loader finished&quot;
     </div>
   </section>
 
+  <section class="view" data-t="Accounts">
+    <div class="vhead">
+      <h2>Real &rarr; Volt</h2>
+      <p>Moves your Roblox accounts out of the Real executor's vault into any manager that imports cookies. It reads Real's own vault on your machine and writes one cookie per line &mdash; the file Volt's &ldquo;Load from File&rdquo; takes.</p>
+    </div>
+
+    <div class="card">
+      <h3>Download</h3>
+      <p>One file, no install, no pip. It uses the crypto that ships with Windows, so it runs on a stock Python 3.</p>
+      <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3</span><span class="chip">no dependencies</span></div>
+      <p>
+        <a class="copy" style="display:inline-block;text-decoration:none;margin:0 0 10px" href="https://newgod.vip/realvault.py" download>Download realvault.py</a>
+      </p>
+      <div class="codewrap">
+        <code class="block" id="src-rv-url">https://newgod.vip/realvault.py</code>
+        <button class="copy" type="button" data-copy="src-rv-url">Copy the realvault.py link</button>
+      </div>
+      <div class="codewrap">
+        <code class="block" id="src-rv-run">py -3 realvault.py</code>
+        <button class="copy" type="button" data-copy="src-rv-run">Copy the line that runs it</button>
+      </div>
+      <p class="note">Run it on the machine where Real is installed and signed in &mdash; the vault is locked to that Windows account, so it only ever reads your own. A panel lists every account with a tick or a cross, then writes the cookie file where you point it.</p>
+    </div>
+
+    <div class="card">
+      <h3>How it works</h3>
+      <ul>
+        <li>Real keeps a 32-byte vault key wrapped by Windows DPAPI, and seals every cookie with it in AES-256-GCM. This unwraps the key the same way Real does at launch, then opens each cookie.</li>
+        <li>Nothing leaves the machine and nothing is printed &mdash; the cookies only ever land in the file you point it at.</li>
+        <li>Command line too: <span class="k">py -3 realvault.py --cli --out cookies.txt</span> skips the panel and just writes the file.</li>
+      </ul>
+    </div>
+  </section>
+
   <section class="view" data-t="Updates">
     <div class="vhead">
       <h2>Updates</h2>
