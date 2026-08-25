@@ -465,9 +465,7 @@ local function targetList()
     return cacheList
 end
 
-local floorY = nil
-local floorAt = 0
-local floorFrom = "none"
+local FL = {y = nil, at = 0, from = "none"}
 
 -- the play floor is where living people stand, not the lowest decoration in the
 -- map folder. measured on the ranked map: other players at y 2, lowest map part
@@ -475,10 +473,10 @@ local floorFrom = "none"
 -- called it fine
 local function readFloor()
     local now = os.clock()
-    if floorY and now - floorAt < 1 then
-        return floorY
+    if FL.y and now - FL.at < 1 then
+        return FL.y
     end
-    floorAt = now
+    FL.at = now
     local ys = {}
     for _, e in ipairs(targetList()) do
         local hb = hitboxOf(e.m)
@@ -488,28 +486,28 @@ local function readFloor()
     end
     if #ys > 0 then
         table.sort(ys)
-        floorY = ys[math.ceil(#ys / 2)]
-        floorFrom = #ys .. " players"
-        return floorY
+        FL.y = ys[math.ceil(#ys / 2)]
+        FL.from = #ys .. " players"
+        return FL.y
     end
     local sp = workspace:FindFirstChildWhichIsA("SpawnLocation", true)
     if sp then
-        floorY = sp.Position.Y
-        floorFrom = "spawn"
-        return floorY
+        FL.y = sp.Position.Y
+        FL.from = "spawn"
+        return FL.y
     end
-    if floorY then
-        floorFrom = "last known"
-        return floorY
+    if FL.y then
+        FL.from = "last known"
+        return FL.y
     end
     -- never seen a living soul yet. remember the highest place this body has
     -- actually stood, which is the only floor we can prove
     local h = hum()
     local r = root()
     if h and r and h.FloorMaterial ~= Enum.Material.Air then
-        floorY = r.Position.Y
-        floorFrom = "own footing"
-        return floorY
+        FL.y = r.Position.Y
+        FL.from = "own footing"
+        return FL.y
     end
     return nil
 end
@@ -2157,23 +2155,23 @@ info.TextWrapped = true
 info.Text = ""
 info.Parent = pInfo
 
-local dragging, dragStart, startPos = false, nil, nil
+local drag = {on = false, from = nil, at = nil}
 bar.InputBegan:Connect(function(i)
     if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = i.Position
-        startPos = main.Position
+        drag.on = true
+        drag.from = i.Position
+        drag.at = main.Position
     end
 end)
 UserInputService.InputChanged:Connect(function(i)
-    if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-        local d = i.Position - dragStart
-        main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+    if drag.on and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+        local d = i.Position - drag.from
+        main.Position = UDim2.new(drag.at.X.Scale, drag.at.X.Offset + d.X, drag.at.Y.Scale, drag.at.Y.Offset + d.Y)
     end
 end)
 UserInputService.InputEnded:Connect(function(i)
     if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
+        drag.on = false
     end
 end)
 
@@ -2575,7 +2573,6 @@ task.spawn(function()
     end
 end)
 
-local afkKicksDodged = 0
 pcall(function()
     local VirtualUser = game:GetService("VirtualUser")
     LP.Idled:Connect(function()
@@ -2586,13 +2583,12 @@ pcall(function()
             VirtualUser:CaptureController()
             VirtualUser:ClickButton2(Vector2.new())
         end)
-        afkKicksDodged = afkKicksDodged + 1
-        setStatus("anti afk: idle kick dodged x" .. afkKicksDodged .. " (nothing moved)")
+        stats.afkDodged = (stats.afkDodged or 0) + 1
+        setStatus("anti afk: idle kick dodged x" .. stats.afkDodged .. " (nothing moved)")
     end)
 end)
 
 -- someone typing hacker or report in chat is the only real warning this game gives
-local chatHits = 0
 if TextChatService then
     pcall(function()
         TextChatService.MessageReceived:Connect(function(msg)
@@ -2602,8 +2598,8 @@ if TextChatService then
             local t = string.lower(tostring(msg.Text or ""))
             for _, w in ipairs({"hack", "cheat", "report", "aimbot", "exploit"}) do
                 if string.find(t, w, 1, true) then
-                    chatHits = chatHits + 1
-                    notice("chat said '" .. w .. "' x" .. chatHits .. " - RISK tab has the throttles")
+                    stats.chatHits = (stats.chatHits or 0) + 1
+                    notice("chat said '" .. w .. "' x" .. stats.chatHits .. " - RISK tab has the throttles")
                     setStatus("WARNING chat mentioned " .. w)
                     return
                 end
@@ -2612,7 +2608,6 @@ if TextChatService then
     end)
 end
 
-local underBlocks = 0
 local function neverBelowMap()
     local r = root()
     if not r then
@@ -2625,12 +2620,12 @@ local function neverBelowMap()
     if r.Position.Y >= floor - 8 then
         return
     end
-    underBlocks = underBlocks + 1
+    stats.underBlocks = (stats.underBlocks or 0) + 1
     F.basement = false
     local lift = floor + 6
     r.AssemblyLinearVelocity = Vector3.zero
     r.CFrame = CFrame.new(Vector3.new(r.Position.X, lift, r.Position.Z))
-    setStatus("UNDER THE FLOOR at y " .. math.floor(r.Position.Y) .. ", floor is " .. math.floor(floor) .. " - pulled up (x" .. underBlocks .. ")")
+    setStatus("UNDER THE FLOOR at y " .. math.floor(r.Position.Y) .. ", floor is " .. math.floor(floor) .. " - pulled up (x" .. stats.underBlocks .. ")")
 end
 
 local DBG = {branch = "none", phaseSet = false, part = "none", cfY = -9999, n = 0}
@@ -2814,7 +2809,7 @@ task.spawn(function()
                 "miss run    " .. stats.streak .. "   backoff " .. stats.backoff,
                 "no-target   " .. stats.dry .. "   event miss " .. stats.miss .. "   hunt hold " .. stats.holdFor,
                 "rate held   " .. stats.blocked .. "   cap " .. F.killCap .. "/min",
-                "anti afk    " .. (F.antiafk and ("on, dodged " .. afkKicksDodged) or "off"),
+                "anti afk    " .. (F.antiafk and ("on, dodged " .. (stats.afkDodged or 0)) or "off"),
                 "died to     " .. stats.diedTo .. (lastKilledBy ~= "" and ("   last " .. lastKilledBy) or ""),
                 "event map   " .. (stats.eventMap and "YES - clearing coins" or "no") ,
                 "coins sent  " .. stats.coins .. (coinsMoving() and "   ON THE FLOOR NOW" or ""),
@@ -2831,7 +2826,7 @@ task.spawn(function()
                 "pad         " .. ((standPad and standPad.Parent) and ("standing on it, y " .. math.floor(standPad.Position.Y)) or "none") .. (holdPos and "   frozen" or ""),
                 "safe mode   " .. (F.safemode and (F.phase and "PHASE in a wall" or ("SKY +" .. F.safeheight)) or "off"),
                 "build       " .. BUILD,
-                "floor       y " .. tostring(floorY and math.floor(floorY)) .. " from " .. floorFrom .. ", blocked " .. underBlocks,
+                "floor       y " .. tostring(FL.y and math.floor(FL.y)) .. " from " .. FL.from .. ", blocked " .. (stats.underBlocks or 0),
                 "name shown  " .. tostring(LP.DisplayName),
                 "",
                 (function()
@@ -2871,8 +2866,10 @@ hookPopups()
 vapeSnapshot()
 saveCfg()
 
-local e0 = elo()
-if e0 and e0 >= ELO_NO_BOTS then
-    notice("elo " .. math.floor(e0) .. " is over " .. ELO_NO_BOTS .. ", server gives 0 bots. RISK tab has ELO BLEED.")
+do
+    local e0 = elo()
+    if e0 and e0 >= ELO_NO_BOTS then
+        notice("elo " .. math.floor(e0) .. " is over " .. ELO_NO_BOTS .. ", server gives 0 bots. RISK tab has ELO BLEED.")
+    end
 end
 setStatus("v2 build " .. BUILD .. " - everything auto on, 6 tabs")
