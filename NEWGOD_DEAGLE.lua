@@ -1028,12 +1028,14 @@ local phasePart = nil
 local phaseChecks = 0
 local phaseIn = 0
 
+local BODY_BOX = Vector3.new(2.2, 2.2, 1.4)
+
 local function insideSolid(pos, ignorePart)
     local params = OverlapParams.new()
     params.FilterType = Enum.RaycastFilterType.Exclude
     params.FilterDescendantsInstances = {LP.Character, standPad}
-    params.MaxParts = 200
-    local hits = workspace:GetPartBoundsInBox(CFrame.new(pos), Vector3.new(3, 5, 3), params)
+    params.MaxParts = 300
+    local hits = workspace:GetPartBoundsInBox(CFrame.new(pos), BODY_BOX, params)
     for _, h in ipairs(hits) do
         if h:IsA("BasePart") and h.CanCollide and (not ignorePart or h == ignorePart) then
             return h
@@ -1054,6 +1056,7 @@ end
 
 local PHASE_SAMPLES = {
     Vector3.new(0, 0, 0),
+    Vector3.new(0, 0.15, 0), Vector3.new(0, -0.15, 0),
     Vector3.new(0, 0.25, 0), Vector3.new(0, -0.25, 0),
     Vector3.new(0.25, 0, 0), Vector3.new(-0.25, 0, 0),
     Vector3.new(0, 0, 0.25), Vector3.new(0, 0, -0.25),
@@ -1075,30 +1078,31 @@ local function pointInside(part)
 end
 
 local function findPhaseSpot()
-    local map = workspace:FindFirstChild("Map")
-    if not map then
-        return nil, nil
-    end
+    local me = root()
+    local here = me and me.Position or Vector3.new(0, 0, 0)
+    local floor = readFloor()
     local ranked = {}
-    for _, d in ipairs(map:GetDescendants()) do
+    for _, d in ipairs(workspace:GetDescendants()) do
         if d:IsA("BasePart") and d.CanCollide and d.Transparency < 0.9 then
             local sz = d.Size
-            if math.min(sz.X, sz.Y, sz.Z) >= 8 then
-                ranked[#ranked + 1] = {part = d, vol = sz.X * sz.Y * sz.Z}
+            -- three studs on every side is enough to swallow the root part
+            if sz.X >= 3 and sz.Y >= 3 and sz.Z >= 3 then
+                local mdl = d:FindFirstAncestorOfClass("Model")
+                local isBody = mdl ~= nil and mdl:FindFirstChildOfClass("Humanoid") ~= nil
+                if not isBody and (not floor or d.Position.Y >= floor - 2) then
+                    local thin = math.min(sz.X, sz.Y, sz.Z)
+                    local dist = (d.Position - here).Magnitude
+                    ranked[#ranked + 1] = {part = d, score = thin * 8 - dist * 0.05}
+                end
             end
         end
     end
     table.sort(ranked, function(a, b)
-        return a.vol > b.vol
+        return a.score > b.score
     end)
-    -- biggest first, and the first one that really has solid material inside wins
-    -- never below where people stand, encased or not. the floor slab counts as
-    -- under the map to whatever kills him down there, measured at about one death
-    -- a second. if this map has no block above the floor, hide simply does nothing.
-    local floor = readFloor()
-    for i = 1, math.min(#ranked, 25) do
+    for i = 1, math.min(#ranked, 40) do
         local pt = pointInside(ranked[i].part)
-        if pt and (not floor or pt.Y >= floor - 2) then
+        if pt then
             return ranked[i].part, pt
         end
     end
