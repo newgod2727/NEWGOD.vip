@@ -785,7 +785,7 @@ local function openPass()
     opening = false
 end
 
-local VAPE_COMBAT = { "AutoClicker", "Reach", "SilentAim", "TriggerBot" }
+local VAPE_COMBAT = { "AutoClicker", "SilentAim", "TriggerBot", "Reach" }
 
 local function isCombat(name)
     for _, n in ipairs(VAPE_COMBAT) do
@@ -805,8 +805,8 @@ local function vapeWanted()
     return VAPE_COMBAT
 end
 
-local vapeBusy, vapeWaiter = false, false
-local vapeSet
+local vapeWaiter = false
+local vapeApply
 local function vapeWhenReady(on)
     if vapeWaiter then return end
     vapeWaiter = true
@@ -815,7 +815,7 @@ local function vapeWhenReady(on)
             if not STATE.alive() then break end
             local vv = shared and shared.vape
             if type(vv) == "table" and type(vv.Modules) == "table" then
-                vapeSet(on)
+                vapeApply(on)
                 break
             end
             task.wait(0.5)
@@ -824,7 +824,7 @@ local function vapeWhenReady(on)
     end)
 end
 
-function vapeSet(on)
+function vapeApply(on)
     local v = shared and shared.vape
     if not (type(v) == "table" and type(v.Modules) == "table") then
         if on then
@@ -833,42 +833,18 @@ function vapeSet(on)
         end
         return 0
     end
-    if vapeBusy then return 0 end
-    vapeBusy = true
-    local want
-    if on then
-        want = {}
-        for _, name in ipairs(vapeWanted()) do want[#want + 1] = name end
-    else
-        local live = {}
-        for name, m in pairs(v.Modules) do
-            if type(m) == "table" and m.Enabled == true and isCombat(tostring(name)) then
-                live[#live + 1] = tostring(name)
+    local n = 0
+    for _, name in ipairs(VAPE_COMBAT) do
+        if not STATE.alive() then break end
+        local m = v.Modules[name]
+        if type(m) == "table" and type(m.Toggle) == "function" then
+            if (m.Enabled == true) ~= on then
+                if pcall(m.Toggle, m) then n = n + 1 end
             end
         end
-        if #live > 0 then
-            table.sort(live)
-            CFG.vapeList = live
-        end
-        want = live
+        task.wait(0.1)
     end
-    task.spawn(function()
-        local n = 0
-        for _, name in ipairs(want) do
-            if not STATE.alive() then break end
-            local m = v.Modules[name]
-            if type(m) == "table" and type(m.Toggle) == "function" then
-                local isOn = m.Enabled == true
-                if isOn ~= on then
-                    if pcall(m.Toggle, m) then n = n + 1 end
-                    task.wait(0.15)
-                end
-            end
-        end
-        vapeBusy = false
-        buyState = (on and "vape on " or "vape off ") .. n
-    end)
-    return #want
+    return n
 end
 
 local function paintCrateBtn(spec)
@@ -895,21 +871,33 @@ local function paintAll()
     paintUlt()
 end
 
+local farmBusy = false
 local function setFarm(on)
+    if farmBusy then return end
+    farmBusy = true
     forceOn = on
     wasFarming = on
-    CFG.on = on
-    CFG.doBots = on
-    CFG.doPlayers = on
-    CFG.autoDeploy = on
-    CFG.oneShot = on
-    if not on then
-        current = nil
-        releaseCam()
-    end
-    local n = vapeSet(on)
     paintAll()
-    buyState = on and ("combat on, vape " .. n) or ("combat off, vape " .. n)
+    task.spawn(function()
+        local n = vapeApply(on)
+        buyState = (on and "vape on " or "vape off ") .. n
+        local steps = {
+            function() CFG.on = on if not on then current = nil end end,
+            function() CFG.doBots = on end,
+            function() CFG.doPlayers = on end,
+            function() CFG.autoDeploy = on end,
+            function() CFG.oneShot = on end,
+        }
+        for _, f in ipairs(steps) do
+            task.wait(0.05)
+            if not STATE.alive() then break end
+            f()
+            paintAll()
+        end
+        if not on then releaseCam() end
+        paintAll()
+        farmBusy = false
+    end)
 end
 
 task.spawn(function()
@@ -1247,8 +1235,8 @@ plrBtn.Text = CFG.doPlayers and "PLAYERS ON" or "PLAYERS OFF"
 plrBtn.BackgroundColor3 = CFG.doPlayers and GOLD or GREY
 depBtn.Text = CFG.autoDeploy and "RESPAWN ON" or "RESPAWN OFF"
 depBtn.BackgroundColor3 = CFG.autoDeploy and GOLD or GREY
-forceOn = CFG.on == true
-wasFarming = forceOn
+forceOn = false
+wasFarming = false
 paintAll()
 
 
@@ -1373,6 +1361,10 @@ do
 end
 
 rebuild()
+task.spawn(function()
+    task.wait(0.5)
+    setFarm(true)
+end)
 return "tpfarm loaded. farm=" .. (forceOn and "ENABLED" or "DISABLED")
     .. "  ultimate=" .. ultLabel()
     .. "  autoBuy=" .. tostring(CFG.autoBuy)
