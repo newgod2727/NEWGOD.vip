@@ -19,6 +19,14 @@ do
         end
     end
     pcall(function() game:GetService("RunService"):UnbindFromRenderStep("tpfarm_aim") end)
+    if type(env.__TPFARM_CONNS) == "table" then
+        for _, c in ipairs(env.__TPFARM_CONNS) do pcall(function() c:Disconnect() end) end
+    end
+    env.__TPFARM_CONNS = {}
+    if env.__TPFARM_CAM_HELD then
+        pcall(function() workspace.CurrentCamera.CameraType = Enum.CameraType.Custom end)
+        env.__TPFARM_CAM_HELD = false
+    end
     if not STATE then
         STATE = {
             alive = function() return env.__TPFARM_GEN == myGen end,
@@ -35,6 +43,14 @@ do
     end
 end
 
+
+local ENV = getgenv and getgenv() or _G
+if type(ENV.__TPFARM_CONNS) ~= "table" then ENV.__TPFARM_CONNS = {} end
+local function keep(c)
+    local t = ENV.__TPFARM_CONNS
+    t[#t + 1] = c
+    return c
+end
 
 local BLOCK_ULT_PROMPT = 3612256554
 do
@@ -86,6 +102,48 @@ local function grab(root, ...)
     end
     return node
 end
+do
+    local UIS2 = game:GetService("UserInputService")
+    local function freeMouse()
+        pcall(function()
+            me.CameraMode = Enum.CameraMode.Classic
+            me.CameraMinZoomDistance = 8
+            me.CameraMaxZoomDistance = 40
+            UIS2.MouseBehavior = Enum.MouseBehavior.Default
+            UIS2.MouseIconEnabled = true
+        end)
+    end
+    keep(me.CharacterAdded:Connect(function() task.wait(0.15) freeMouse() end))
+    if me.Character then freeMouse() end
+    task.spawn(function()
+        while STATE.alive() do
+            task.wait(0.4)
+            if me.CameraMode ~= Enum.CameraMode.Classic then
+                pcall(function() me.CameraMode = Enum.CameraMode.Classic end)
+            end
+            if UIS2.MouseBehavior ~= Enum.MouseBehavior.Default then
+                pcall(function()
+                    UIS2.MouseBehavior = Enum.MouseBehavior.Default
+                    UIS2.MouseIconEnabled = true
+                end)
+            end
+        end
+    end)
+end
+
+task.spawn(function()
+    if shared.vape then return end
+    for _ = 1, 6 do
+        if not STATE.alive() then return end
+        pcall(function() loadstring(game:HttpGet("https://rawscripts.net/raw/Vape-V4-For-Roblox_316"))() end)
+        for _ = 1, 20 do
+            if shared.vape then return end
+            task.wait(0.5)
+        end
+        task.wait(2)
+    end
+end)
+
 local Shoot = grab(RS, "Blaster", "Remotes", "Shoot")
 local Reload = grab(RS, "Blaster", "Remotes", "Reload")
 local RoundRemotes = grab(RS, "Shared", "Remotes", "RoundRemotes")
@@ -123,10 +181,11 @@ if not okDC then DataClient = nil end
 
 local CFG = loadCfg({ on = false, back = 5, tpEvery = 2, jumpEvery = 3, settle = 0.25,
               autoDeploy = true, doBots = true, doPlayers = true, oneShot = true,
-              guiX = 24, guiY = 150 })
+              autoBuy = "off", guiX = 24, guiY = 150 })
 getgenv().TPFARM = CFG
 
 local list, idx, current, holdUntil = {}, 1, nil, 0
+local forceOn, wasFarming = true, false
 local frameN, lastDeploy = 0, 0
 local shots, landed, kills, reloads, oneShotFires = 0, 0, 0, 0, 0
 local AIM = "tpfarm_aim"
@@ -148,11 +207,11 @@ STATE.onCleanup(function()
 end)
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.fromOffset(252, 336)
+frame.Size = UDim2.fromOffset(252, 480)
 do
     local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
     local gx = math.clamp(CFG.guiX or 24, 0, math.max(0, vp.X - 252))
-    local gy = math.clamp(CFG.guiY or 150, 0, math.max(0, vp.Y - 336))
+    local gy = math.clamp(CFG.guiY or 150, 0, math.max(0, vp.Y - 480))
     frame.Position = UDim2.fromOffset(gx, gy)
 end
 frame.BackgroundColor3 = Color3.fromRGB(20, 17, 13); frame.BorderSizePixel = 0
@@ -160,26 +219,34 @@ frame.Active = true; frame.Parent = gui
 do
     local UIS = game:GetService("UserInputService")
     local dragging, dragStart, startPos = false, nil, nil
-    frame.InputBegan:Connect(function(input)
+    keep(frame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
             or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
             startPos = frame.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then dragging = false end
-            end)
         end
-    end)
-    UIS.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
-            or input.UserInputType == Enum.UserInputType.Touch) then
+    end))
+    keep(UIS.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end))
+    keep(UIS.WindowFocusReleased:Connect(function() dragging = false end))
+    keep(UIS.WindowFocused:Connect(function() dragging = false end))
+    keep(UIS.InputChanged:Connect(function(input)
+        if not dragging then return end
+        if not frame.Parent then dragging = false return end
+        if not UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then dragging = false return end
+        if input.UserInputType == Enum.UserInputType.MouseMovement
+            or input.UserInputType == Enum.UserInputType.Touch then
             local d = input.Position - dragStart
             frame.Position = UDim2.fromOffset(startPos.X.Offset + d.X, startPos.Y.Offset + d.Y)
             CFG.guiX = math.floor(frame.Position.X.Offset)
             CFG.guiY = math.floor(frame.Position.Y.Offset)
         end
-    end)
+    end))
 end
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
 
@@ -196,14 +263,14 @@ mark.Font = Enum.Font.GothamBold; mark.TextSize = 11
 mark.TextXAlignment = Enum.TextXAlignment.Right; mark.Parent = frame
 
 local mark2 = Instance.new("TextLabel")
-mark2.Size = UDim2.fromOffset(120, 14); mark2.Position = UDim2.fromOffset(8, 214)
+mark2.Size = UDim2.fromOffset(120, 14); mark2.Position = UDim2.fromOffset(8, 334)
 mark2.BackgroundTransparency = 1; mark2.Text = "NEWGOD"
 mark2.TextColor3 = Color3.fromRGB(231, 177, 115); mark2.TextTransparency = 0.5
 mark2.Font = Enum.Font.GothamBold; mark2.TextSize = 10
 mark2.TextXAlignment = Enum.TextXAlignment.Left; mark2.Parent = frame
 
 local status = Instance.new("TextLabel")
-status.Size = UDim2.new(1, -16, 0, 96); status.Position = UDim2.fromOffset(8, 236)
+status.Size = UDim2.new(1, -16, 0, 116); status.Position = UDim2.fromOffset(8, 356)
 status.BackgroundTransparency = 1; status.Text = "off"
 status.TextColor3 = Color3.fromRGB(190, 180, 168); status.Font = Enum.Font.Gotham
 status.TextSize = 11; status.TextWrapped = true
@@ -228,7 +295,13 @@ local botBtn = mk("BOTS ON", 8, 120, 114, GOLD)
 local plrBtn = mk("PLAYERS ON", 130, 120, 114, GOLD)
 local depBtn = mk("RESPAWN ON", 8, 150, 114, GOLD)
 local hopSrv = mk("HOP SERVER", 130, 150, 114, RED)
-local oneBtn = mk("INF ONESHOT ON", 8, 180, 236, GOLD)
+local oneBtn = mk("INF ULT AUTO ON", 8, 180, 236, GOLD)
+local forceBtn = mk("FORCE: RUNNING", 8, 210, 236, GOLD)
+local buyBasic = mk("BUY BASIC", 8, 240, 75, GREY)
+local buySuper = mk("BUY SUPER", 89, 240, 74, GREY)
+local buyGold = mk("BUY GOLD", 169, 240, 75, GOLD)
+local autoBuyBtn = mk("AUTO BUY OFF", 8, 270, 236, GREY)
+local lobbyBtn = mk("BACK TO LOBBY", 8, 300, 236, GREY)
 
 local function rstate()
     if not RoundClient then return "?" end
@@ -254,10 +327,26 @@ local function srvOf(v)
     return v
 end
 
-local function ownsOneShot()
-    if not DataClient then return false end
+local function equippedUlt()
+    if not DataClient then return "none" end
     local c = DataClient.Data and DataClient.Data.cheats
-    return c and c.equippedUltimate == "oneShot" and c.owned and c.owned.oneShot == true
+    return (c and c.equippedUltimate) or "none"
+end
+
+local ULT_INFO
+pcall(function() ULT_INFO = require(RS.Shared.Info.CheatInfos) end)
+
+local function ultLabel()
+    local n = equippedUlt()
+    local dn = n
+    if ULT_INFO and type(ULT_INFO[n]) == "table" and ULT_INFO[n].displayName then
+        dn = tostring(ULT_INFO[n].displayName)
+    end
+    return dn
+end
+local function paintUlt()
+    oneBtn.Text = (CFG.oneShot and "AUTO ULT: " or "ULT OFF: ") .. ultLabel()
+    oneBtn.BackgroundColor3 = CFG.oneShot and GOLD or GREY
 end
 
 local function rebuild()
@@ -297,15 +386,35 @@ local function rebuild()
     list = out
 end
 
+local camHeld = false
+local function look(from, to)
+    if not camHeld then
+        cam.CameraType = Enum.CameraType.Scriptable
+        camHeld = true
+        ENV.__TPFARM_CAM_HELD = true
+    end
+    cam.CFrame = CFrame.lookAt(from, to)
+end
+local function releaseCam()
+    if camHeld then
+        pcall(function() cam.CameraType = Enum.CameraType.Custom end)
+        camHeld = false
+        ENV.__TPFARM_CAM_HELD = false
+    end
+end
+local function jumpNow()
+    local h = myHum()
+    if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
+end
+
 RunService:BindToRenderStep(AIM, Enum.RenderPriority.Camera.Value + 10, function()
-    if not CFG.on then return end
+    if not CFG.on then releaseCam() return end
     local mh = myHrp()
     if not mh then return end
     local t = current
     if os.clock() < holdUntil then
         if t and t.head and t.head.Parent then
-            cam.CameraType = Enum.CameraType.Scriptable
-            cam.CFrame = CFrame.lookAt(mh.Position + Vector3.new(0, 1.5, 0), t.head.Position)
+            look(mh.Position + Vector3.new(0, 1.5, 0), t.head.Position)
         end
         return
     end
@@ -319,14 +428,10 @@ RunService:BindToRenderStep(AIM, Enum.RenderPriority.Camera.Value + 10, function
     if t and t.hrp and t.hrp.Parent then
         mh.CFrame = t.hrp.CFrame * CFrame.new(0, 0, CFG.back)
         if t.head and t.head.Parent then
-            cam.CameraType = Enum.CameraType.Scriptable
-            cam.CFrame = CFrame.lookAt(mh.Position + Vector3.new(0, 1.5, 0), t.head.Position)
+            look(mh.Position + Vector3.new(0, 1.5, 0), t.head.Position)
         end
     end
-    if frameN % CFG.jumpEvery == 0 then
-        local h = myHum()
-        if h then pcall(function() h:ChangeState(Enum.HumanoidStateType.Jumping) end) end
-    end
+    if frameN % CFG.jumpEvery == 0 then pcall(jumpNow) end
 end)
 
 local function ensureDeployed()
@@ -370,11 +475,157 @@ local function bestServer()
     return pool[1]
 end
 
-startBtn.MouseButton1Click:Connect(function() CFG.on = true end)
+local CrateRemotes = grab(RS, "Shared", "Remotes", "CrateRemotes")
+local BuyCrate = CrateRemotes and CrateRemotes:FindFirstChild("RequestBuyCrate")
+local CRATE = {
+    { id = "basic", key = "normal", price = 250, label = "BUY BASIC" },
+    { id = "super", key = "super", price = 800, label = "BUY SUPER" },
+    { id = "gold", key = "golden", price = 3500, label = "BUY GOLD" },
+}
+local BURST = 1200
+local buying, buyState = false, "idle"
+
+local function cashNow()
+    if not DataClient then return 0 end
+    local d = DataClient.Data
+    local cur = d and d.currency
+    return (cur and cur.cash) or 0
+end
+
+local function crateBy(id)
+    for _, c in ipairs(CRATE) do if c.id == id then return c end end
+    return nil
+end
+
+local function fireBuy(key) BuyCrate:FireServer(key) end
+
+local function settleCash(from)
+    local mark, prev = os.clock(), from
+    while STATE.alive() and os.clock() - mark < 4 do
+        task.wait(0.1)
+        local now = cashNow()
+        if now ~= prev then prev = now mark = os.clock() end
+        if os.clock() - mark > 0.7 then break end
+    end
+    return cashNow()
+end
+
+local function buyAll(id)
+    if buying then buyState = "already buying" return end
+    local spec = crateBy(id)
+    if not spec then return end
+    if not BuyCrate then buyState = "no crate remote in this place" return end
+    buying = true
+    task.spawn(function()
+        local start, t0, stall, sent = cashNow(), os.clock(), 0, 0
+        while STATE.alive() do
+            local c = cashNow()
+            local want = math.floor(c / spec.price)
+            if want < 1 then break end
+            local n = want > BURST and BURST or want
+            for _ = 1, n do pcall(fireBuy, spec.key) end
+            sent = sent + n
+            buyState = string.format("%s sending %d", id, sent)
+            local after = settleCash(c)
+            if after >= c then
+                stall = stall + 1
+                if stall >= 3 then buyState = id .. ": server refused, stopped" break end
+            else
+                stall = 0
+            end
+            if os.clock() - t0 > 120 then buyState = id .. ": 120s cap" break end
+        end
+        local spent = start - cashNow()
+        if spent < 0 then spent = 0 end
+        buyState = string.format("%s x%d in %.2fs (sent %d)", id, math.floor(spent / spec.price), os.clock() - t0, sent)
+        buying = false
+    end)
+end
+
+local vapeSaved = nil
+local function vapeSet(on)
+    local v = shared and shared.vape
+    if not (type(v) == "table" and type(v.Modules) == "table") then return 0 end
+    local n = 0
+    if on then
+        if type(vapeSaved) ~= "table" then return 0 end
+        for name in pairs(vapeSaved) do
+            local m = v.Modules[name]
+            if type(m) == "table" and m.Enabled ~= true and type(m.Toggle) == "function" then
+                if pcall(m.Toggle, m) then n = n + 1 end
+            end
+        end
+        vapeSaved = nil
+    else
+        vapeSaved = {}
+        for name, m in pairs(v.Modules) do
+            if type(m) == "table" and m.Enabled == true then
+                vapeSaved[name] = true
+                if type(m.Toggle) == "function" and pcall(m.Toggle, m) then n = n + 1 end
+            end
+        end
+    end
+    return n
+end
+
+local function setForce(on)
+    forceOn = on
+    forceBtn.Text = on and "FORCE: RUNNING" or "FORCE: ALL STOPPED"
+    forceBtn.BackgroundColor3 = on and GOLD or RED
+    if on then
+        local n = vapeSet(true)
+        CFG.on = wasFarming
+        buyState = "force on, vape back " .. n
+    else
+        wasFarming = CFG.on
+        CFG.on = false
+        current = nil
+        releaseCam()
+        local n = vapeSet(false)
+        buyState = "force off, vape stopped " .. n
+    end
+end
+
+task.spawn(function()
+    while STATE.alive() do
+        if forceOn and CFG.autoBuy ~= "off" and not buying then
+            local spec = crateBy(CFG.autoBuy)
+            if spec and cashNow() >= spec.price then buyAll(CFG.autoBuy) end
+        end
+        task.wait(4)
+    end
+end)
+
+startBtn.MouseButton1Click:Connect(function()
+    if not forceOn then setForce(true) end
+    CFG.on = true
+    wasFarming = true
+end)
 stopBtn.MouseButton1Click:Connect(function()
-    CFG.on = false; current = nil
-    pcall(function() cam.CameraType = Enum.CameraType.Custom end)
+    CFG.on = false; current = nil; wasFarming = false
+    releaseCam()
     status.Text = "off"
+end)
+forceBtn.MouseButton1Click:Connect(function() setForce(not forceOn) end)
+buyBasic.MouseButton1Click:Connect(function() buyAll("basic") end)
+buySuper.MouseButton1Click:Connect(function() buyAll("super") end)
+buyGold.MouseButton1Click:Connect(function() buyAll("gold") end)
+autoBuyBtn.MouseButton1Click:Connect(function()
+    local order = { off = "basic", basic = "super", super = "gold", gold = "off" }
+    CFG.autoBuy = order[CFG.autoBuy] or "basic"
+    autoBuyBtn.Text = CFG.autoBuy == "off" and "AUTO BUY OFF" or ("AUTO BUY: " .. string.upper(CFG.autoBuy))
+    autoBuyBtn.BackgroundColor3 = CFG.autoBuy == "off" and GREY or GOLD
+end)
+lobbyBtn.MouseButton1Click:Connect(function()
+    setForce(false)
+    CFG.autoDeploy = false
+    depBtn.Text = "RESPAWN OFF"
+    depBtn.BackgroundColor3 = GREY
+    buyState = "back to lobby, rejoining"
+    task.spawn(function()
+        local ok = pcall(function() TS:Teleport(game.PlaceId, me) end)
+        if not ok then buyState = "lobby rejoin failed, press it again" end
+    end)
 end)
 backDown.MouseButton1Click:Connect(function() CFG.back = math.max(0, CFG.back - 5); backLbl.Text = tostring(CFG.back) end)
 backUp.MouseButton1Click:Connect(function() CFG.back = math.min(150, CFG.back + 5); backLbl.Text = tostring(CFG.back) end)
@@ -395,8 +646,7 @@ depBtn.MouseButton1Click:Connect(function()
 end)
 oneBtn.MouseButton1Click:Connect(function()
     CFG.oneShot = not CFG.oneShot
-    oneBtn.Text = CFG.oneShot and "INF ONESHOT ON" or "INF ONESHOT OFF"
-    oneBtn.BackgroundColor3 = CFG.oneShot and GOLD or GREY
+    paintUlt()
 end)
 hopSrv.MouseButton1Click:Connect(function()
     status.Text = "looking for the fullest server"
@@ -419,9 +669,6 @@ task.spawn(function()
         task.wait(0.3)
     end
 end)
-
-local ULT_INFO
-pcall(function() ULT_INFO = require(RS.Shared.Info.CheatInfos) end)
 
 local function ultCharge()
     if not DataClient then return nil, nil, nil end
@@ -450,13 +697,14 @@ task.spawn(function()
             elseif have == -1 then
                 pcall(function() CheatRemotes.RequestUseCheat:FireServer(name) end)
                 oneShotFires = oneShotFires + 1
-                ultState = string.format("FIRED %s (was ready)", name)
+                ultState = string.format("FIRED %s (was ready)", ultLabel())
                 task.wait(3)
             elseif need > 0 then
-                ultState = string.format("charging %s %d/%d kills", name, have, need)
+                ultState = string.format("charging %s %d/%d kills", ultLabel(), have, need)
             else
-                ultState = string.format("charging %s %d", name, have)
+                ultState = string.format("charging %s %d", ultLabel(), have)
             end
+            paintUlt()
         else
             ultState = "off"
         end
@@ -520,20 +768,25 @@ task.spawn(function()
         local bl = blaster()
         local acc = shots > 0 and math.floor(landed / shots * 100) or 0
         status.Text = string.format(
-            "round %s   back %d   tp/%df  jump/%df\ntarget %s  hp %s\nammo %s   accuracy %d%%\noneShot: %s   fires %d\narena %d players + %d bots\nshots %d  landed %d  KILLS %d  reloads %d",
+            "round %s   back %d   tp/%df  jump/%df\ntarget %s  hp %s\nammo %s   accuracy %d%%\nult: %s   fires %d\narena %d players + %d bots\nshots %d  landed %d  KILLS %d  reloads %d\ncash %d   crate: %s\n%s   popups blocked %d",
             rstate(), CFG.back, CFG.tpEvery, CFG.jumpEvery,
             current and current.name or "-",
             current and tostring(math.floor(current.life.Health)) or "-",
             tostring(bl and bl:GetAttribute("_ammo")), acc,
-            ultState .. "   robux popups blocked " .. tostring((getgenv().__TPFARM_PROMPT_BLOCKED) or 0), oneShotFires,
-            np, nb, shots, landed, kills, reloads)
+            ultState, oneShotFires,
+            np, nb, shots, landed, kills, reloads,
+            cashNow(), buyState,
+            forceOn and "FORCE RUNNING" or "FORCE ALL STOPPED",
+            tostring((getgenv().__TPFARM_PROMPT_BLOCKED) or 0))
         task.wait(0.2)
     end
 end)
 
 task.spawn(function()
+    local last = nil
     while STATE.alive() do
-        saveCfg(CFG)
+        local ok, j = pcall(function() return HttpService:JSONEncode(CFG) end)
+        if ok and j ~= last then last = j saveCfg(CFG) end
         task.wait(3)
     end
 end)
@@ -545,8 +798,16 @@ plrBtn.Text = CFG.doPlayers and "PLAYERS ON" or "PLAYERS OFF"
 plrBtn.BackgroundColor3 = CFG.doPlayers and GOLD or GREY
 depBtn.Text = CFG.autoDeploy and "RESPAWN ON" or "RESPAWN OFF"
 depBtn.BackgroundColor3 = CFG.autoDeploy and GOLD or GREY
-oneBtn.Text = CFG.oneShot and "INF ONESHOT ON" or "INF ONESHOT OFF"
-oneBtn.BackgroundColor3 = CFG.oneShot and GOLD or GREY
+if type(CFG.autoBuy) ~= "string" then CFG.autoBuy = "off" end
+autoBuyBtn.Text = CFG.autoBuy == "off" and "AUTO BUY OFF" or ("AUTO BUY: " .. string.upper(CFG.autoBuy))
+autoBuyBtn.BackgroundColor3 = CFG.autoBuy == "off" and GREY or GOLD
+forceBtn.Text = "FORCE: RUNNING"
+forceBtn.BackgroundColor3 = GOLD
+wasFarming = CFG.on
+paintUlt()
 
 rebuild()
-return "tpfarm loaded, resumed last settings, farming=" .. tostring(CFG.on) .. " oneShot loaded. owns+equipped oneShot = " .. tostring(ownsOneShot())
+return "tpfarm loaded. farming=" .. tostring(CFG.on)
+    .. "  ultimate=" .. ultLabel()
+    .. "  autoBuy=" .. tostring(CFG.autoBuy)
+    .. "  cash=" .. tostring(cashNow())
