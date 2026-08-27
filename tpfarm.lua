@@ -127,15 +127,28 @@ do
         end
         if fixed then UNLOCK_FIXES = UNLOCK_FIXES + 1 end
     end
-    keep(me.CharacterAdded:Connect(function() task.wait(0.15) unlockMouse() end))
-    keep(me:GetPropertyChangedSignal("CameraMode"):Connect(unlockMouse))
-    keep(UIS2:GetPropertyChangedSignal("MouseBehavior"):Connect(unlockMouse))
-    keep(UIS2:GetPropertyChangedSignal("MouseIconEnabled"):Connect(unlockMouse))
+    local dirty = true
+    local function raise() dirty = true end
+    keep(me.CharacterAdded:Connect(function() task.wait(0.15) raise() end))
+    keep(me:GetPropertyChangedSignal("CameraMode"):Connect(raise))
+    keep(UIS2:GetPropertyChangedSignal("MouseBehavior"):Connect(raise))
+    keep(UIS2:GetPropertyChangedSignal("MouseIconEnabled"):Connect(raise))
     unlockMouse()
     task.spawn(function()
+        local nextSweep = 0
         while STATE.alive() do
-            task.wait(0.4)
-            unlockMouse()
+            task.wait()
+            if dirty then
+                dirty = false
+                unlockMouse()
+            elseif os.clock() > nextSweep then
+                nextSweep = os.clock() + 0.25
+                if me.CameraMode ~= Enum.CameraMode.Classic
+                    or UIS2.MouseBehavior ~= Enum.MouseBehavior.Default
+                    or UIS2.MouseIconEnabled ~= true then
+                    unlockMouse()
+                end
+            end
         end
     end)
 end
