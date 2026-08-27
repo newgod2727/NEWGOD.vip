@@ -102,31 +102,40 @@ local function grab(root, ...)
     end
     return node
 end
+local UNLOCK_FIXES = 0
 do
     local UIS2 = game:GetService("UserInputService")
-    local function freeMouse()
-        pcall(function()
-            me.CameraMode = Enum.CameraMode.Classic
-            me.CameraMinZoomDistance = 8
-            me.CameraMaxZoomDistance = 40
-            UIS2.MouseBehavior = Enum.MouseBehavior.Default
-            UIS2.MouseIconEnabled = true
-        end)
+    local function unlockMouse()
+        local fixed = false
+        if me.CameraMode ~= Enum.CameraMode.Classic then
+            pcall(function() me.CameraMode = Enum.CameraMode.Classic end)
+            fixed = true
+        end
+        if me.CameraMinZoomDistance ~= 8 then
+            pcall(function() me.CameraMinZoomDistance = 8 end)
+        end
+        if me.CameraMaxZoomDistance ~= 40 then
+            pcall(function() me.CameraMaxZoomDistance = 40 end)
+        end
+        if UIS2.MouseBehavior ~= Enum.MouseBehavior.Default then
+            pcall(function() UIS2.MouseBehavior = Enum.MouseBehavior.Default end)
+            fixed = true
+        end
+        if UIS2.MouseIconEnabled ~= true then
+            pcall(function() UIS2.MouseIconEnabled = true end)
+            fixed = true
+        end
+        if fixed then UNLOCK_FIXES = UNLOCK_FIXES + 1 end
     end
-    keep(me.CharacterAdded:Connect(function() task.wait(0.15) freeMouse() end))
-    if me.Character then freeMouse() end
+    keep(me.CharacterAdded:Connect(function() task.wait(0.15) unlockMouse() end))
+    keep(me:GetPropertyChangedSignal("CameraMode"):Connect(unlockMouse))
+    keep(UIS2:GetPropertyChangedSignal("MouseBehavior"):Connect(unlockMouse))
+    keep(UIS2:GetPropertyChangedSignal("MouseIconEnabled"):Connect(unlockMouse))
+    unlockMouse()
     task.spawn(function()
         while STATE.alive() do
             task.wait(0.4)
-            if me.CameraMode ~= Enum.CameraMode.Classic then
-                pcall(function() me.CameraMode = Enum.CameraMode.Classic end)
-            end
-            if UIS2.MouseBehavior ~= Enum.MouseBehavior.Default then
-                pcall(function()
-                    UIS2.MouseBehavior = Enum.MouseBehavior.Default
-                    UIS2.MouseIconEnabled = true
-                end)
-            end
+            unlockMouse()
         end
     end)
 end
@@ -776,7 +785,7 @@ task.spawn(function()
             ultState, oneShotFires,
             np, nb, shots, landed, kills, reloads,
             cashNow(), buyState,
-            forceOn and "FORCE RUNNING" or "FORCE ALL STOPPED",
+            (forceOn and "FORCE RUNNING" or "FORCE ALL STOPPED") .. "   mouse unlocked x" .. UNLOCK_FIXES,
             tostring((getgenv().__TPFARM_PROMPT_BLOCKED) or 0))
         task.wait(0.2)
     end
