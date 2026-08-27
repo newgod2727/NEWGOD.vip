@@ -251,6 +251,8 @@ frame.BackgroundColor3 = Color3.fromRGB(20, 17, 13); frame.BorderSizePixel = 0
 frame.Active = true; frame.Parent = gui
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
 
+local overButton = false
+
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 26); title.BackgroundTransparency = 1
 title.Text = "TP FARM"; title.TextColor3 = Color3.fromRGB(231, 177, 115)
@@ -274,6 +276,7 @@ do
     local UIS = game:GetService("UserInputService")
     local dragging, dragStart, startPos = false, nil, nil
     local function beginDrag(input)
+        if overButton then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1
             or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
@@ -281,8 +284,7 @@ do
             startPos = frame.Position
         end
     end
-    keep(title.InputBegan:Connect(beginDrag))
-    keep(mark.InputBegan:Connect(beginDrag))
+    keep(frame.InputBegan:Connect(beginDrag))
     keep(UIS.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
             or input.UserInputType == Enum.UserInputType.Touch then
@@ -319,7 +321,10 @@ local function mk(t, x, y, w, c)
     b.Size = UDim2.fromOffset(w, 26); b.Position = UDim2.fromOffset(x, y)
     b.BackgroundColor3 = c; b.Text = t; b.TextColor3 = Color3.fromRGB(20, 17, 13)
     b.Font = Enum.Font.GothamBold; b.TextSize = 11; b.BorderSizePixel = 0; b.Parent = frame
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6); return b
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+    keep(b.MouseEnter:Connect(function() overButton = true end))
+    keep(b.MouseLeave:Connect(function() overButton = false end))
+    return b
 end
 
 local startBtn = mk("ENABLE FARM", 8, 30, 236, GOLD)
