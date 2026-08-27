@@ -770,7 +770,11 @@ do
     pcall(function() R = RakNet end)
     if R == nil then pcall(function() R = ENV.RakNet end) end
     if R == nil then pcall(function() R = raknet end) end
-    if type(R) == "table" and R.is_enabled == true and type(R.add_send_hook) == "function" then
+    -- A hook here runs a Luau callback for every single packet in that direction, measured at
+    -- 26748 received in one server session. It is a diagnostic, not a feature, so it stays off
+    -- until RAKNET_COUNT is switched on.
+    local RAKNET_COUNT = false
+    if RAKNET_COUNT and type(R) == "table" and R.is_enabled == true and type(R.add_send_hook) == "function" then
         pcall(function()
             if ENV.__TPFARM_RAK_SEND then R.remove_send_hook(ENV.__TPFARM_RAK_SEND) end
         end)
@@ -1057,6 +1061,13 @@ end
 local VAPE_URL = "https://rawscripts.net/raw/Vape-V4-For-Roblox_316"
 local VAPE_ALL = { "Anti-AFK", "AntiFall", "AutoClicker", "Invisible", "Killaura",
                    "Phase", "Reach", "SilentAim", "Speed", "TriggerBot" }
+local VAPE_OFF_ONLY = { "AutoClicker" }
+local VAPE_KEEP_ON = {}
+do
+    local off = {}
+    for _, n in ipairs(VAPE_OFF_ONLY) do off[n] = true end
+    for _, n in ipairs(VAPE_ALL) do if not off[n] then VAPE_KEEP_ON[n] = true end end
+end
 local VAPE_STATE = "unknown"
 
 local function vapeUp()
@@ -1295,6 +1306,13 @@ function vapeApply(on)
     for _, name in ipairs(on and vapeWanted() or vapeEnabledNow()) do
         if not STATE.alive() then break end
         local m = v.Modules[name]
+        -- His rule, set before tonight and restored after I broke it: turning the farm off
+        -- only ever takes AutoClicker off. SilentAim, TriggerBot and Reach stay where they
+        -- are, and so does everything else vape is running.
+        if (not on) and VAPE_KEEP_ON[name] then
+            LOG("  toggle " .. name .. " SKIPPED, disable only ever turns AutoClicker off")
+            m = nil
+        end
         if type(m) == "table" and type(m.Toggle) == "function" then
             if (m.Enabled == true) ~= on then
                 LOG("  toggle " .. name .. " -> " .. tostring(on) .. " ... calling")
