@@ -317,7 +317,6 @@ end)
 -- gethui() came back nil after a teleport on 2026-08-27, which orphaned the whole panel:
 -- it was still in getgenv, still had every button, and had no parent, so nothing was on
 -- screen and no press could reach it.
-local vapeGuiKeepAlive0 = function() end
 -- This watchdog must never pull the script again. A newer copy destroys this one's panel on
 -- purpose, so "my parent is gone" is the normal end of an old copy's life, not a fault. The
 -- first version reloaded on it and turned every reload into two: 74 generations in 8 seconds
@@ -341,7 +340,6 @@ task.spawn(function()
             end
             if landed then
                 LOG("panel: its host was gone, put it back under " .. tostring(gui.Parent))
-                pcall(vapeGuiKeepAlive0)
             else
                 -- Parent locked means Destroy, not orphaned, so there is nothing to re-parent
                 -- and the only way back is a fresh copy. The gate is os.time and lives in
@@ -1092,387 +1090,31 @@ local function openPass()
     LOG("openPass end")
 end
 
-local VAPE_URL = "https://rawscripts.net/raw/Vape-V4-For-Roblox_316"
-local VAPE_ALL = { "Anti-AFK", "AntiFall", "AutoClicker", "Invisible", "Killaura",
-                   "Phase", "Reach", "SilentAim", "Speed", "TriggerBot" }
-local VAPE_OFF_ONLY = { "AutoClicker" }
-local VAPE_KEEP_ON = {}
-do
-    local off = {}
-    for _, n in ipairs(VAPE_OFF_ONLY) do off[n] = true end
-    for _, n in ipairs(VAPE_ALL) do if not off[n] then VAPE_KEEP_ON[n] = true end end
-end
-local VAPE_STATE = "unknown"
-
+-- His instruction, 2026-08-27: this script reads vape and does nothing else to it.
+-- No loading it, no lock, no toggling a module, no touching its menu, no sweeping panels,
+-- no re-parenting, no remembering which modules were on. Every one of those was mine, and
+-- every one of them is a reason his menu vanished the moment I reloaded the script. Vape
+-- is loaded by the autoexec and belongs to him. What is left here only looks at it.
 local function vapeUp()
     local v = shared and shared.vape
     return type(v) == "table" and type(v.Modules) == "table" and v.Loaded ~= false
 end
 
-local function vapeGui()
+local function vapeRead()
     local v = shared and shared.vape
-    local g = v and rawget(v, "gui")
-    if typeof(g) == "Instance" and g:IsA("ScreenGui") then return g end
-    return nil
-end
-
--- A vape panel is any ScreenGui that owns a PRESS A KEY TO BIND label. Only the one
--- shared.vape.gui points at is the live one; every other is a leftover from a second load.
--- The sweep that used to live here destroyed vape's live menu twice over on 2026-08-27,
--- because shared.vape.gui is not pointed at the new panel until some way into vape's own
--- start-up, so anything comparing against it in that window calls the real one a leftover.
--- Duplicates are stopped at the source now -- one loader, one lock -- so nothing here needs
--- to go hunting for panels to destroy, and this returns 0 without touching anything.
-local function vapeSweepDuplicates()
-    return 0
-end
-
--- An orphaned vape gui can never be opened again, no matter what its keybind does, which is
--- what "i cant see vape menu" was: measured Parent nil, Enabled false. So the parent is kept
--- alive, and the one close only ever happens once per client -- after that the menu is his.
--- Measured 2026-08-27: the CoreGui.RobloxGui stand-in put up at 20:53:29 was gone again by
--- 20:55:24, and vape's menu went with it, destroyed, twice over. Whatever clears CoreGui on
--- this client does not touch PlayerGui -- the panel has been living there without trouble --
--- so the menu is moved there and kept there.
-local function vapeGuiKeepAlive()
-    local g = vapeGui()
-    if not g then return false end
-    local pgui = me:FindFirstChild("PlayerGui")
-    if not pgui then return false end
-    if g.Parent == pgui then return false end
-    local was = tostring(g.Parent)
-    local moved = false
-    pcall(function()
-        setthreadidentity(8)
-        g.Parent = pgui
-        moved = g.Parent == pgui
-    end)
-    if moved then
-        pcall(function() g.DisplayOrder = 9999998 end)
-        LOG("vape: its menu was under " .. was .. ", moved it into PlayerGui so it stops being wiped")
-        return true
-    end
-    return false
-end
-
-vapeGuiKeepAlive0 = vapeGuiKeepAlive
-
--- Destroyed, not merely unparented: nothing can put it back, so the only way his menu comes
--- back is a fresh vape. Detected by the Parent property refusing the write.
-local function vapeGuiBroken()
-    local g = vapeGui()
-    if not g then return true end
-    if g.Parent ~= nil then return false end
-    local ok = pcall(function()
-        setthreadidentity(8)
-        if gethui then g.Parent = gethui() end
-    end)
-    if g.Parent ~= nil then return false end
-    ok = pcall(function() g.Parent = game:GetService("CoreGui") end)
-    if ok and g.Parent ~= nil then return false end
-    return true
-end
-
-local function vapeReloadBroken()
-    if not vapeUp() then return false end
-    if not vapeGuiBroken() then return false end
-    local now = os.time()
-    if now - (ENV.__TPFARM_VAPE_REBUILD_AT or 0) < 120 then return false end
-    ENV.__TPFARM_VAPE_REBUILD_AT = now
-    LOG("vape: its menu is destroyed and cannot be re-parented, pulling vape again so he gets it back")
-    pcall(function() shared.vape = nil end)
-    ENV.__TPFARM_VAPE = nil
-    ENV.__TPFARM_VAPE_CLOSED = nil
-    return true
-end
-
--- His saved layout had Utility at X 956, World at 1175 and Inventory at 1411 while the
--- Roblox window is about 1020 px wide, so three whole columns were drawn past the right
--- edge and could never be seen. Whatever vape decides to use as a default, nothing is
--- allowed to sit outside the viewport: anything hanging off an edge is pulled back in,
--- and anything that cannot fit is centred.
-local function vapeGuiOnScreen()
-    local g = vapeGui()
-    if not g or g.Parent == nil then return 0 end
-    local cam = workspace.CurrentCamera
-    local vp = cam and cam.ViewportSize
-    if not vp or vp.X < 200 then return 0 end
-    local moved = 0
-    local roots = {}
-    for _, c in ipairs(g:GetChildren()) do
-        if c:IsA("GuiObject") then
-            for _, w in ipairs(c:GetChildren()) do
-                if w:IsA("Frame") and w.Visible then roots[#roots + 1] = w end
-            end
-        end
-    end
-    for _, w in ipairs(roots) do
-        local sz, ap = w.AbsoluteSize, w.AbsolutePosition
-        if sz.X > 80 and sz.Y > 50 then
-            local maxX = vp.X - sz.X - 8
-            local maxY = vp.Y - sz.Y - 8
-            local nx = math.clamp(ap.X, 8, math.max(8, maxX))
-            local ny = math.clamp(ap.Y, 8, math.max(8, maxY))
-            if maxX < 8 then nx = math.floor((vp.X - sz.X) / 2) end
-            if maxY < 8 then ny = math.floor((vp.Y - sz.Y) / 2) end
-            if math.abs(nx - ap.X) > 1 or math.abs(ny - ap.Y) > 1 then
-                local p = w.Position
-                pcall(function()
-                    w.Position = UDim2.new(p.X.Scale, p.X.Offset + (nx - ap.X),
-                                           p.Y.Scale, p.Y.Offset + (ny - ap.Y))
-                end)
-                moved = moved + 1
-            end
-        end
-    end
-    if moved > 0 then
-        LOG(string.format("vape: pulled %d of its windows back inside the %dx%d screen",
-            moved, math.floor(vp.X), math.floor(vp.Y)))
-    end
-    return moved
-end
-
--- This used to set g.Enabled = false to keep the CAPSLOCK rebind list off his screen, and
--- that was the thing that made his vape menu vanish every time he spoke to me: every reply
--- meant a reload, every reload ran this, and vape never turns Enabled back on by itself.
--- Nothing here touches Enabled any more. The menu is vape's, opened and closed by him.
-local function vapeCloseOwnGui(why)
-    vapeGuiKeepAlive()
-    pcall(vapeGuiOnScreen)
-    return false
-end
-
--- Measured 2026-08-27 20:1x: after one teleport this client had no CoreGui.RobloxGui and
--- gethui() returned nil. Vape parents into CoreGui.RobloxGui, so it threw
--- "RobloxGui is not a valid member of CoreGui" and shared.vape never appeared, which read
--- from outside as vape simply refusing to load. Roblox's own RobloxGui is already gone in
--- that state, so a stand-in of the same name takes nothing away from anyone.
-local function ensureVapeHost()
-    local cg = game:GetService("CoreGui")
-    if cg:FindFirstChild("RobloxGui") then return false end
-    local made = false
-    pcall(function()
-        setthreadidentity(8)
-        local sg = Instance.new("ScreenGui")
-        sg.Name = "RobloxGui"
-        sg.ResetOnSpawn = false
-        sg.IgnoreGuiInset = true
-        sg.DisplayOrder = 10
-        sg.Parent = cg
-        made = sg.Parent ~= nil
-    end)
-    if made then
-        LOG("vape: this client lost CoreGui.RobloxGui, put a stand-in there so vape has a host")
-    end
-    return made
-end
-
--- One loader for the whole client. The old shape was the autoexec asking every 8 seconds
--- whether shared.vape existed, and vape needs far longer than 8 seconds to set it, so the
--- question was answered no over and over and every no started another vape.
-local function ensureVape()
-    ensureVapeHost()
-    if vapeUp() then
-        ENV.__TPFARM_VAPE = "up"
-        VAPE_STATE = "up"
-        return
-    end
-    if ENV.__TPFARM_VAPE == "loading" then
-        local since = os.clock() - (ENV.__TPFARM_VAPE_AT or 0)
-        if since < 200 then
-            VAPE_STATE = "loading"
-            return
-        end
-        LOG(string.format("vape: the loading marker is %.0fs old and nothing is up, trying again", since))
-    end
-    ENV.__TPFARM_VAPE = "loading"
-    ENV.__TPFARM_VAPE_AT = os.clock()
-    VAPE_STATE = "loading"
-    LOG("vape: nothing loaded, this script is loading it once")
-    ensureVapeHost()
-    local myToken = ENV.__TPFARM_VAPE_AT
-    task.spawn(function()
-        pcall(function() setthreadidentity(8) end)
-        local t0 = os.clock()
-        local dead = shared and shared.vape
-        if type(dead) == "table" and dead.Loaded == false then
-            LOG("vape: the old shared.vape is Loaded=false, clearing it so the loader will run")
-            pcall(function() shared.vape = nil end)
-        end
-        -- vape's entry point never returns, so it gets a thread of its own or nothing below
-        -- this line ever runs and the marker stays on loading for the whole session.
-        task.spawn(function()
-            pcall(function() setthreadidentity(8) end)
-            pcall(function() loadstring(game:HttpGet(VAPE_URL))() end)
-        end)
-        while STATE.alive() and os.clock() - t0 < 180 do
-            if vapeUp() then break end
-            task.wait(0.5)
-        end
-        if vapeUp() then
-            ENV.__TPFARM_VAPE = "up"
-            VAPE_STATE = "up"
-            LOG(string.format("vape: up after %.0fs, version %s", os.clock() - t0,
-                tostring(shared.vape.Version)))
-            task.wait(2)
-            vapeSweepDuplicates()
-            vapeCloseOwnGui("just loaded")
-        elseif ENV.__TPFARM_VAPE_AT == myToken then
-            ENV.__TPFARM_VAPE = nil
-            VAPE_STATE = "load failed"
-            LOG("vape: 180s and shared.vape never appeared, giving this attempt up")
-        else
-            LOG("vape: this waiter belongs to an older copy, leaving the current attempt alone")
-        end
-    end)
-end
-
-task.spawn(function()
-    ensureVape()
-    while STATE.alive() do
-        task.wait(20)
-        if vapeUp() and not vapeGuiBroken() then
-            ENV.__TPFARM_VAPE = "up"
-            VAPE_STATE = "up"
-            vapeGuiKeepAlive()
-            pcall(vapeGuiOnScreen)
-        elseif vapeUp() and vapeReloadBroken() then
-            VAPE_STATE = "menu was destroyed, reloading"
-            ensureVape()
-        elseif not vapeUp() then
-            ensureVape()
-        end
-    end
-end)
-
-local function vapeWanted()
-    if type(CFG.vapeList) == "table" and #CFG.vapeList > 0 then
-        return CFG.vapeList
-    end
-    return VAPE_ALL
-end
-
--- The list of what to switch back on can never be replaced by an empty list, and it lives
--- in the json, because a table that only lives in memory is gone the moment this reloads.
-local function vapeSnapshot()
-    local v = shared and shared.vape
-    if not (type(v) == "table" and type(v.Modules) == "table") then return 0 end
-    local on = {}
-    for name, m in pairs(v.Modules) do
-        if type(m) == "table" and m.Enabled == true and type(m.Toggle) == "function" then
-            on[#on + 1] = tostring(name)
-        end
-    end
-    -- Whatever DISABLE FARM switches off has to be in the list ENABLE FARM switches back on,
-    -- or one press of each quietly loses it forever. AutoClicker went missing exactly that way.
-    local seen = {}
-    for _, n in ipairs(on) do seen[n] = true end
-    for _, n in ipairs(VAPE_OFF_ONLY) do
-        if not seen[n] then on[#on + 1] = n seen[n] = true end
-    end
-    if not seen["AntiFall"] then on[#on + 1] = "AntiFall" end
-    table.sort(on)
-    if #on > 0 then
-        CFG.vapeList = on
-        saveCfg(CFG)
-        LOG("vape: remembered " .. #on .. " module(s) to switch back on: " .. table.concat(on, ", "))
-    end
-    return #on
-end
-
--- Read only. Never feed this into a toggle loop: see VAPE_OFF_ONLY above.
-local function vapeEnabledNow()
-    local v = shared and shared.vape
-    local out = {}
-    if not (type(v) == "table" and type(v.Modules) == "table") then return out end
-    for name, m in pairs(v.Modules) do
-        if type(m) == "table" and m.Enabled == true and type(m.Toggle) == "function" then
-            out[#out + 1] = tostring(name)
-        end
-    end
-    table.sort(out)
-    return out
-end
-
-local vapeWaiter = false
-local vapeApply
-local function vapeWhenReady(on)
-    if vapeWaiter then return end
-    vapeWaiter = true
-    task.spawn(function()
-        for _ = 1, 240 do
-            if not STATE.alive() then break end
-            if vapeUp() then
-                vapeApply(on)
-                break
-            end
-            task.wait(0.5)
-        end
-        vapeWaiter = false
-    end)
-end
-
-local vapeDead = false
-function vapeApply(on)
-    if vapeDead then return 0 end
-    local v = shared and shared.vape
-    if not (type(v) == "table" and type(v.Modules) == "table") then
-        if on then
-            ensureVape()
-            vapeWhenReady(true)
-            buyState = "waiting for vape to finish loading"
-        end
-        return 0
-    end
-    pcall(function() setthreadidentity(8) end)
-    LOG("vapeApply start on=" .. tostring(on))
-    if not on then vapeSnapshot() end
+    if not (type(v) == "table" and type(v.Modules) == "table") then return "not loaded", 0 end
     local n = 0
-    -- His rule, given 2026-08-27 after a night of the client dying on me: switching every
-    -- enabled vape module off in one pass takes the whole machine down, every time. So the
-    -- off pass is handed VAPE_OFF_ONLY, a list with AutoClicker in it and nothing else, and
-    -- there is no path in this file that can hand it the full list again.
-    for _, name in ipairs(on and vapeWanted() or VAPE_OFF_ONLY) do
-        if not STATE.alive() then break end
-        local m = v.Modules[name]
-        -- His rule, set before tonight and restored after I broke it: turning the farm off
-        -- only ever takes AutoClicker off. SilentAim, TriggerBot and Reach stay where they
-        -- are, and so does everything else vape is running.
-        if (not on) and VAPE_KEEP_ON[name] then
-            LOG("  toggle " .. name .. " SKIPPED, disable only ever turns AutoClicker off")
-            m = nil
-        end
-        if type(m) == "table" and type(m.Toggle) == "function" then
-            if (m.Enabled == true) ~= on then
-                LOG("  toggle " .. name .. " -> " .. tostring(on) .. " ... calling")
-                local ok, err = pcall(m.Toggle, m)
-                if ok then
-                    n = n + 1
-                    LOG("  toggle " .. name .. " returned ok, Enabled=" .. tostring(m.Enabled))
-                else
-                    vapeDead = true
-                    LOG("  toggle " .. name .. " THREW " .. tostring(err))
-                    buyState = "vape " .. name .. " threw, not touching vape again: " .. tostring(err)
-                    return n
-                end
-                local settle = os.clock()
-                while STATE.alive() and os.clock() - settle < 2 do
-                    task.wait(0.1)
-                    if (m.Enabled == true) == on then break end
-                end
-                LOG(string.format("  %s settled after %.2fs, Enabled=%s", name, os.clock() - settle, tostring(m.Enabled)))
-                task.wait(0.2)
-            else
-                LOG("  toggle " .. name .. " skipped, already " .. tostring(on))
-                task.wait(0.05)
-            end
-        elseif m ~= nil then
-            LOG("  toggle " .. name .. " missing from vape")
-            task.wait(0.05)
-        end
+    for _, m in pairs(v.Modules) do
+        if type(m) == "table" and m.Enabled == true then n = n + 1 end
     end
-    LOG("vapeApply done, changed " .. n)
-    return n
+    if v.Loaded == false then return "loading", n end
+    return "up", n
+end
+
+local function vapeStateText()
+    local state, n = vapeRead()
+    if state == "up" then return "up " .. n end
+    return state
 end
 
 local function paintCrateBtn(spec)
@@ -1519,8 +1161,6 @@ local function setFarm(on)
     paintAll()
     task.spawn(function()
         pcall(function() setthreadidentity(8) end)
-        local n = vapeApply(on)
-        if not vapeDead then buyState = (on and "vape on " or "vape off ") .. n end
         local steps = {
             { "shooting and aiming", function() CFG.on = on if not on then current = nil end end },
             { "bots", function() CFG.doBots = on end },
@@ -1678,8 +1318,10 @@ lobbyBtn.MouseButton1Click:Connect(function()
 
         -- AntiFall grabs the character the instant it leaves a floor, which is exactly what a
         -- drop from the arena at Y 113 to the lobby at Y -155 looks like to it. His instruction:
-        -- take it off 0.05s after the teleport starts. One module only. Turning every module
-        -- off at once takes the whole machine down, see the note on VAPE_OFF_ONLY.
+        -- take it off 0.05s after the teleport starts. This one toggle is the only thing in
+        -- the whole file that writes to vape, and it is here because he asked for it by name.
+        -- One module. Never a loop over the module list: switching every enabled module off
+        -- at once takes the whole machine down.
         task.delay(0.05, function()
             local v = shared and shared.vape
             local m = v and v.Modules and v.Modules["AntiFall"]
@@ -1905,7 +1547,7 @@ task.spawn(function()
             tostring(bl and bl:GetAttribute("_ammo")), acc,
             ultState, oneShotFires,
             np, nb, shots, landed, kills, reloads,
-            cashNow(), VAPE_STATE, buyState .. "   open: " .. openState,
+            cashNow(), vapeStateText(), buyState .. "   open: " .. openState,
             (forceOn and "FARM ENABLED" or "FARM DISABLED") .. "   crates " .. crateOwned()
                 .. string.format("   fps %.0f  lua %d MB   boost: %s",
                     BOOST_FPS, math.floor(RAM_MB), BOOST_STATE),
@@ -2062,7 +1704,7 @@ task.spawn(function()
         LOG(string.format("alive  farm=%s  where=%s  fps=%.0f  luaheap=%.0f  buy=%s  open=%s  vape=%s  net=%d/%d  blocked=%d",
             tostring(forceOn), inLobby() and "lobby" or "arena",
             BOOST_FPS, collectgarbage("count") / 1024,
-            tostring(buying), tostring(opening), VAPE_STATE,
+            tostring(buying), tostring(opening), vapeStateText(),
             RAK.sent, RAK.recv, POPUPS_BLOCKED))
         task.wait(2)
     end
@@ -2081,18 +1723,8 @@ task.spawn(function()
     LOG("startup: enabling farm")
     setFarm(true)
     while farmBusy and STATE.alive() do task.wait(0.1) end
-    LOG("startup: farm is up with " .. #vapeWanted() .. " vape module(s)")
-    for _ = 1, 120 do
-        if not STATE.alive() then return end
-        if vapeUp() then break end
-        task.wait(1)
-    end
-    if vapeUp() then
-        task.wait(2)
-        vapeSweepDuplicates()
-        vapeCloseOwnGui("startup")
-    end
-    buyState = "started, vape " .. VAPE_STATE
+    LOG("startup: farm is up, vape is " .. vapeStateText() .. " and this script will not touch it")
+    buyState = "started, vape " .. vapeStateText()
 end)
 return "tpfarm loaded. farm=" .. (forceOn and "ENABLED" or "DISABLED")
     .. "  ultimate=" .. ultLabel()
@@ -2100,4 +1732,4 @@ return "tpfarm loaded. farm=" .. (forceOn and "ENABLED" or "DISABLED")
     .. "  gold=" .. tostring(CFG.buyGold) .. " super=" .. tostring(CFG.buySuper) .. " basic=" .. tostring(CFG.buyBasic)
     .. "  cash=" .. tostring(cashNow())
     .. "  crates=" .. tostring(crateOwned())
-    .. "  vapeList=" .. tostring(#vapeWanted())
+    .. "  vape=" .. vapeStateText()
