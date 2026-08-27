@@ -1,7 +1,8 @@
 -- SKYWARS LOADER - one link, detects the game, loads the right set.
 --
--- Default mode is "farm": the farming set only. Write the word solo into
--- RobloxComm/solo/mode.txt to get the full set with the recorder and xp bar.
+-- Default mode is "solo": the full set, recorder and xp bar included, because
+-- this game is a solo game and that is what one link should give you. Write the
+-- word farm into RobloxComm/solo/mode.txt for the farming set on its own.
 --
 -- Yes, a Lua file can hold other Lua files. There are two honest ways and this
 -- uses both, in order:
@@ -54,12 +55,13 @@ local GAMES = {
 		-- nothing else in this file has to change.
 		modes = {
 			-- farm: the farming set and nothing else. No recorder, no xp bar,
-			-- no logs written for anybody. This is the default.
+			-- no logs written for anybody.
 			farm = {
 				"SOLO_FARM.lua",
 				"SOLO_PLAY.lua",
 			},
-			-- solo: everything, including the recorder and the xp bar.
+			-- solo: everything, including the recorder and the xp bar. The default,
+			-- because this game is solo and one link should hand over the whole thing.
 			solo = {
 				"SOLO_REC.lua",
 				"XP_BAR.lua",
@@ -67,7 +69,7 @@ local GAMES = {
 				"SOLO_PLAY.lua",
 			},
 		},
-		default = "farm",
+		default = "solo",
 	},
 }
 

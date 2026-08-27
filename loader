@@ -4,6 +4,7 @@ local ROUTES = {
     [94334870778766] = "https://newgod.vip/deagle",
     [8542259458] = "https://newgod.vip/skywars/loader",
     [8542275097] = "https://newgod.vip/skywars/loader",
+    [8951451142] = "https://newgod.vip/skywars/loader",
 }
 local FALLBACK = "https://newgod.vip/tpfarm.lua"
 
