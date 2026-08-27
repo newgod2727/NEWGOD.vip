@@ -584,12 +584,21 @@ local function cashNow()
     return (cur and cur.cash) or 0
 end
 
-local function crateOwned()
-    local n = 0
+local crateCache, crateCacheAt, crateByKind = 0, 0, {}
+local function crateRecount()
+    local n, by = 0, {}
     pcall(function()
-        for _ in pairs(DataClient.Data.items.crates.owned) do n = n + 1 end
+        for _, k in pairs(DataClient.Data.items.crates.owned) do
+            n = n + 1
+            by[k] = (by[k] or 0) + 1
+        end
     end)
-    return n
+    crateCache, crateByKind, crateCacheAt = n, by, os.clock()
+end
+
+local function crateOwned(force)
+    if force or os.clock() - crateCacheAt > 1 then crateRecount() end
+    return crateCache
 end
 
 local function crateBy(id)
@@ -658,14 +667,9 @@ local OpenCrate = CrateRemotes and CrateRemotes:FindFirstChild("RequestPurchaseC
 local Unboxed = CrateRemotes and CrateRemotes:FindFirstChild("PlayerUnboxed")
 local opening, openState, openedTotal = false, "idle", 0
 
-local function ownedOf(kind)
-    local n = 0
-    pcall(function()
-        for _, k in pairs(DataClient.Data.items.crates.owned) do
-            if k == kind then n = n + 1 end
-        end
-    end)
-    return n
+local function ownedOf(kind, force)
+    crateOwned(force)
+    return crateByKind[kind] or 0
 end
 
 local function openPass()
@@ -685,8 +689,8 @@ local function openPass()
                     local wait0 = os.clock()
                     local landed = false
                     while STATE.alive() and CFG.autoOpen and os.clock() - wait0 < 6 do
-                        task.wait(0.08)
-                        if ownedOf(spec.key) < before then landed = true break end
+                        task.wait(0.12)
+                        if ownedOf(spec.key, true) < before then landed = true break end
                     end
                     if landed then
                         miss = 0
@@ -717,17 +721,16 @@ local function vapeWanted()
     return VAPE_DEFAULT
 end
 
+local vapeBusy = false
 local function vapeSet(on)
     local v = shared and shared.vape
     if not (type(v) == "table" and type(v.Modules) == "table") then return 0 end
-    local n = 0
+    if vapeBusy then return 0 end
+    vapeBusy = true
+    local want
     if on then
-        for _, name in ipairs(vapeWanted()) do
-            local m = v.Modules[name]
-            if type(m) == "table" and m.Enabled ~= true and type(m.Toggle) == "function" then
-                if pcall(m.Toggle, m) then n = n + 1 end
-            end
-        end
+        want = {}
+        for _, name in ipairs(vapeWanted()) do want[#want + 1] = name end
     else
         local live = {}
         for name, m in pairs(v.Modules) do
@@ -737,12 +740,25 @@ local function vapeSet(on)
             table.sort(live)
             CFG.vapeList = live
         end
-        for _, name in ipairs(live) do
-            local m = v.Modules[name]
-            if type(m) == "table" and type(m.Toggle) == "function" and pcall(m.Toggle, m) then n = n + 1 end
-        end
+        want = live
     end
-    return n
+    task.spawn(function()
+        local n = 0
+        for _, name in ipairs(want) do
+            if not STATE.alive() then break end
+            local m = v.Modules[name]
+            if type(m) == "table" and type(m.Toggle) == "function" then
+                local isOn = m.Enabled == true
+                if isOn ~= on then
+                    if pcall(m.Toggle, m) then n = n + 1 end
+                    task.wait()
+                end
+            end
+        end
+        vapeBusy = false
+        buyState = (on and "vape on " or "vape off ") .. n
+    end)
+    return #want
 end
 
 local function paintCrateBtn(spec)
@@ -813,8 +829,14 @@ task.spawn(function()
     end
 end)
 
-startBtn.MouseButton1Click:Connect(function() setFarm(true) end)
-stopBtn.MouseButton1Click:Connect(function() setFarm(false) end)
+local lastMaster = 0
+local function master(on)
+    if os.clock() - lastMaster < 1.2 then return end
+    lastMaster = os.clock()
+    setFarm(on)
+end
+startBtn.MouseButton1Click:Connect(function() master(true) end)
+stopBtn.MouseButton1Click:Connect(function() master(false) end)
 for _, spec in ipairs(CRATE) do
     spec.btn.MouseButton1Click:Connect(function()
         CFG[spec.flag] = not CFG[spec.flag]
@@ -1039,6 +1061,7 @@ do
     local Stats = game:GetService("Stats")
     local boostedJob = nil
     local hits = 0
+    local lastSweep = 0
 
     local function cheapRender()
         pcall(function()
@@ -1068,17 +1091,22 @@ do
     end
 
     local function killEffects()
-        local n = 0
-        pcall(function()
-            for _, d in ipairs(workspace:GetDescendants()) do
+        local n, seen = 0, 0
+        local list = {}
+        pcall(function() list = workspace:GetDescendants() end)
+        for _, d in ipairs(list) do
+            seen = seen + 1
+            if seen % 400 == 0 then task.wait() end
+            if not STATE.alive() then break end
+            pcall(function()
                 if d:IsA("ParticleEmitter") or d:IsA("Trail") or d:IsA("Smoke")
                     or d:IsA("Fire") or d:IsA("Sparkles") or d:IsA("Beam") then
                     if d.Enabled then d.Enabled = false n = n + 1 end
                 elseif d:IsA("Texture") or d:IsA("Decal") then
                     if d.Transparency < 1 then d.Transparency = 1 n = n + 1 end
                 end
-            end
-        end)
+            end)
+        end
         return n
     end
 
@@ -1094,6 +1122,7 @@ do
     end
 
     local function sweep(why)
+        lastSweep = os.clock()
         cheapRender()
         cheapTerrain()
         local n = killEffects()
@@ -1110,7 +1139,7 @@ do
             end
             local f = fps()
             BOOST_FPS = f
-            if f < 30 then
+            if f < 30 and os.clock() - lastSweep > 60 then
                 sweep(string.format("fps %.0f", f))
             end
             task.wait(20)
