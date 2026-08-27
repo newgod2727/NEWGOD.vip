@@ -709,6 +709,39 @@ local function jumpNow()
     if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
 end
 
+-- TP HEAD. The target of a hop is the enemy's Head, not his HumanoidRootPart, and the body
+-- lands TP_UP studs straight above it looking down. Aiming is the whole reason: the head is
+-- what the shot is sent against, so standing on top of it keeps the thing being aimed at in
+-- the same place every frame instead of swinging around a root that is a metre lower and
+-- turns with the body.
+local TP_UP = 15
+
+-- Straight from FARM_SKYWARS_ABCD, K.faceFlat, and it is here for the same reason it exists
+-- there. CFrame.new(dest, lookAt) with the target directly below points the look vector at
+-- the floor, and Roblox turns the whole character over to obey it -- his words when he saw
+-- it in EggWars: "it was fucking the human obdy turn into flat that middle". Flattening the
+-- direction to the horizontal plane keeps the body standing while it still sits overhead.
+local function faceFlat(curCF, dest, lookAt)
+    local flat = Vector3.new(lookAt.X - dest.X, 0, lookAt.Z - dest.Z)
+    if flat.Magnitude < 0.05 then
+        return CFrame.new(dest) * (curCF - curCF.Position)
+    end
+    return CFrame.new(dest, dest + flat)
+end
+
+local function headHopCF(mh, t)
+    local hd = t.head
+    if not (hd and hd.Parent) then return nil end
+    local hp = hd.Position
+    local dest = hp + Vector3.new(0, TP_UP, 0)
+    if CFG.back and CFG.back ~= 0 then
+        local face = t.hrp and t.hrp.CFrame.LookVector or Vector3.new(0, 0, -1)
+        local flat = Vector3.new(face.X, 0, face.Z)
+        if flat.Magnitude > 0.01 then dest = dest - flat.Unit * CFG.back end
+    end
+    return faceFlat(mh.CFrame, dest, hp), hp
+end
+
 RunService:BindToRenderStep(AIM, Enum.RenderPriority.Camera.Value + 10, function()
     if not CFG.on then
         if camHeld then releaseCam() end
@@ -719,6 +752,8 @@ RunService:BindToRenderStep(AIM, Enum.RenderPriority.Camera.Value + 10, function
     local t = current
     if os.clock() < holdUntil then
         if t and t.head and t.head.Parent then
+            local cf, hp = headHopCF(mh, t)
+            if cf then mh.CFrame = cf end
             look(mh.Position + Vector3.new(0, 1.5, 0), t.head.Position)
         end
         return
@@ -731,9 +766,12 @@ RunService:BindToRenderStep(AIM, Enum.RenderPriority.Camera.Value + 10, function
         if nt and nt.hrp and nt.hrp.Parent then current = nt; t = nt end
     end
     if t and t.hrp and t.hrp.Parent then
-        mh.CFrame = t.hrp.CFrame * CFrame.new(0, 0, CFG.back)
-        if t.head and t.head.Parent then
-            look(mh.Position + Vector3.new(0, 1.5, 0), t.head.Position)
+        local cf, hp = headHopCF(mh, t)
+        if cf then
+            mh.CFrame = cf
+            look(mh.Position + Vector3.new(0, 1.5, 0), hp)
+        else
+            mh.CFrame = t.hrp.CFrame * CFrame.new(0, 0, CFG.back)
         end
     end
     if frameN % CFG.jumpEvery == 0 then pcall(jumpNow) end
@@ -1750,9 +1788,9 @@ task.spawn(function()
         local bl = blaster()
         local acc = shots > 0 and math.floor(landed / shots * 100) or 0
         status.Text = string.format(
-            "%s  round %s   back %d   tp/%df  jump/%df\ntarget %s  hp %s\nammo %s   accuracy %d%%\nult: %s   fires %d\narena %d players + %d bots\nshots %d  landed %d  KILLS %d  reloads %d\ncash %d  vape %s   crate: %s\n%s   blocked %d",
+            "%s  round %s   back %d  head+%d   tp/%df  jump/%df\ntarget %s  hp %s\nammo %s   accuracy %d%%\nult: %s   fires %d\narena %d players + %d bots\nshots %d  landed %d  KILLS %d  reloads %d\ncash %d  vape %s   crate: %s\n%s   blocked %d",
             (inLobby() and (CFG.lobbyHold and "LOBBY HELD" or "LOBBY") or "ARENA"),
-            rstate(), CFG.back, CFG.tpEvery, CFG.jumpEvery,
+            rstate(), CFG.back, TP_UP, CFG.tpEvery, CFG.jumpEvery,
             current and current.name or "-",
             current and tostring(math.floor(current.life.Health)) or "-",
             tostring(bl and bl:GetAttribute("_ammo")), acc,
