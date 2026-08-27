@@ -890,13 +890,22 @@ function vapeApply(on)
                     buyState = "vape " .. name .. " threw, not touching vape again: " .. tostring(err)
                     return n
                 end
+                local settle = os.clock()
+                while STATE.alive() and os.clock() - settle < 2 do
+                    task.wait(0.1)
+                    if (m.Enabled == true) == on then break end
+                end
+                LOG(string.format("  %s settled after %.2fs, Enabled=%s", name, os.clock() - settle, tostring(m.Enabled)))
+                LOG("  letting vape finish its teardown, 1s")
+                task.wait(1)
             else
                 LOG("  toggle " .. name .. " skipped, already " .. tostring(on))
+                task.wait(0.05)
             end
         else
             LOG("  toggle " .. name .. " missing from vape")
+            task.wait(0.05)
         end
-        task.wait(0.1)
     end
     LOG("vapeApply done, changed " .. n)
     return n
