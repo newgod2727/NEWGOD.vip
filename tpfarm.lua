@@ -821,6 +821,7 @@ local function openPass()
 end
 
 local VAPE_COMBAT = { "AutoClicker", "SilentAim", "TriggerBot", "Reach" }
+local VAPE_EXTRA = { "Invisible", "Killaura", "Phase", "Speed", "Anti-AFK" }
 
 local function isCombat(name)
     for _, n in ipairs(VAPE_COMBAT) do
@@ -1439,8 +1440,49 @@ end)
 
 rebuild()
 task.spawn(function()
+    pcall(function() setthreadidentity(8) end)
     task.wait(0.5)
+    LOG("startup: enabling farm")
     setFarm(true)
+    while farmBusy and STATE.alive() do task.wait(0.1) end
+    LOG("startup: farm and the four combat modules are up, waiting 1s")
+    task.wait(1)
+    local v = shared and shared.vape
+    if vapeDead then
+        LOG("startup: vape is marked dead, not touching the extras")
+        return
+    end
+    if not (type(v) == "table" and type(v.Modules) == "table") then
+        LOG("startup: vape not loaded, extras skipped")
+        return
+    end
+    local n = 0
+    for _, name in ipairs(VAPE_EXTRA) do
+        if not STATE.alive() then break end
+        local m = v.Modules[name]
+        if type(m) == "table" and type(m.Toggle) == "function" then
+            if m.Enabled ~= true then
+                LOG("  extra " .. name .. " -> on ... calling")
+                local ok, err = pcall(m.Toggle, m)
+                if ok then
+                    n = n + 1
+                    LOG("  extra " .. name .. " returned ok, Enabled=" .. tostring(m.Enabled))
+                else
+                    vapeDead = true
+                    LOG("  extra " .. name .. " THREW " .. tostring(err))
+                    buyState = "vape " .. name .. " threw, not touching vape again"
+                    return
+                end
+            else
+                LOG("  extra " .. name .. " already on")
+            end
+        else
+            LOG("  extra " .. name .. " missing from vape")
+        end
+        task.wait(0.1)
+    end
+    LOG("startup: extras done, turned on " .. n)
+    buyState = "started, combat 4 + extras " .. n
 end)
 return "tpfarm loaded. farm=" .. (forceOn and "ENABLED" or "DISABLED")
     .. "  ultimate=" .. ultLabel()
