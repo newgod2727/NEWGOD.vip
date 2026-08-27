@@ -1297,7 +1297,6 @@ paintAll()
 
 do
     local Lighting = game:GetService("Lighting")
-    local Stats = game:GetService("Stats")
     local boostedJob = nil
     local hits = 0
     local lastSweep = 0
