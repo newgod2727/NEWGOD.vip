@@ -266,7 +266,7 @@ do
 end
 STATE.onCleanup(function()
     pcall(function() RunService:UnbindFromRenderStep(AIM) end)
-    pcall(function() cam.CameraType = Enum.CameraType.Custom end)
+    pcall(function() workspace.CurrentCamera.CameraType = Enum.CameraType.Custom end)
     gui:Destroy()
 end)
 
@@ -508,29 +508,65 @@ local function rebuild()
 end
 
 local camHeld = false
-local function look(from, to)
-    if camDragging() then
-        if camHeld then
-            pcall(function() cam.CameraType = Enum.CameraType.Custom end)
-            camHeld = false
-            ENV.__TPFARM_CAM_HELD = false
+
+local function liveCam()
+    return workspace.CurrentCamera
+end
+
+local function handBack(why)
+    local c = liveCam()
+    if not c then return false end
+    local was = tostring(c.CameraType)
+    pcall(function() c.CameraType = Enum.CameraType.Custom end)
+    pcall(function()
+        local ch = me.Character
+        local hum = ch and ch:FindFirstChildOfClass("Humanoid")
+        if hum and c.CameraSubject ~= hum then c.CameraSubject = hum end
+    end)
+    pcall(function()
+        if me.CameraMode ~= Enum.CameraMode.Classic then
+            me.CameraMode = Enum.CameraMode.Classic
         end
+    end)
+    camHeld = false
+    ENV.__TPFARM_CAM_HELD = false
+    if why then
+        LOG(string.format("camera handed back (%s): was %s, now %s, subject %s",
+            why, was, tostring(c.CameraType), tostring(c.CameraSubject)))
+    end
+    return true
+end
+
+local function look(from, to)
+    local c = liveCam()
+    if not c then return end
+    if camDragging() then
+        if camHeld then handBack("right mouse held") end
         return
     end
-    if not camHeld then
-        cam.CameraType = Enum.CameraType.Scriptable
+    if not camHeld or c.CameraType ~= Enum.CameraType.Scriptable then
+        c.CameraType = Enum.CameraType.Scriptable
         camHeld = true
         ENV.__TPFARM_CAM_HELD = true
     end
-    cam.CFrame = CFrame.lookAt(from, to)
+    c.CFrame = CFrame.lookAt(from, to)
 end
+
 local function releaseCam()
-    if camHeld then
-        pcall(function() cam.CameraType = Enum.CameraType.Custom end)
-        camHeld = false
-        ENV.__TPFARM_CAM_HELD = false
-    end
+    handBack("farm off")
 end
+
+task.spawn(function()
+    while STATE.alive() do
+        task.wait(1)
+        if not CFG.on then
+            local c = liveCam()
+            if c and c.CameraType ~= Enum.CameraType.Custom then
+                handBack("watchdog, farm is off but camera was " .. tostring(c.CameraType))
+            end
+        end
+    end
+end)
 local function jumpNow()
     local h = myHum()
     if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
