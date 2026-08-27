@@ -1232,19 +1232,13 @@ local function vapeGuiOnScreen()
     return moved
 end
 
+-- This used to set g.Enabled = false to keep the CAPSLOCK rebind list off his screen, and
+-- that was the thing that made his vape menu vanish every time he spoke to me: every reply
+-- meant a reload, every reload ran this, and vape never turns Enabled back on by itself.
+-- Nothing here touches Enabled any more. The menu is vape's, opened and closed by him.
 local function vapeCloseOwnGui(why)
     vapeGuiKeepAlive()
     pcall(vapeGuiOnScreen)
-    local g = vapeGui()
-    if not g then return false end
-    if ENV.__TPFARM_VAPE_CLOSED then return false end
-    if g.Enabled then
-        pcall(function() g.Enabled = false end)
-        ENV.__TPFARM_VAPE_CLOSED = true
-        LOG("vape: closed its own menu once (" .. tostring(why) .. "), his keybind opens it from here")
-        return true
-    end
-    ENV.__TPFARM_VAPE_CLOSED = true
     return false
 end
 
