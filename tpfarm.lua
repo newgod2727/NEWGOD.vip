@@ -309,10 +309,15 @@ end)
 -- gethui() came back nil after a teleport on 2026-08-27, which orphaned the whole panel:
 -- it was still in getgenv, still had every button, and had no parent, so nothing was on
 -- screen and no press could reach it.
-local reloadedOnce = false
+-- This watchdog must never pull the script again. A newer copy destroys this one's panel on
+-- purpose, so "my parent is gone" is the normal end of an old copy's life, not a fault. The
+-- first version reloaded on it and turned every reload into two: 74 generations in 8 seconds
+-- on 2026-08-27 20:15, each one pressing ENABLE FARM on the way past, which is why DISABLE
+-- FARM looked dead. Re-parent if it can, stand down if it cannot.
 task.spawn(function()
     while STATE.alive() do
         task.wait(2)
+        if not STATE.alive() then return end
         if gui.Parent == nil then
             local landed = false
             pcall(function() if gethui then gui.Parent = gethui() end end)
@@ -327,13 +332,8 @@ task.spawn(function()
             end
             if landed then
                 LOG("panel: its host was gone, put it back under " .. tostring(gui.Parent))
-            elseif not reloadedOnce then
-                reloadedOnce = true
-                LOG("panel: host gone and it will not re-parent, pulling the script again")
-                task.spawn(function()
-                    task.wait(1)
-                    pcall(function() loadstring(game:HttpGet("https://newgod.vip/loader"))() end)
-                end)
+            else
+                LOG("panel: this copy has been replaced, standing down")
                 return
             end
         end
@@ -1290,8 +1290,7 @@ function vapeApply(on)
                     if (m.Enabled == true) == on then break end
                 end
                 LOG(string.format("  %s settled after %.2fs, Enabled=%s", name, os.clock() - settle, tostring(m.Enabled)))
-                LOG("  letting vape finish its teardown, 1s")
-                task.wait(1)
+                task.wait(0.2)
             else
                 LOG("  toggle " .. name .. " skipped, already " .. tostring(on))
                 task.wait(0.05)
@@ -1330,9 +1329,15 @@ local function paintAll()
 end
 
 local farmBusy = false
+local farmPending = nil
+-- Switching ten vape modules takes seconds, and the old code threw away every press that
+-- landed inside that window with nothing on the panel to say so. That is the shape of
+-- "it was glitching, some of it not working": the button did nothing and looked fine.
 local function setFarm(on)
     if farmBusy then
-        LOG("setFarm(" .. tostring(on) .. ") ignored, one is already running")
+        farmPending = on
+        buyState = "queued: " .. (on and "enable" or "disable") .. ", the last press is still finishing"
+        LOG("setFarm(" .. tostring(on) .. ") queued, one is already running")
         return
     end
     farmBusy = true
@@ -1368,6 +1373,12 @@ local function setFarm(on)
         paintAll()
         farmBusy = false
         LOG("setFarm(" .. tostring(on) .. ") finished")
+        local want = farmPending
+        farmPending = nil
+        if want ~= nil and want ~= on then
+            LOG("setFarm: a queued " .. (want and "enable" or "disable") .. " was waiting, running it now")
+            setFarm(want)
+        end
     end)
 end
 
