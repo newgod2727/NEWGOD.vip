@@ -1355,6 +1355,15 @@ document.addEventListener("DOMContentLoaded", function(){
       .from('[data-anim="lead"]',   { autoAlpha: 0, y: 18, duration: .6 }, "-=.5")
       .from('[data-anim="actions"] > *', { autoAlpha: 0, y: 16, duration: .5, stagger: .07 }, "-=.4");
 
+    setTimeout(function(){
+      var heroBits = gsap.utils.toArray('[data-anim], [data-anim="actions"] > *');
+      heroBits.forEach(function(el){
+        if (gsap.getProperty(el, "opacity") === 0) {
+          gsap.set(el, { clearProps: "opacity,visibility,transform" });
+        }
+      });
+    }, 2600);
+
     if (!window.ScrollTrigger) return;
 
     var vh0 = window.innerHeight || 800;
