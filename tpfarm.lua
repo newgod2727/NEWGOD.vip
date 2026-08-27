@@ -220,6 +220,9 @@ getgenv().TPFARM = CFG
 local list, idx, current, holdUntil = {}, 1, nil, 0
 local forceOn, wasFarming = true, false
 local BOOST_STATE, BOOST_FPS = "starting", 0
+local RAM_MB, CPU_PCT = 0, 0
+local hintFrame, hintLabel, hintYes, hintNo
+local autoHopOK, hintShownAt, lastHopAt = false, 0, 0
 local frameN, lastDeploy = 0, 0
 local shots, landed, kills, reloads, oneShotFires = 0, 0, 0, 0, 0
 local AIM = "tpfarm_aim"
@@ -317,6 +320,35 @@ status.TextXAlignment = Enum.TextXAlignment.Left
 status.TextYAlignment = Enum.TextYAlignment.Top; status.Parent = frame
 
 local GOLD, GREY, RED = Color3.fromRGB(231, 177, 115), Color3.fromRGB(120, 108, 96), Color3.fromRGB(200, 90, 70)
+
+hintFrame = Instance.new("Frame")
+hintFrame.Size = UDim2.fromOffset(236, 62)
+hintFrame.Position = UDim2.fromOffset(8, 412)
+hintFrame.BackgroundColor3 = Color3.fromRGB(34, 26, 18)
+hintFrame.BorderSizePixel = 0
+hintFrame.Visible = false
+hintFrame.ZIndex = 6
+hintFrame.Parent = frame
+Instance.new("UICorner", hintFrame).CornerRadius = UDim.new(0, 8)
+do
+    local st = Instance.new("UIStroke")
+    st.Color = GOLD
+    st.Thickness = 1
+    st.Parent = hintFrame
+end
+
+hintLabel = Instance.new("TextLabel")
+hintLabel.Size = UDim2.fromOffset(220, 26)
+hintLabel.Position = UDim2.fromOffset(8, 4)
+hintLabel.BackgroundTransparency = 1
+hintLabel.TextColor3 = GOLD
+hintLabel.Font = Enum.Font.GothamBold
+hintLabel.TextSize = 11
+hintLabel.TextWrapped = true
+hintLabel.TextXAlignment = Enum.TextXAlignment.Left
+hintLabel.ZIndex = 7
+hintLabel.Text = ""
+hintLabel.Parent = hintFrame
 local function mk(t, x, y, w, c)
     local b = Instance.new("TextButton")
     b.Size = UDim2.fromOffset(w, 26); b.Position = UDim2.fromOffset(x, y)
@@ -344,6 +376,26 @@ local buySuper = mk("SUPER", 89, 240, 74, GREY)
 local buyGold = mk("GOLD", 169, 240, 75, GOLD)
 local autoBuyBtn = mk("AUTO BUY OFF", 8, 270, 236, GREY)
 local autoOpenBtn = mk("AUTO OPEN OFF", 8, 300, 236, GREY)
+
+do
+    local function hb(t, x, w, c)
+        local b = Instance.new("TextButton")
+        b.Size = UDim2.fromOffset(w, 24)
+        b.Position = UDim2.fromOffset(x, 32)
+        b.BackgroundColor3 = c
+        b.Text = t
+        b.TextColor3 = Color3.fromRGB(20, 17, 13)
+        b.Font = Enum.Font.GothamBold
+        b.TextSize = 11
+        b.BorderSizePixel = 0
+        b.ZIndex = 7
+        b.Parent = hintFrame
+        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+        return b
+    end
+    hintYes = hb("AUTO ACCEPT HOP", 8, 138, GOLD)
+    hintNo = hb("OFF", 152, 76, GREY)
+end
 
 local function rstate()
     if not RoundClient then return "?" end
@@ -702,7 +754,7 @@ local function openPass()
                         openState = spec.label .. " no answer x" .. miss
                     end
                     shutCrateScreen()
-                    if os.clock() - t0 > 240 then break end
+                    if os.clock() - t0 > 20 then break end
                     if not CFG.autoOpen then openState = "stopped, auto open is off" break end
                 end
             end
@@ -806,27 +858,83 @@ end
 
 task.spawn(function()
     while STATE.alive() do
-        if forceOn and CFG.autoOpen and not opening and not buying then
-            local any = false
-            for _, spec in ipairs(CRATE) do
-                if CFG[spec.flag] and ownedOf(spec.key) > 0 then any = true break end
+        if forceOn then
+            if CFG.autoBuy and not buying and not opening then
+                local any = false
+                for _, spec in ipairs(CRATE) do
+                    if CFG[spec.flag] and cashNow() >= spec.price then any = true break end
+                end
+                if any then buyPass() end
             end
-            if any then openPass() end
+            if CFG.autoOpen and not opening and not buying then
+                local any = false
+                for _, spec in ipairs(CRATE) do
+                    if CFG[spec.flag] and ownedOf(spec.key) > 0 then any = true break end
+                end
+                if any then openPass() end
+            end
         end
-        task.wait(3)
+        task.wait(2)
     end
 end)
 
-task.spawn(function()
-    while STATE.alive() do
-        if forceOn and CFG.autoBuy and not buying and not opening then
-            local any = false
-            for _, spec in ipairs(CRATE) do
-                if CFG[spec.flag] and cashNow() >= spec.price then any = true break end
-            end
-            if any then buyPass() end
+local function hideHint(why)
+    hintFrame.Visible = false
+    hintShownAt = 0
+    if why then BOOST_STATE = why end
+end
+
+local function doHop()
+    lastHopAt = os.clock()
+    hideHint("hopping, ram was " .. math.floor(RAM_MB) .. " MB")
+    task.spawn(function()
+        local best, why = bestServer()
+        if not best then
+            pcall(function() TS:Teleport(game.PlaceId, me) end)
+            return
         end
-        task.wait(4)
+        local ok = pcall(function() TS:TeleportToPlaceInstance(game.PlaceId, best.id, me) end)
+        if not ok then pcall(function() TS:Teleport(game.PlaceId, me) end) end
+    end)
+end
+
+hintYes.MouseButton1Click:Connect(function()
+    autoHopOK = true
+    doHop()
+end)
+hintNo.MouseButton1Click:Connect(function()
+    hideHint("hop declined")
+end)
+
+task.spawn(function()
+    local Stats = game:GetService("Stats")
+    local function readCpu()
+        local v = 0
+        pcall(function()
+            local ps = Stats:FindFirstChild("PerformanceStats")
+            if not ps then return end
+            local node = ps:FindFirstChild("CPU") or ps:FindFirstChild("MaxCPU")
+            if node then v = node:GetValue() end
+        end)
+        return v
+    end
+    while STATE.alive() do
+        pcall(function() RAM_MB = Stats:GetTotalMemoryUsageMb() end)
+        CPU_PCT = readCpu()
+        local heavy = RAM_MB > 4500 or CPU_PCT > 85
+        if heavy and os.clock() - lastHopAt > 120 then
+            if autoHopOK then
+                doHop()
+            elseif not hintFrame.Visible and os.clock() - hintShownAt > 300 then
+                hintShownAt = os.clock()
+                hintLabel.Text = string.format("ram %d MB, cpu %d%%. hop server?", math.floor(RAM_MB), math.floor(CPU_PCT))
+                hintFrame.Visible = true
+            end
+        end
+        if hintFrame.Visible and hintShownAt > 0 and os.clock() - hintShownAt > 60 then
+            hideHint("hop hint timed out, staying")
+        end
+        task.wait(5)
     end
 end)
 
@@ -1027,7 +1135,8 @@ task.spawn(function()
             np, nb, shots, landed, kills, reloads,
             cashNow(), buyState .. "   open: " .. openState,
             (forceOn and "FARM ENABLED" or "FARM DISABLED") .. "   crates " .. crateOwned()
-                .. string.format("   fps %.0f   boost: %s", BOOST_FPS, BOOST_STATE),
+                .. string.format("   fps %.0f  ram %d MB  cpu %d%%   boost: %s",
+                    BOOST_FPS, math.floor(RAM_MB), math.floor(CPU_PCT), BOOST_STATE),
             tostring((getgenv().__TPFARM_PROMPT_BLOCKED) or 0))
         task.wait(0.2)
     end
@@ -1080,6 +1189,19 @@ do
         end)
     end
 
+    local function stripLighting()
+        local n = 0
+        pcall(function()
+            for _, v in ipairs(Lighting:GetChildren()) do
+                if v:IsA("PostEffect") or v:IsA("Atmosphere") or v:IsA("Sky") then
+                    pcall(function() v:Destroy() end)
+                    n = n + 1
+                end
+            end
+        end)
+        return n
+    end
+
     local function cheapTerrain()
         pcall(function()
             local t = workspace:FindFirstChildOfClass("Terrain")
@@ -1126,7 +1248,7 @@ do
         lastSweep = os.clock()
         cheapRender()
         cheapTerrain()
-        local n = killEffects()
+        local n = killEffects() + stripLighting()
         hits = hits + 1
         BOOST_STATE = string.format("%s, %d effects off, sweep %d", why, n, hits)
     end
