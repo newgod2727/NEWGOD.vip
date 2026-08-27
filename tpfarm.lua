@@ -1518,10 +1518,6 @@ task.spawn(function()
     LOG("startup: enabling farm")
     setFarm(true)
     while farmBusy and STATE.alive() do task.wait(0.1) end
-    CFG.autoBuy = true
-    CFG.autoOpen = true
-    paintAll()
-    LOG("startup: auto buy and auto open turned on")
     LOG("startup: farm and the four combat modules are up, waiting 1s")
     task.wait(1)
     local v = shared and shared.vape
