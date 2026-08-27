@@ -1125,30 +1125,54 @@ lobbyBtn.MouseButton1Click:Connect(function()
     setFarm(false)
     buyState = "back to lobby, dying"
     task.spawn(function()
-        local c0 = me.Character
-        local hum = c0 and c0:FindFirstChildOfClass("Humanoid")
-        if not hum then
-            buyState = "no character to leave with"
+        pcall(function() setthreadidentity(8) end)
+        local function deployed()
+            local ok, v = pcall(function() return isDeployed(me) end)
+            return ok and v == true
+        end
+        LOG("lobby: deployed=" .. tostring(deployed())
+            .. "  round=" .. tostring(rstate())
+            .. "  character=" .. tostring(me.Character and me.Character.Name or "none"))
+
+        if not deployed() then
+            LOG("lobby: not deployed, already out of the round, nothing to kill")
+            buyState = "already in the lobby"
+            task.wait(2)
             lobbyBusy = false
             return
         end
-        for _ = 1, 2 do
+
+        for attempt = 1, 3 do
             if not STATE.alive() then break end
-            if me.Character ~= c0 then break end
-            if hum.Parent == nil or hum.Health <= 0 then break end
-            pcall(function() hum.Health = 0 end)
-            local w = os.clock()
-            while os.clock() - w < 1.2 do
-                task.wait(0.1)
-                if me.Character ~= c0 or hum.Parent == nil or hum.Health <= 0 then break end
+            if not deployed() then break end
+            local ch = me.Character
+            local hum = ch and ch:FindFirstChildOfClass("Humanoid")
+            if not hum then
+                LOG("lobby: attempt " .. attempt .. " has no humanoid, waiting")
+                task.wait(1)
+            else
+                LOG(string.format("lobby: attempt %d, health %s, setting it to 0", attempt, tostring(hum.Health)))
+                pcall(function() hum.Health = 0 end)
+                pcall(function() hum:TakeDamage(hum.MaxHealth + 1000) end)
+                local w = os.clock()
+                while STATE.alive() and os.clock() - w < 3 do
+                    task.wait(0.15)
+                    if not deployed() then break end
+                    if me.Character ~= ch then break end
+                end
+                LOG(string.format("lobby: after attempt %d, deployed=%s health=%s",
+                    attempt, tostring(deployed()), tostring(hum.Parent and hum.Health or "gone")))
             end
         end
-        if me.Character ~= c0 or hum.Parent == nil or hum.Health <= 0 then
-            buyState = "back in the lobby"
+
+        if deployed() then
+            LOG("lobby: STILL DEPLOYED after 3 attempts, the server is not letting me die")
+            buyState = "server will not let me die, still in the round"
         else
-            buyState = "the server refused the kill, still in the round"
+            LOG("lobby: out of the round, back in the lobby")
+            buyState = "back in the lobby"
         end
-        task.wait(3)
+        task.wait(2)
         lobbyBusy = false
     end)
 end)
