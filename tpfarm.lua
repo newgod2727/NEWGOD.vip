@@ -396,7 +396,7 @@ do
         Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
         return b
     end
-    hintYes = hb("AUTO ACCEPT HOP", 8, 138, GOLD)
+    hintYes = hb("HOP NOW", 8, 138, GOLD)
     hintNo = hb("OFF", 152, 76, GREY)
 end
 
@@ -590,9 +590,10 @@ local CRATE = {
 local BURST = 1200
 local buying, buyState = false, "idle"
 
-local CrateUI, InterfaceUI
+local CrateUI, InterfaceUI, StoreUI
 pcall(function() CrateUI = require(RS.Client.Providers.Interface.CrateClient) end)
 pcall(function() InterfaceUI = require(RS.Client.Providers.Interface.InterfaceClient) end)
+pcall(function() StoreUI = require(RS.Client.Providers.Interface.RobuxStoreClient) end)
 
 if CrateUI and ENV.__TPFARM_REAL_OPENMENU == nil then
     ENV.__TPFARM_REAL_OPENMENU = rawget(CrateUI, "OpenMenu")
@@ -600,33 +601,46 @@ end
 if InterfaceUI and ENV.__TPFARM_REAL_SETMENU == nil then
     ENV.__TPFARM_REAL_SETMENU = rawget(InterfaceUI, "SetMenu")
 end
+if StoreUI and ENV.__TPFARM_REAL_STOREOPEN == nil then
+    ENV.__TPFARM_REAL_STOREOPEN = rawget(StoreUI, "Open")
+end
 local realOpenMenu = ENV.__TPFARM_REAL_OPENMENU
 local realSetMenu = ENV.__TPFARM_REAL_SETMENU
+local realStoreOpen = ENV.__TPFARM_REAL_STOREOPEN
 if CrateUI and realOpenMenu then CrateUI.OpenMenu = realOpenMenu end
 if InterfaceUI and realSetMenu then InterfaceUI.SetMenu = realSetMenu end
+if StoreUI and realStoreOpen then StoreUI.Open = realStoreOpen end
+
+local BLOCKED_MENUS = { Crate = true, Store = true }
 
 local function shutCrateScreen()
     if InterfaceUI and realSetMenu then
         local cur = InterfaceUI.Menu and InterfaceUI.Menu.Name
-        if cur == "Crate" then pcall(realSetMenu, nil) end
+        if BLOCKED_MENUS[cur] then pcall(realSetMenu, nil) end
     end
     local pgui = me:FindFirstChild("PlayerGui")
     local menus = pgui and pgui:FindFirstChild("Menus")
-    local sg = menus and menus:FindFirstChild("Crate")
-    if sg and sg:IsA("ScreenGui") and sg.Enabled then sg.Enabled = false end
+    if menus then
+        for name in pairs(BLOCKED_MENUS) do
+            local sg = menus:FindFirstChild(name)
+            if sg and sg:IsA("ScreenGui") and sg.Enabled then sg.Enabled = false end
+        end
+    end
 end
 
 local function muteCrateUI(on)
     if on then
         if CrateUI and realOpenMenu then CrateUI.OpenMenu = function() end end
+        if StoreUI and realStoreOpen then StoreUI.Open = function() end end
         if InterfaceUI and realSetMenu then
             InterfaceUI.SetMenu = function(name, ...)
-                if name == "Crate" then return end
+                if BLOCKED_MENUS[name] then return end
                 return realSetMenu(name, ...)
             end
         end
     else
         if CrateUI and realOpenMenu then CrateUI.OpenMenu = realOpenMenu end
+        if StoreUI and realStoreOpen then StoreUI.Open = realStoreOpen end
         if InterfaceUI and realSetMenu then InterfaceUI.SetMenu = realSetMenu end
     end
     shutCrateScreen()
@@ -946,7 +960,6 @@ local function doHop()
 end
 
 hintYes.MouseButton1Click:Connect(function()
-    autoHopOK = true
     doHop()
 end)
 hintNo.MouseButton1Click:Connect(function()
@@ -969,15 +982,13 @@ task.spawn(function()
     while STATE.alive() do
         pcall(function() RAM_MB = Stats:GetTotalMemoryUsageMb() end)
         CPU_PCT = readCpu()
-        local heavy = RAM_MB > 4500 or CPU_PCT > 85
-        if heavy and os.clock() - lastHopAt > 120 then
-            if autoHopOK then
-                doHop()
-            elseif not hintFrame.Visible and not hopDeclined and os.clock() - hintLastAt > 300 then
-                hintShownAt = os.clock()
-                hintLabel.Text = string.format("ram %d MB, cpu %d%%. hop server?", math.floor(RAM_MB), math.floor(CPU_PCT))
-                hintFrame.Visible = true
-            end
+        local heavy = RAM_MB > 5500
+        if heavy and not hintFrame.Visible and not hopDeclined
+            and os.clock() - hintLastAt > 900 and os.clock() - lastHopAt > 900 then
+            hintShownAt = os.clock()
+            hintLabel.Text = string.format("ram %d MB. hopping does not free it, only a restart does. hop anyway?",
+                math.floor(RAM_MB))
+            hintFrame.Visible = true
         end
         if hintFrame.Visible and hintShownAt > 0 and os.clock() - hintShownAt > 60 then
             hideHint("hop hint timed out, staying")
