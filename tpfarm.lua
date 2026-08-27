@@ -1154,6 +1154,42 @@ task.spawn(function()
     end
 end)
 
+-- The window layout is data too, and vape already writes it: newvape/profiles/<universe>.gui.txt
+-- holds every column's X and Y. Measured 2026-08-27 -- Main 286,332  Combat 513,332
+-- Blatant 741,331  Utility 966,334  World 1195,334  Inventory 1426,78 -- and the live
+-- AbsolutePosition matches those minus 58, which is the GUI inset the ScaledGui sits above.
+-- So nothing here drags a window. It keeps a copy of that file, and if vape ever comes up
+-- without it, the copy goes back on disk and vape lays itself out from it on the next load.
+local VAPE_GUI_REF = "RobloxComm/vape_gui_ref.txt"
+local function vapeGuiFile()
+    return "newvape/profiles/" .. tostring(game.GameId) .. ".gui.txt"
+end
+
+local function vapeLayoutBackup()
+    local p = vapeGuiFile()
+    local ok, raw = pcall(readfile, p)
+    if ok and type(raw) == "string" and #raw > 200 then
+        pcall(function() writefile(VAPE_GUI_REF, raw) end)
+        return #raw
+    end
+    return 0
+end
+
+local function vapeLayoutRestore()
+    local p = vapeGuiFile()
+    local live, cur = pcall(readfile, p)
+    if live and type(cur) == "string" and #cur > 200 then return 0 end
+    local ok, saved = pcall(readfile, VAPE_GUI_REF)
+    if not ok or type(saved) ~= "string" or #saved < 200 then
+        VLOG("layout: nothing on disk and no backup to put back")
+        return 0
+    end
+    pcall(function() writefile(p, saved) end)
+    VLOG("layout: " .. p .. " was missing, put the saved " .. #saved
+        .. " byte copy back, vape reads it on its next load")
+    return #saved
+end
+
 local function vapeRefLoad()
     local ok, raw = pcall(readfile, VAPE_REF_FILE)
     if not ok or type(raw) ~= "string" or #raw < 10 then return nil end
@@ -1214,6 +1250,7 @@ local function vapeSmartFill(why)
     if #toOn == 0 and #toOff == 0 then
         VLOG(string.format("check (%s): all %d modules match what he set", tostring(why),
             (select(2, vapeRead()))))
+        pcall(vapeLayoutBackup)
         return 0
     end
     VLOG(string.format("check (%s): %d to switch on [%s], %d to switch off [%s]",
@@ -1261,6 +1298,7 @@ task.spawn(function()
             VLOG("joined server " .. tostring(game.JobId):sub(1, 8) .. ", checking vape in 10s")
             task.wait(10)
             if not STATE.alive() then return end
+            pcall(vapeLayoutRestore)
             if vapeSmartFill("10s after joining") == -1 then
                 for _ = 1, 12 do
                     task.wait(10)
