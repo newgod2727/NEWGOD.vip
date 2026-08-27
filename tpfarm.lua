@@ -317,6 +317,7 @@ end)
 -- gethui() came back nil after a teleport on 2026-08-27, which orphaned the whole panel:
 -- it was still in getgenv, still had every button, and had no parent, so nothing was on
 -- screen and no press could reach it.
+local vapeGuiKeepAlive0 = function() end
 -- This watchdog must never pull the script again. A newer copy destroys this one's panel on
 -- purpose, so "my parent is gone" is the normal end of an old copy's life, not a fault. The
 -- first version reloaded on it and turned every reload into two: 74 generations in 8 seconds
@@ -340,6 +341,7 @@ task.spawn(function()
             end
             if landed then
                 LOG("panel: its host was gone, put it back under " .. tostring(gui.Parent))
+                pcall(vapeGuiKeepAlive0)
             else
                 -- Parent locked means Destroy, not orphaned, so there is nothing to re-parent
                 -- and the only way back is a fresh copy. The gate is os.time and lives in
@@ -523,6 +525,7 @@ local function rstate()
     local rd = RoundClient.RoundData
     return rd and tostring(rd.state) or "?"
 end
+local myHrp0
 local function isDeployed(p)
     if not RoundClient then return false end
     local rd = RoundClient.RoundData
@@ -530,11 +533,42 @@ local function isDeployed(p)
     local i = rd.players[tostring(p.UserId)]
     return i ~= nil and i.isDeployed == true
 end
+-- Measured 2026-08-27 on place 80139795758532. This map has three flat levels stacked on
+-- top of each other and only one of them is the lobby:
+--   Workspace.Part          2048 x 2048 at Y 95    the arena floor, where he stands mid round
+--   Workspace.Game.Lobby    around Y -156          the lobby, SpawnLocation at -5.2, -155.5, -14.6
+--   Workspace.Baseplate     200 x 180 at Y -179.5  empty, nothing on it, never go here
+-- Being undeployed does not move him: he was measured at Y 113, inside the map, with
+-- isDeployed false and the Play button on screen. So the round state and the place he is
+-- standing are two different things, and BACK TO LOBBY has to move the body itself.
+local LOBBY_FALLBACK = Vector3.new(-5.241739, -155.532791, -14.646920)
+local function lobbySpawnPos()
+    local g = workspace:FindFirstChild("Game")
+    local lob = g and g:FindFirstChild("Lobby")
+    local spawns = lob and lob:FindFirstChild("spawns")
+    if spawns then
+        for _, d in ipairs(spawns:GetDescendants()) do
+            if d:IsA("SpawnLocation") then return d.Position end
+        end
+        for _, d in ipairs(spawns:GetDescendants()) do
+            if d:IsA("BasePart") then return d.Position end
+        end
+    end
+    return LOBBY_FALLBACK
+end
+
+local function nearLobby()
+    local h = myHrp0 and myHrp0()
+    if not h then return false end
+    return (h.Position - lobbySpawnPos()).Magnitude < 90
+end
+
 local function inLobby()
     if not RoundClient then return false end
     return not isDeployed(me)
 end
 local function myHrp() local c = me.Character return c and c:FindFirstChild("HumanoidRootPart") end
+myHrp0 = myHrp
 local function myHum() local c = me.Character return c and c:FindFirstChildOfClass("Humanoid") end
 local function blaster() local c = me.Character return c and c:FindFirstChild("Blaster") end
 local function headOf(c) return c:FindFirstChild("HeadshotHitbox") or c:FindFirstChild("Head") end
@@ -1097,7 +1131,11 @@ local function vapeSweepDuplicates()
     -- not, so shared.vape.gui was already destroyed while a fresh vape was still loading. With
     -- no live panel to compare against, the sweep called the new one a leftover and killed it,
     -- and vape sat at Loaded=false with no window for the rest of the server.
-    if not live then
+    -- A destroyed instance is still a non nil value, so the first version of this guard let
+    -- the sweep run while shared.vape.gui pointed at a corpse, and it then called the real
+    -- new panel a leftover and destroyed that too. Measured 2026-08-27: Parent locked,
+    -- 0 descendants, and his vape menu could never be opened again for the rest of the client.
+    if not live or live.Parent == nil then
         LOG("vape: no live panel to compare against, not destroying anything")
         return 0
     end
@@ -1118,18 +1156,69 @@ local function vapeSweepDuplicates()
     return killed
 end
 
-local function vapeCloseOwnGui(why)
+-- An orphaned vape gui can never be opened again, no matter what its keybind does, which is
+-- what "i cant see vape menu" was: measured Parent nil, Enabled false. So the parent is kept
+-- alive, and the one close only ever happens once per client -- after that the menu is his.
+local function vapeGuiKeepAlive()
     local g = vapeGui()
     if not g then return false end
     if g.Parent == nil then
-        pcall(function() g.Parent = game:GetService("CoreGui") end)
-        if g.Parent then LOG("vape: its panel had no parent, put it under CoreGui") end
+        pcall(function() setthreadidentity(8) end)
+        pcall(function() if gethui then g.Parent = gethui() end end)
+        if g.Parent == nil then
+            pcall(function() g.Parent = game:GetService("CoreGui") end)
+        end
+        if g.Parent then
+            LOG("vape: its menu had no parent so it could never open, put it under " .. tostring(g.Parent))
+            return true
+        end
     end
+    return false
+end
+
+vapeGuiKeepAlive0 = vapeGuiKeepAlive
+
+-- Destroyed, not merely unparented: nothing can put it back, so the only way his menu comes
+-- back is a fresh vape. Detected by the Parent property refusing the write.
+local function vapeGuiBroken()
+    local g = vapeGui()
+    if not g then return true end
+    if g.Parent ~= nil then return false end
+    local ok = pcall(function()
+        setthreadidentity(8)
+        if gethui then g.Parent = gethui() end
+    end)
+    if g.Parent ~= nil then return false end
+    ok = pcall(function() g.Parent = game:GetService("CoreGui") end)
+    if ok and g.Parent ~= nil then return false end
+    return true
+end
+
+local function vapeReloadBroken()
+    if not vapeUp() then return false end
+    if not vapeGuiBroken() then return false end
+    local now = os.time()
+    if now - (ENV.__TPFARM_VAPE_REBUILD_AT or 0) < 120 then return false end
+    ENV.__TPFARM_VAPE_REBUILD_AT = now
+    LOG("vape: its menu is destroyed and cannot be re-parented, pulling vape again so he gets it back")
+    pcall(function() shared.vape = nil end)
+    ENV.__TPFARM_VAPE = nil
+    ENV.__TPFARM_VAPE_CLOSED = nil
+    return true
+end
+
+local function vapeCloseOwnGui(why)
+    vapeGuiKeepAlive()
+    local g = vapeGui()
+    if not g then return false end
+    if ENV.__TPFARM_VAPE_CLOSED then return false end
     if g.Enabled then
         pcall(function() g.Enabled = false end)
-        LOG("vape: closed its own panel (" .. tostring(why) .. "), the CAPSLOCK rebind list is off screen")
+        ENV.__TPFARM_VAPE_CLOSED = true
+        LOG("vape: closed its own menu once (" .. tostring(why) .. "), his keybind opens it from here")
         return true
     end
+    ENV.__TPFARM_VAPE_CLOSED = true
     return false
 end
 
@@ -1162,6 +1251,7 @@ end
 -- whether shared.vape existed, and vape needs far longer than 8 seconds to set it, so the
 -- question was answered no over and over and every no started another vape.
 local function ensureVape()
+    ensureVapeHost()
     if vapeUp() then
         ENV.__TPFARM_VAPE = "up"
         VAPE_STATE = "up"
@@ -1218,11 +1308,15 @@ task.spawn(function()
     ensureVape()
     while STATE.alive() do
         task.wait(20)
-        if vapeUp() then
+        if vapeUp() and not vapeGuiBroken() then
             ENV.__TPFARM_VAPE = "up"
             VAPE_STATE = "up"
+            vapeGuiKeepAlive()
             vapeSweepDuplicates()
-        else
+        elseif vapeUp() and vapeReloadBroken() then
+            VAPE_STATE = "menu was destroyed, reloading"
+            ensureVape()
+        elseif not vapeUp() then
             ensureVape()
         end
     end
@@ -1246,6 +1340,14 @@ local function vapeSnapshot()
             on[#on + 1] = tostring(name)
         end
     end
+    -- Whatever DISABLE FARM switches off has to be in the list ENABLE FARM switches back on,
+    -- or one press of each quietly loses it forever. AutoClicker went missing exactly that way.
+    local seen = {}
+    for _, n in ipairs(on) do seen[n] = true end
+    for _, n in ipairs(VAPE_OFF_ONLY) do
+        if not seen[n] then on[#on + 1] = n seen[n] = true end
+    end
+    if not seen["AntiFall"] then on[#on + 1] = "AntiFall" end
     table.sort(on)
     if #on > 0 then
         CFG.vapeList = on
@@ -1545,48 +1647,72 @@ lobbyBtn.MouseButton1Click:Connect(function()
             local ok, v = pcall(function() return isDeployed(me) end)
             return ok and v == true
         end
-        LOG("lobby: deployed=" .. tostring(deployed())
-            .. "  round=" .. tostring(rstate())
-            .. "  character=" .. tostring(me.Character and me.Character.Name or "none"))
+        local target = lobbySpawnPos() + Vector3.new(0, 5, 0)
+        local h0 = myHrp()
+        LOG(string.format("lobby: from %s to %s, deployed=%s round=%s",
+            h0 and tostring(h0.Position) or "no body", tostring(target),
+            tostring(deployed()), tostring(rstate())))
 
-        if not deployed() then
-            LOG("lobby: not deployed, already out of the round, nothing to kill")
-            buyState = "already in the lobby"
-            task.wait(2)
-            lobbyBusy = false
-            return
+        -- AntiFall grabs the character the instant it leaves a floor, which is exactly what a
+        -- drop from the arena at Y 113 to the lobby at Y -155 looks like to it. His instruction:
+        -- take it off 0.05s after the teleport starts. One module only. Turning every module
+        -- off at once takes the whole machine down, see the note on VAPE_OFF_ONLY.
+        task.delay(0.05, function()
+            local v = shared and shared.vape
+            local m = v and v.Modules and v.Modules["AntiFall"]
+            if type(m) == "table" and m.Enabled == true and type(m.Toggle) == "function" then
+                local ok, err = pcall(m.Toggle, m)
+                LOG("lobby: AntiFall off, call ok=" .. tostring(ok)
+                    .. " Enabled=" .. tostring(m.Enabled) .. " " .. tostring(err or ""))
+            else
+                LOG("lobby: AntiFall was already off, nothing to do")
+            end
+        end)
+
+        local landed = false
+        for attempt = 1, 25 do
+            if not STATE.alive() then break end
+            local h = myHrp()
+            if h then
+                pcall(function()
+                    h.CFrame = CFrame.new(target)
+                    h.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                end)
+                local d = (h.Position - target).Magnitude
+                if attempt % 5 == 0 then
+                    LOG(string.format("lobby: attempt %d, %.1f studs from the lobby spawn, deployed=%s",
+                        attempt, d, tostring(deployed())))
+                end
+                if d < 15 and attempt >= 4 then landed = true break end
+            end
+            task.wait(0.1)
         end
 
-        for attempt = 1, 3 do
-            if not STATE.alive() then break end
-            if not deployed() then break end
-            local ch = me.Character
-            local hum = ch and ch:FindFirstChildOfClass("Humanoid")
-            if not hum then
-                LOG("lobby: attempt " .. attempt .. " has no humanoid, waiting")
-                task.wait(1)
-            else
-                LOG(string.format("lobby: attempt %d, health %s, setting it to 0", attempt, tostring(hum.Health)))
+        if deployed() then
+            LOG("lobby: body is at the lobby but the round still counts me in, leaving it")
+            local hum = me.Character and me.Character:FindFirstChildOfClass("Humanoid")
+            if hum then
                 pcall(function() hum.Health = 0 end)
-                pcall(function() hum:TakeDamage(hum.MaxHealth + 1000) end)
                 local w = os.clock()
                 while STATE.alive() and os.clock() - w < 3 do
                     task.wait(0.15)
                     if not deployed() then break end
-                    if me.Character ~= ch then break end
                 end
-                LOG(string.format("lobby: after attempt %d, deployed=%s health=%s",
-                    attempt, tostring(deployed()), tostring(hum.Parent and hum.Health or "gone")))
+            end
+            for _ = 1, 12 do
+                if not STATE.alive() then break end
+                local h = myHrp()
+                if h then pcall(function() h.CFrame = CFrame.new(target) end) end
+                task.wait(0.1)
             end
         end
 
-        if deployed() then
-            LOG("lobby: STILL DEPLOYED after 3 attempts, the server is not letting me die")
-            buyState = "server will not let me die, still in the round"
-        else
-            LOG("lobby: out of the round, back in the lobby")
-            buyState = "back in the lobby"
-        end
+        local h = myHrp()
+        local dist = h and (h.Position - target).Magnitude or -1
+        LOG(string.format("lobby: done, %.1f studs from the lobby spawn, deployed=%s, landed=%s",
+            dist, tostring(deployed()), tostring(landed)))
+        buyState = string.format("lobby: %.0f studs from the spawn, deployed %s",
+            dist, tostring(deployed()))
         task.wait(2)
         lobbyBusy = false
     end)
