@@ -187,18 +187,7 @@ do
     end)
 end
 
-task.spawn(function()
-    if shared.vape then return end
-    for _ = 1, 6 do
-        if not STATE.alive() then return end
-        pcall(function() loadstring(game:HttpGet("https://rawscripts.net/raw/Vape-V4-For-Roblox_316"))() end)
-        for _ = 1, 20 do
-            if shared.vape then return end
-            task.wait(0.5)
-        end
-        task.wait(2)
-    end
-end)
+LOG("vape is loaded by 29_keepalive.lua in the autoexec, this script never loads it")
 
 local Shoot = grab(RS, "Blaster", "Remotes", "Shoot")
 local Reload = grab(RS, "Blaster", "Remotes", "Reload")
