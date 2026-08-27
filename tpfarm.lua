@@ -820,30 +820,40 @@ local function openPass()
             if not (STATE.alive() and forceOn and CFG.autoOpen) then break end
             if CFG[spec.flag] then
                 local left = ownedOf(spec.key, true)
-                local t0, miss = os.clock(), 0
-                while STATE.alive() and forceOn and CFG.autoOpen and CFG[spec.flag]
-                    and left > 0 and miss < 4 do
-                    unboxSeen = 0
+                LOG(string.format("  %s: %d owned, firing", spec.label, left))
+                local t0 = os.clock()
+                local sent, got, lastGot, tick = 0, 0, os.clock(), 0
+                unboxSeen = 0
+                while STATE.alive() and forceOn and CFG.autoOpen and CFG[spec.flag] and left > 0 do
                     OpenCrate:FireServer(spec.key)
-                    local wait0 = os.clock()
-                    local landed = false
-                    while STATE.alive() and CFG.autoOpen and os.clock() - wait0 < 6 do
-                        task.wait(0.05)
-                        if unboxSeen > 0 then landed = true break end
+                    sent = sent + 1
+                    task.wait(0.15)
+                    if unboxSeen > got then
+                        local d = unboxSeen - got
+                        got = unboxSeen
+                        openedTotal = openedTotal + d
+                        left = left - d
+                        lastGot = os.clock()
+                        openState = string.format("%s %d opened, %d left", spec.label, openedTotal, left)
                     end
-                    if landed then
-                        miss = 0
-                        openedTotal = openedTotal + 1
-                        left = left - 1
-                        openState = string.format("%s opened %d, %d left", spec.label, openedTotal, left)
-                    else
-                        miss = miss + 1
-                        openState = spec.label .. " no answer x" .. miss
+                    tick = tick + 1
+                    if tick % 8 == 0 then
+                        shutCrateScreen()
+                        LOG(string.format("  %s sent %d got %d in %.0fs = %.2f/s, %d left",
+                            spec.label, sent, got, os.clock() - t0,
+                            got / math.max(0.01, os.clock() - t0), left))
                     end
-                    shutCrateScreen()
-                    if os.clock() - t0 > 20 then break end
+                    if os.clock() - lastGot > 8 then
+                        LOG(string.format("  %s STALLED, sent %d got %d, server stopped answering",
+                            spec.label, sent, got))
+                        openState = spec.label .. " stalled, server stopped answering"
+                        break
+                    end
+                    if os.clock() - t0 > 60 then break end
                     if not CFG.autoOpen then openState = "stopped, auto open is off" break end
                 end
+                LOG(string.format("  %s pass done: sent %d, opened %d in %.1fs = %.2f per second",
+                    spec.label, sent, got, os.clock() - t0, got / math.max(0.01, os.clock() - t0)))
             end
         end
     end)
@@ -1508,6 +1518,10 @@ task.spawn(function()
     LOG("startup: enabling farm")
     setFarm(true)
     while farmBusy and STATE.alive() do task.wait(0.1) end
+    CFG.autoBuy = true
+    CFG.autoOpen = true
+    paintAll()
+    LOG("startup: auto buy and auto open turned on")
     LOG("startup: farm and the four combat modules are up, waiting 1s")
     task.wait(1)
     local v = shared and shared.vape
