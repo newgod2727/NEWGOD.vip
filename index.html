@@ -1360,20 +1360,32 @@ document.addEventListener("DOMContentLoaded", function(){
 
     if (!window.ScrollTrigger) return;
 
-    ScrollTrigger.batch(".reveal", {
-      start: "top 88%",
+    var hidden = gsap.utils.toArray(".reveal, .bt, .rule, .plan, .chip3, .linkcard");
+
+    function show(els){
+      gsap.to(els, { autoAlpha: 1, y: 0, duration: .65, stagger: .1, ease: "power3.out", overwrite: "auto" });
+    }
+
+    gsap.set(hidden, { autoAlpha: 0, y: 24 });
+
+    ScrollTrigger.batch(hidden, {
+      start: "top 96%",
       once: true,
-      onEnter: function(batch){
-        gsap.from(batch, { autoAlpha: 0, y: 28, duration: .7, stagger: .12, ease: "power3.out", overwrite: true });
-      }
+      onEnter: function(batch){ show(batch); }
     });
 
-    gsap.utils.toArray(".bt, .rule, .plan, .chip3, .linkcard").forEach(function(el){
-      gsap.from(el, {
-        autoAlpha: 0, y: 20, duration: .6, ease: "power3.out",
-        scrollTrigger: { trigger: el, start: "top 92%", once: true }
+    ScrollTrigger.refresh();
+
+    function rescue(){
+      var vh = window.innerHeight || 800;
+      var stuck = hidden.filter(function(el){
+        if (gsap.getProperty(el, "opacity") !== 0) return false;
+        return el.getBoundingClientRect().top < vh;
       });
-    });
+      if (stuck.length) show(stuck);
+    }
+    setTimeout(rescue, 1500);
+    window.addEventListener("load", function(){ ScrollTrigger.refresh(); setTimeout(rescue, 400); });
 
     gsap.utils.toArray(".count").forEach(function(el){
       var to  = parseFloat(el.getAttribute("data-to")) || 0;
