@@ -203,7 +203,8 @@ if not okDC then DataClient = nil end
 
 local CFG = loadCfg({ on = false, back = 5, tpEvery = 2, jumpEvery = 3, settle = 0.25,
               autoDeploy = true, doBots = true, doPlayers = true, oneShot = true,
-              autoBuy = "off", guiX = 24, guiY = 150 })
+              autoBuy = false, buyBasic = false, buySuper = false, buyGold = true,
+              guiX = 24, guiY = 150 })
 getgenv().TPFARM = CFG
 
 local list, idx, current, holdUntil = {}, 1, nil, 0
@@ -229,11 +230,11 @@ STATE.onCleanup(function()
 end)
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.fromOffset(252, 480)
+frame.Size = UDim2.fromOffset(252, 450)
 do
     local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
     local gx = math.clamp(CFG.guiX or 24, 0, math.max(0, vp.X - 252))
-    local gy = math.clamp(CFG.guiY or 150, 0, math.max(0, vp.Y - 480))
+    local gy = math.clamp(CFG.guiY or 150, 0, math.max(0, vp.Y - 450))
     frame.Position = UDim2.fromOffset(gx, gy)
 end
 frame.BackgroundColor3 = Color3.fromRGB(20, 17, 13); frame.BorderSizePixel = 0
@@ -285,14 +286,14 @@ mark.Font = Enum.Font.GothamBold; mark.TextSize = 11
 mark.TextXAlignment = Enum.TextXAlignment.Right; mark.Parent = frame
 
 local mark2 = Instance.new("TextLabel")
-mark2.Size = UDim2.fromOffset(120, 14); mark2.Position = UDim2.fromOffset(8, 334)
+mark2.Size = UDim2.fromOffset(120, 14); mark2.Position = UDim2.fromOffset(8, 304)
 mark2.BackgroundTransparency = 1; mark2.Text = "NEWGOD"
 mark2.TextColor3 = Color3.fromRGB(231, 177, 115); mark2.TextTransparency = 0.5
 mark2.Font = Enum.Font.GothamBold; mark2.TextSize = 10
 mark2.TextXAlignment = Enum.TextXAlignment.Left; mark2.Parent = frame
 
 local status = Instance.new("TextLabel")
-status.Size = UDim2.new(1, -16, 0, 116); status.Position = UDim2.fromOffset(8, 356)
+status.Size = UDim2.new(1, -16, 0, 116); status.Position = UDim2.fromOffset(8, 326)
 status.BackgroundTransparency = 1; status.Text = "off"
 status.TextColor3 = Color3.fromRGB(190, 180, 168); status.Font = Enum.Font.Gotham
 status.TextSize = 11; status.TextWrapped = true
@@ -308,7 +309,7 @@ local function mk(t, x, y, w, c)
     Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6); return b
 end
 
-local startBtn = mk("START FARM", 8, 30, 236, GOLD)
+local startBtn = mk("ENABLE FARM", 8, 30, 236, GOLD)
 local stopBtn = mk("STOP", 8, 60, 236, GREY)
 local backDown = mk("BACK -5", 8, 90, 75, GREY)
 local backLbl = mk(tostring(CFG.back), 89, 90, 74, GREY)
@@ -318,12 +319,11 @@ local plrBtn = mk("PLAYERS ON", 130, 120, 114, GOLD)
 local depBtn = mk("RESPAWN ON", 8, 150, 114, GOLD)
 local hopSrv = mk("HOP SERVER", 130, 150, 114, RED)
 local oneBtn = mk("INF ULT AUTO ON", 8, 180, 236, GOLD)
-local forceBtn = mk("FORCE: RUNNING", 8, 210, 236, GOLD)
-local buyBasic = mk("BUY BASIC", 8, 240, 75, GREY)
-local buySuper = mk("BUY SUPER", 89, 240, 74, GREY)
-local buyGold = mk("BUY GOLD", 169, 240, 75, GOLD)
+local lobbyBtn = mk("BACK TO LOBBY", 8, 210, 236, GREY)
+local buyBasic = mk("BASIC OFF", 8, 240, 75, GREY)
+local buySuper = mk("SUPER OFF", 89, 240, 74, GREY)
+local buyGold = mk("GOLD ON", 169, 240, 75, GOLD)
 local autoBuyBtn = mk("AUTO BUY OFF", 8, 270, 236, GREY)
-local lobbyBtn = mk("BACK TO LOBBY", 8, 300, 236, GREY)
 
 local function rstate()
     if not RoundClient then return "?" end
@@ -500,18 +500,48 @@ end
 local CrateRemotes = grab(RS, "Shared", "Remotes", "CrateRemotes")
 local BuyCrate = CrateRemotes and CrateRemotes:FindFirstChild("RequestBuyCrate")
 local CRATE = {
-    { id = "basic", key = "normal", price = 250, label = "BUY BASIC" },
-    { id = "super", key = "super", price = 800, label = "BUY SUPER" },
-    { id = "gold", key = "golden", price = 3500, label = "BUY GOLD" },
+    { id = "gold", key = "golden", price = 3500, flag = "buyGold", btn = buyGold, label = "GOLD" },
+    { id = "super", key = "super", price = 800, flag = "buySuper", btn = buySuper, label = "SUPER" },
+    { id = "basic", key = "normal", price = 250, flag = "buyBasic", btn = buyBasic, label = "BASIC" },
 }
 local BURST = 1200
 local buying, buyState = false, "idle"
+
+local CrateUI
+pcall(function() CrateUI = require(RS.Client.Providers.Interface.CrateClient) end)
+local realOpenMenu = CrateUI and rawget(CrateUI, "OpenMenu")
+
+local function shutCrateScreen()
+    local pgui = me:FindFirstChild("PlayerGui")
+    local menus = pgui and pgui:FindFirstChild("Menus")
+    local sg = menus and menus:FindFirstChild("Crate")
+    if sg and sg:IsA("ScreenGui") and sg.Enabled then sg.Enabled = false end
+end
+
+local function muteCrateUI(on)
+    if CrateUI and realOpenMenu then
+        if on then
+            CrateUI.OpenMenu = function() end
+        else
+            CrateUI.OpenMenu = realOpenMenu
+        end
+    end
+    shutCrateScreen()
+end
 
 local function cashNow()
     if not DataClient then return 0 end
     local d = DataClient.Data
     local cur = d and d.currency
     return (cur and cur.cash) or 0
+end
+
+local function crateOwned()
+    local n = 0
+    pcall(function()
+        for _ in pairs(DataClient.Data.items.crates.owned) do n = n + 1 end
+    end)
+    return n
 end
 
 local function crateBy(id)
@@ -532,36 +562,48 @@ local function settleCash(from)
     return cashNow()
 end
 
-local function buyAll(id)
-    if buying then buyState = "already buying" return end
-    local spec = crateBy(id)
-    if not spec then return end
-    if not BuyCrate then buyState = "no crate remote in this place" return end
-    buying = true
-    task.spawn(function()
-        local start, t0, stall, sent = cashNow(), os.clock(), 0, 0
-        while STATE.alive() do
-            local c = cashNow()
-            local want = math.floor(c / spec.price)
-            if want < 1 then break end
-            local n = want > BURST and BURST or want
-            for _ = 1, n do pcall(fireBuy, spec.key) end
-            sent = sent + n
-            buyState = string.format("%s sending %d", id, sent)
-            local after = settleCash(c)
-            if after >= c then
-                stall = stall + 1
-                if stall >= 3 then buyState = id .. ": server refused, stopped" break end
-            else
-                stall = 0
-            end
-            if os.clock() - t0 > 120 then buyState = id .. ": 120s cap" break end
+local function buyRun(spec)
+    local start, t0, stall, sent = cashNow(), os.clock(), 0, 0
+    while STATE.alive() do
+        local c = cashNow()
+        local want = math.floor(c / spec.price)
+        if want < 1 then break end
+        local n = want > BURST and BURST or want
+        for _ = 1, n do pcall(fireBuy, spec.key) end
+        sent = sent + n
+        buyState = string.format("%s sending %d", spec.label, sent)
+        shutCrateScreen()
+        local after = settleCash(c)
+        shutCrateScreen()
+        if after >= c then
+            stall = stall + 1
+            if stall >= 3 then break end
+        else
+            stall = 0
         end
-        local spent = start - cashNow()
-        if spent < 0 then spent = 0 end
-        buyState = string.format("%s x%d in %.2fs (sent %d)", id, math.floor(spent / spec.price), os.clock() - t0, sent)
-        buying = false
+        if os.clock() - t0 > 120 then break end
+    end
+    local spent = start - cashNow()
+    if spent < 0 then spent = 0 end
+    return math.floor(spent / spec.price), os.clock() - t0
+end
+
+local function buyPass()
+    if buying or not BuyCrate then return end
+    buying = true
+    muteCrateUI(true)
+    local ok, err = pcall(function()
+        for _, spec in ipairs(CRATE) do
+            if not STATE.alive() then break end
+            if CFG[spec.flag] and cashNow() >= spec.price then
+                local got, secs = buyRun(spec)
+                buyState = string.format("%s x%d in %.1fs", spec.label, got, secs)
+            end
+        end
     end)
+    muteCrateUI(false)
+    if not ok then buyState = "buy error: " .. tostring(err) end
+    buying = false
 end
 
 local vapeSaved = nil
@@ -590,63 +632,84 @@ local function vapeSet(on)
     return n
 end
 
-local function setForce(on)
+local function paintFarm()
+    startBtn.Text = forceOn and "DISABLE FARM" or "ENABLE FARM"
+    startBtn.BackgroundColor3 = forceOn and RED or GOLD
+end
+
+local function setFarm(on)
     forceOn = on
-    forceBtn.Text = on and "FORCE: RUNNING" or "FORCE: ALL STOPPED"
-    forceBtn.BackgroundColor3 = on and GOLD or RED
+    paintFarm()
     if on then
         local n = vapeSet(true)
-        CFG.on = wasFarming
-        buyState = "force on, vape back " .. n
+        CFG.on = true
+        wasFarming = true
+        buyState = "farm on, vape back " .. n
     else
-        wasFarming = CFG.on
+        wasFarming = false
         CFG.on = false
         current = nil
         releaseCam()
         local n = vapeSet(false)
-        buyState = "force off, vape stopped " .. n
+        buyState = "farm off, vape stopped " .. n
     end
+end
+
+local function paintCrateBtn(spec)
+    local on = CFG[spec.flag] == true
+    spec.btn.Text = spec.label .. (on and " ON" or " OFF")
+    spec.btn.BackgroundColor3 = on and GOLD or GREY
 end
 
 task.spawn(function()
     while STATE.alive() do
-        if forceOn and CFG.autoBuy ~= "off" and not buying then
-            local spec = crateBy(CFG.autoBuy)
-            if spec and cashNow() >= spec.price then buyAll(CFG.autoBuy) end
+        if forceOn and CFG.autoBuy and not buying then
+            local any = false
+            for _, spec in ipairs(CRATE) do
+                if CFG[spec.flag] and cashNow() >= spec.price then any = true break end
+            end
+            if any then buyPass() end
         end
         task.wait(4)
     end
 end)
 
-startBtn.MouseButton1Click:Connect(function()
-    if not forceOn then setForce(true) end
-    CFG.on = true
-    wasFarming = true
-end)
+startBtn.MouseButton1Click:Connect(function() setFarm(not forceOn) end)
 stopBtn.MouseButton1Click:Connect(function()
     CFG.on = false; current = nil; wasFarming = false
     releaseCam()
     status.Text = "off"
 end)
-forceBtn.MouseButton1Click:Connect(function() setForce(not forceOn) end)
-buyBasic.MouseButton1Click:Connect(function() buyAll("basic") end)
-buySuper.MouseButton1Click:Connect(function() buyAll("super") end)
-buyGold.MouseButton1Click:Connect(function() buyAll("gold") end)
+for _, spec in ipairs(CRATE) do
+    spec.btn.MouseButton1Click:Connect(function()
+        CFG[spec.flag] = not CFG[spec.flag]
+        paintCrateBtn(spec)
+    end)
+end
 autoBuyBtn.MouseButton1Click:Connect(function()
-    local order = { off = "basic", basic = "super", super = "gold", gold = "off" }
-    CFG.autoBuy = order[CFG.autoBuy] or "basic"
-    autoBuyBtn.Text = CFG.autoBuy == "off" and "AUTO BUY OFF" or ("AUTO BUY: " .. string.upper(CFG.autoBuy))
-    autoBuyBtn.BackgroundColor3 = CFG.autoBuy == "off" and GREY or GOLD
+    CFG.autoBuy = not CFG.autoBuy
+    autoBuyBtn.Text = CFG.autoBuy and "AUTO BUY ON" or "AUTO BUY OFF"
+    autoBuyBtn.BackgroundColor3 = CFG.autoBuy and GOLD or GREY
 end)
 lobbyBtn.MouseButton1Click:Connect(function()
-    setForce(false)
+    setFarm(false)
     CFG.autoDeploy = false
     depBtn.Text = "RESPAWN OFF"
     depBtn.BackgroundColor3 = GREY
-    buyState = "back to lobby, rejoining"
+    buyState = "back to lobby, dying"
     task.spawn(function()
-        local ok = pcall(function() TS:Teleport(game.PlaceId, me) end)
-        if not ok then buyState = "lobby rejoin failed, press it again" end
+        local c = me.Character
+        local hum = c and c:FindFirstChildOfClass("Humanoid")
+        if hum and hum.Health > 0 then
+            pcall(function() hum.Health = 0 end)
+            task.wait(2)
+            if hum.Parent and hum.Health > 0 then
+                pcall(function() hum:ChangeState(Enum.HumanoidStateType.Dead) end)
+            end
+            buyState = "back in the lobby"
+        else
+            buyState = "already out of the round"
+        end
     end)
 end)
 backDown.MouseButton1Click:Connect(function() CFG.back = math.max(0, CFG.back - 5); backLbl.Text = tostring(CFG.back) end)
@@ -798,7 +861,8 @@ task.spawn(function()
             ultState, oneShotFires,
             np, nb, shots, landed, kills, reloads,
             cashNow(), buyState,
-            (forceOn and "FORCE RUNNING" or "FORCE ALL STOPPED") .. "   mouse unlocked x" .. UNLOCK_FIXES,
+            (forceOn and "FARM ENABLED" or "FARM DISABLED") .. "   crates " .. crateOwned()
+                .. "   mouse unlocked x" .. UNLOCK_FIXES,
             tostring((getgenv().__TPFARM_PROMPT_BLOCKED) or 0))
         task.wait(0.2)
     end
@@ -820,16 +884,19 @@ plrBtn.Text = CFG.doPlayers and "PLAYERS ON" or "PLAYERS OFF"
 plrBtn.BackgroundColor3 = CFG.doPlayers and GOLD or GREY
 depBtn.Text = CFG.autoDeploy and "RESPAWN ON" or "RESPAWN OFF"
 depBtn.BackgroundColor3 = CFG.autoDeploy and GOLD or GREY
-if type(CFG.autoBuy) ~= "string" then CFG.autoBuy = "off" end
-autoBuyBtn.Text = CFG.autoBuy == "off" and "AUTO BUY OFF" or ("AUTO BUY: " .. string.upper(CFG.autoBuy))
-autoBuyBtn.BackgroundColor3 = CFG.autoBuy == "off" and GREY or GOLD
-forceBtn.Text = "FORCE: RUNNING"
-forceBtn.BackgroundColor3 = GOLD
-wasFarming = CFG.on
+if type(CFG.autoBuy) ~= "boolean" then CFG.autoBuy = false end
+autoBuyBtn.Text = CFG.autoBuy and "AUTO BUY ON" or "AUTO BUY OFF"
+autoBuyBtn.BackgroundColor3 = CFG.autoBuy and GOLD or GREY
+for _, spec in ipairs(CRATE) do paintCrateBtn(spec) end
+forceOn = CFG.on == true
+wasFarming = forceOn
+paintFarm()
 paintUlt()
 
 rebuild()
-return "tpfarm loaded. farming=" .. tostring(CFG.on)
+return "tpfarm loaded. farm=" .. (forceOn and "ENABLED" or "DISABLED")
     .. "  ultimate=" .. ultLabel()
     .. "  autoBuy=" .. tostring(CFG.autoBuy)
+    .. "  gold=" .. tostring(CFG.buyGold) .. " super=" .. tostring(CFG.buySuper) .. " basic=" .. tostring(CFG.buyBasic)
     .. "  cash=" .. tostring(cashNow())
+    .. "  crates=" .. tostring(crateOwned())
