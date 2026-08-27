@@ -1008,6 +1008,7 @@ local function setFarm(on)
             { "players", function() CFG.doPlayers = on end },
             { "respawn", function() CFG.autoDeploy = on end },
             { "auto ult", function() CFG.oneShot = on end },
+            { "auto buy", function() CFG.autoBuy = on end },
         }
         for _, step in ipairs(steps) do
             task.wait(0.05)
