@@ -145,14 +145,13 @@ do
     keep(UIS2:GetPropertyChangedSignal("MouseIconEnabled"):Connect(raise))
     unlockMouse()
     task.spawn(function()
-        local nextSweep = 0
         while STATE.alive() do
-            task.wait()
             if dirty then
                 dirty = false
                 unlockMouse()
-            elseif os.clock() > nextSweep then
-                nextSweep = os.clock() + 0.25
+                task.wait(0.03)
+            else
+                task.wait(0.15)
                 if me.CameraMode ~= Enum.CameraMode.Classic
                     or UIS2.MouseBehavior ~= Enum.MouseBehavior.Default
                     or UIS2.MouseIconEnabled ~= true then
@@ -863,7 +862,7 @@ function vapeSet(on)
                 local isOn = m.Enabled == true
                 if isOn ~= on then
                     if pcall(m.Toggle, m) then n = n + 1 end
-                    task.wait()
+                    task.wait(0.15)
                 end
             end
         end
