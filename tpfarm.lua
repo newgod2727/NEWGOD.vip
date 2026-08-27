@@ -1019,21 +1019,10 @@ hintNo.MouseButton1Click:Connect(function()
 end)
 
 task.spawn(function()
-    local Stats = game:GetService("Stats")
-    local function readCpu()
-        local v = 0
-        pcall(function()
-            local ps = Stats:FindFirstChild("PerformanceStats")
-            if not ps then return end
-            local node = ps:FindFirstChild("CPU") or ps:FindFirstChild("MaxCPU")
-            if node then v = node:GetValue() end
-        end)
-        return v
-    end
     while STATE.alive() do
-        pcall(function() RAM_MB = Stats:GetTotalMemoryUsageMb() end)
-        CPU_PCT = readCpu()
-        local heavy = RAM_MB > 5500
+        RAM_MB = collectgarbage("count") / 1024
+        CPU_PCT = 0
+        local heavy = false
         if heavy and not hintFrame.Visible and not hopDeclined
             and os.clock() - hintLastAt > 900 and os.clock() - lastHopAt > 900 then
             hintShownAt = os.clock()
@@ -1278,8 +1267,8 @@ task.spawn(function()
             np, nb, shots, landed, kills, reloads,
             cashNow(), buyState .. "   open: " .. openState,
             (forceOn and "FARM ENABLED" or "FARM DISABLED") .. "   crates " .. crateOwned()
-                .. string.format("   fps %.0f  ram %d MB  cpu %d%%   boost: %s",
-                    BOOST_FPS, math.floor(RAM_MB), math.floor(CPU_PCT), BOOST_STATE),
+                .. string.format("   fps %.0f  lua %d MB   boost: %s",
+                    BOOST_FPS, math.floor(RAM_MB), BOOST_STATE),
             tostring((getgenv().__TPFARM_PROMPT_BLOCKED) or 0))
         task.wait(0.2)
     end
@@ -1386,6 +1375,8 @@ do
         return n / secs
     end
 
+    LOG("boost: fps sampler uses RenderStepped only, nothing reads Stats")
+
     local function sweep(why)
         LOG("boost sweep: " .. tostring(why))
         lastSweep = os.clock()
@@ -1428,12 +1419,10 @@ do
 end
 
 task.spawn(function()
-    local Stats = game:GetService("Stats")
     while STATE.alive() do
-        local mem = 0
-        pcall(function() mem = Stats:GetTotalMemoryUsageMb() end)
-        LOG(string.format("alive  farm=%s  fps=%.0f  ram=%.0f  buy=%s  open=%s",
-            tostring(forceOn), BOOST_FPS, mem, tostring(buying), tostring(opening)))
+        LOG(string.format("alive  farm=%s  fps=%.0f  luaheap=%.0f  buy=%s  open=%s",
+            tostring(forceOn), BOOST_FPS, collectgarbage("count") / 1024,
+            tostring(buying), tostring(opening)))
         task.wait(2)
     end
 end)
