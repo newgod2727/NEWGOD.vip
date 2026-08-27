@@ -276,7 +276,7 @@ local CFG = loadCfg({ on = false, back = 5, tpEvery = 2, jumpEvery = 3, settle =
               autoBuy = false, buyBasic = false, buySuper = false, buyGold = true,
               autoOpen = false, lobbyHold = false, vapeList = {}, guiX = 24, guiY = 150 })
 if type(CFG.autoBuy) ~= "boolean" then CFG.autoBuy = false end
-if type(CFG.autoOpen) ~= "boolean" then CFG.autoOpen = false end
+CFG.autoOpen = false
 if type(CFG.vapeList) ~= "table" then CFG.vapeList = {} end
 getgenv().TPFARM = CFG
 
@@ -292,6 +292,11 @@ local AIM = "tpfarm_aim"
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "TPFarmPanel"; gui.ResetOnSpawn = false; gui.IgnoreGuiInset = true
+-- PlayerGui is the only host vape does not sweep, but the game owns screens at 1, 4, 500,
+-- 1500, 2999 and 9999 in there, and every one of them takes the click before a panel left
+-- at the default 0. That is why pressing DISABLE FARM by hand did nothing while firing the
+-- same handler from code worked every time.
+gui.DisplayOrder = 9999999
 do
     -- Measured 2026-08-27 20:18: vape's own load destroyed a TPFarmPanel sitting in CoreGui
     -- three seconds after it came up, Parent locked and every child gone. PlayerGui is not
@@ -1376,7 +1381,6 @@ local function setFarm(on)
             { "respawn", function() CFG.autoDeploy = on end },
             { "auto ult", function() CFG.oneShot = on end },
             { "auto buy", function() CFG.autoBuy = on end },
-            { "auto open", function() CFG.autoOpen = on end },
         }
         for _, step in ipairs(steps) do
             task.wait(0.05)
@@ -1386,6 +1390,9 @@ local function setFarm(on)
             paintAll()
         end
         if not on then
+            CFG.autoOpen = false
+            openState = "off"
+            paintAll()
             LOG("  releasing camera")
             releaseCam()
         end
@@ -1471,10 +1478,10 @@ task.spawn(function()
     end
 end)
 
-local lastMaster = 0
+local lastMaster, lastMasterOn = 0, nil
 local function master(on)
-    if os.clock() - lastMaster < 1.2 then return end
-    lastMaster = os.clock()
+    if on == lastMasterOn and os.clock() - lastMaster < 1.2 then return end
+    lastMaster, lastMasterOn = os.clock(), on
     setFarm(on)
 end
 startBtn.MouseButton1Click:Connect(function() master(true) end)
