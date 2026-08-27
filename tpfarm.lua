@@ -1255,7 +1255,7 @@ local function vapeSnapshot()
     return #on
 end
 
--- Everything that is on right now, so DISABLE really is everything off and not a fixed list.
+-- Read only. Never feed this into a toggle loop: see VAPE_OFF_ONLY above.
 local function vapeEnabledNow()
     local v = shared and shared.vape
     local out = {}
@@ -1303,7 +1303,11 @@ function vapeApply(on)
     LOG("vapeApply start on=" .. tostring(on))
     if not on then vapeSnapshot() end
     local n = 0
-    for _, name in ipairs(on and vapeWanted() or vapeEnabledNow()) do
+    -- His rule, given 2026-08-27 after a night of the client dying on me: switching every
+    -- enabled vape module off in one pass takes the whole machine down, every time. So the
+    -- off pass is handed VAPE_OFF_ONLY, a list with AutoClicker in it and nothing else, and
+    -- there is no path in this file that can hand it the full list again.
+    for _, name in ipairs(on and vapeWanted() or VAPE_OFF_ONLY) do
         if not STATE.alive() then break end
         local m = v.Modules[name]
         -- His rule, set before tonight and restored after I broke it: turning the farm off
