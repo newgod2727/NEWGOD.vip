@@ -520,31 +520,6 @@ footer .furl:hover{color:var(--gold2)}
       </div>
     </div>
 
-    <div class="block reveal">
-      <p class="eyebrow">Already running</p>
-      <div class="plans">
-        <div class="plan">
-          <span class="ptag">Live</span>
-          <h3>Genetic Algorithm</h3>
-          <p>The settings that decide how my farm fights are not mine any more. A <span class="k">GA</span> mutates them, scores every set on real rounds, breeds the winners and bins the rest. It is on generation 15 with 272 genomes in the archive, 29 genes it is allowed to move, and a champion scoring 61.78.</p>
-        </div>
-        <div class="plan">
-          <span class="ptag">Live</span>
-          <h3>XCS</h3>
-          <p>A learning classifier system sitting next to the <span class="k">GA</span>: the GA tunes numbers, <span class="k">XCS</span> writes the if-then rules and deletes its own bad ones. 72 situations, 9,636 decision windows, 65 rules left standing after pruning.</p>
-        </div>
-        <div class="plan">
-          <span class="ptag">Every day</span>
-          <h3>claude code 20x</h3>
-          <p>The whole stack gets built on <span class="k">claude code 20x</span> &mdash; scripts, farms, tools, this site. I also wrote the thing that prices a session from its own transcript, because I wanted the cost of a fan-out to be a number instead of a feeling.</p>
-        </div>
-        <div class="plan">
-          <span class="ptag">Measured</span>
-          <h3>It survives on its own</h3>
-          <p>22.5 hours unbroken with the ban checker green on every ten-minute poll, 565 rounds in a session, best pace 35.1 kills a minute, and a killed client back in a live match in 25 seconds with nobody at the keyboard.</p>
-        </div>
-      </div>
-    </div>
 
     <div class="block reveal">
       <p class="eyebrow">Live from GitHub</p>
@@ -750,7 +725,7 @@ footer .furl:hover{color:var(--gold2)}
         <tr><td class="kk">Rounds each genome must survive</td><td class="nn">12</td></tr>
         <tr><td class="kk">Champion fitness / its best round</td><td class="nn">61.78 / 17 kills</td></tr>
       </table></div>
-      <p style="margin-top:14px">Beside it a learning classifier system writes its own if-then combat rules from what actually happened, rather than from what I assumed. It has seen <span class="k">72 distinct situations</span> across <span class="k">9,636 decision windows</span>, answered every one of its 256 test cases, and <span class="k">65 rules</span> survived pruning &mdash; built on 8 bits of situation and 4 possible actions.</p>
+      <p style="margin-top:14px">Beside it sits <span class="k">XCS</span>, a learning classifier system. The division is clean: the <span class="k">GA</span> tunes the numbers, <span class="k">XCS</span> writes the if-then rules and deletes its own bad ones &mdash; it is itself a genetic algorithm acting on a set of rules. It has seen <span class="k">72 distinct situations</span> across <span class="k">9,636 decision windows</span>, answered every one of its 256 test cases, and <span class="k">65 rules</span> survived pruning &mdash; built on 8 bits of situation and 4 possible actions.</p>
       <p class="note">This is the part I am least in charge of, and that is on purpose. A number the machine found by playing beats a number I picked because it sounded right.</p>
     </div>
 
@@ -904,6 +879,26 @@ footer .furl:hover{color:var(--gold2)}
       <h3>How the code gets checked now</h3>
       <p>A hand-written checker only ever saw top-level declarations, so it could not see a variable declared inside one closure and used from another &mdash; which is exactly the shape of the worst bugs here. It got replaced with four layers behind one command: own rules, the real compiler, a language server, and a linter with a generated standard library for the executor's own globals.</p>
       <p class="note">First run found five things the old checker structurally could not: a helper declared inside a loop body and called from elsewhere, so auto-armour had <span class="k">never run once</span>; a log path declared 49 lines below the code that printed it, so the file meant to report a broken sync was itself broken; two same-named variables meaning different things; and two use-before-declaration bugs in the older scripts.</p>
+    </div>
+
+    <div class="card">
+      <h3>The panels that are already on screen</h3>
+      <p>Five panels run at once &mdash; the recorder, the farm, the play controller, the team board and the level bar. Every control is a button, because the work is still being tested and a button shows state where a shortcut shows nothing. Every failure is printed on the panel itself; nothing here reports success into a console nobody is watching.</p>
+      <p>They are gold-stroked, 2 pixels, on the same warm black as everything else. Getting them to behave took four fixes that were each invisible until measured:</p>
+      <ul>
+        <li><span class="k">They could not be dragged at all.</span> Every frame and title bar had come out inactive, and an inactive frame does not receive mouse buttons &mdash; the click passes straight through it. They only moved when the pointer happened to land on a button.</li>
+        <li><span class="k">A fast pointer broke the drag.</span> Movement was being read from the title bar's own event, so moving quicker than the bar could follow dropped it instantly. It has to come from the global input service instead.</li>
+        <li><span class="k">Saved positions crept down the screen.</span> The stored value included the 36-pixel top inset, so writing it back as a plain offset pushed the panel down every reload &mdash; measured at 196, then 250, then 197. Store the proportional position, not the absolute one.</li>
+        <li><span class="k">Panels were quietly stacking.</span> The obvious container reported one set, and two more sets were sitting in a different one &mdash; the level bar had three copies of itself. The sweep now knows all four places a panel can live and runs again every two seconds, four times, because the containers do not all exist at the moment the panel is built.</li>
+      </ul>
+      <p class="note">One nice detail: the percentage on the level bar changes colour where the fill passes under it. A label can only be one colour, so the number is drawn twice &mdash; gold across the whole track, black inside the clipped fill, with the black copy's width locked to the full track so the two line up pixel for pixel. No letter-by-letter positioning.</p>
+      <p class="note">Holding Alt hides every panel at once, so a screenshot or a recording never has to show any of it.</p>
+    </div>
+
+    <div class="card">
+      <h3>Built on claude code 20x</h3>
+      <p>All of it &mdash; the farm, the loaders, the tools, the checkers, this site &mdash; is built on <span class="k">claude code 20x</span>. That is the budget the whole project runs inside, so knowing where it goes matters as much as knowing where the game's time goes.</p>
+      <p>Which is why one of the tools prices a session from its own transcript and splits the bill by subagent and by token kind. Fanning work out to ten helpers is either worth it or it is not, and that should be a number rather than a feeling &mdash; the same rule this whole page runs on.</p>
     </div>
 
     <div class="card">
