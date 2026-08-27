@@ -339,9 +339,9 @@ local depBtn = mk("RESPAWN ON", 8, 150, 114, GOLD)
 local hopSrv = mk("HOP SERVER", 130, 150, 114, RED)
 local oneBtn = mk("INF ULT AUTO ON", 8, 180, 236, GOLD)
 local lobbyBtn = mk("BACK TO LOBBY", 8, 210, 236, GREY)
-local buyBasic = mk("BASIC OFF", 8, 240, 75, GREY)
-local buySuper = mk("SUPER OFF", 89, 240, 74, GREY)
-local buyGold = mk("GOLD ON", 169, 240, 75, GOLD)
+local buyBasic = mk("BASIC", 8, 240, 75, GREY)
+local buySuper = mk("SUPER", 89, 240, 74, GREY)
+local buyGold = mk("GOLD", 169, 240, 75, GOLD)
 local autoBuyBtn = mk("AUTO BUY OFF", 8, 270, 236, GREY)
 local autoOpenBtn = mk("AUTO OPEN OFF", 8, 300, 236, GREY)
 
@@ -763,8 +763,9 @@ end
 
 local function paintCrateBtn(spec)
     local on = CFG[spec.flag] == true
-    spec.btn.Text = spec.label .. (on and " ON" or " OFF")
+    spec.btn.Text = spec.label
     spec.btn.BackgroundColor3 = on and GOLD or GREY
+    spec.btn.TextColor3 = on and Color3.fromRGB(20, 17, 13) or Color3.fromRGB(200, 190, 178)
 end
 
 local function paintAll()
