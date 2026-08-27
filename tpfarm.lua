@@ -1749,6 +1749,48 @@ task.spawn(function()
     end
 end)
 
+-- The one lever that actually raises kills a second, and it is not the gun.
+--
+-- Measured 2026-08-27 with RakNet: the server counts the rate itself on both paths. 40 crate
+-- opens all left the client and it honoured 16. Writing the blaster's _ammo to 50 let the
+-- client fire 25 shots in 8.4 seconds and it still only granted 2 kills, the same 0.25 a
+-- second as reloading properly. So nothing on this side makes the shot faster.
+--
+-- What was actually low in that sample was the number of things to shoot: two or three bots
+-- alive. Kill rate here is target supply, not fire rate. Servers cap at 8 and the fullest
+-- public ones sit at 7/8, so when this arena runs dry there is somewhere better to be.
+local dryTargetsSince = 0
+task.spawn(function()
+    while STATE.alive() do
+        task.wait(3)
+        if not (forceOn and CFG.on and isDeployed(me)) then
+            dryTargetsSince = 0
+        elseif #list > 0 then
+            dryTargetsSince = 0
+        else
+            if dryTargetsSince == 0 then dryTargetsSince = os.clock() end
+            local dry = os.clock() - dryTargetsSince
+            if dry > 45 and os.clock() - lastHopAt > 120 then
+                lastHopAt = os.clock()
+                dryTargetsSince = 0
+                LOG(string.format("nothing to shoot for %.0fs, looking for a fuller server", dry))
+                task.spawn(function()
+                    local best, why = bestServer()
+                    if best then
+                        LOG(string.format("hopping to a %d/%d server", best.playing, best.max))
+                        local okh = pcall(function()
+                            TS:TeleportToPlaceInstance(game.PlaceId, best.id, me)
+                        end)
+                        if not okh then pcall(function() TS:Teleport(game.PlaceId, me) end) end
+                    else
+                        LOG("no fuller server available: " .. tostring(why))
+                    end
+                end)
+            end
+        end
+    end
+end)
+
 local function ultCharge()
     if not DataClient then return nil, nil, nil end
     local c = DataClient.Data and DataClient.Data.cheats
