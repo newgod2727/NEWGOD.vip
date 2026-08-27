@@ -1,4 +1,21 @@
 -- EggWars panels: coin collector, auto buy, player tracker with void detection.
+
+-- ONE PLAYER BUILD.
+--
+-- The team build splits a round in two: the leader fights from the first second
+-- while three bots put every frame into the shells. On one account there is nobody
+-- to split with, so this build deliberately stays OFF the leader path. That is not
+-- a downgrade -- the non-leader path is the one that does the whole round by
+-- itself: every egg first, then it latches onto the players and kills.
+--
+-- Two things are set for that here and nothing else is different from the team
+-- build: team mode starts off, and the 45 second queue wait is skipped, because
+-- that wait only exists so a bot lets its host pull it into the party.
+--
+-- Turning TEAM MODE on in the panel still works if you ever run more clients.
+getgenv().__NEWGOD_SOLO = true
+getgenv().__IS_LEADER = false
+
 -- Standalone, paste-and-run. Safe to run again: it kills the previous copy first.
 --
 -- Collecting works by moving the PLAYER onto each pickup. Pickups are server-owned,
@@ -410,7 +427,7 @@ local cfg = {
 	ram3d = false,
 	vapeCycle = true,
 	farmPaused = false,
-	teamOn = true,
+	teamOn = false,
 	teamFocusThreat = true,
 }
 
@@ -4258,7 +4275,10 @@ K.queueKeeper = function()
 				-- difference between one match together and four separate matches.
 				K.qkSince = K.qkSince or os.clock()
 				local waited = os.clock() - K.qkSince
-				if not K.iAmLeaderClient() and waited < 45 then
+				-- The 45 second wait exists only so a bot lets its host pull it into the
+				-- party. On one account there is no host, so waiting is just 45 seconds of
+				-- nothing before every single round.
+				if not K.iAmLeaderClient() and not getgenv().__NEWGOD_SOLO and waited < 45 then
 					return
 				end
 				local ok, err = pcall(function()
