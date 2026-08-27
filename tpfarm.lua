@@ -275,7 +275,7 @@ local CFG = loadCfg({ on = false, back = 5, tpEvery = 2, jumpEvery = 3, settle =
               autoDeploy = true, doBots = true, doPlayers = true, oneShot = true,
               autoBuy = false, buyBasic = false, buySuper = false, buyGold = true,
               autoOpen = false, lobbyHold = false, vapeList = {}, guiX = 24, guiY = 150,
-              clickX = 0, clickY = 0, clickRate = 16 })
+              clickX = 0, clickY = 0, clickRate = 16, clickFX = 0, clickFY = 0 })
 if type(CFG.autoBuy) ~= "boolean" then CFG.autoBuy = false end
 CFG.autoOpen = false
 if type(CFG.vapeList) ~= "table" then CFG.vapeList = {} end
@@ -289,7 +289,7 @@ local hintFrame, hintLabel, hintYes, hintNo
 local hintShownAt, lastHopAt = 0, 0
 local frameN, lastDeploy = 0, 0
 local shots, landed, kills, reloads, oneShotFires = 0, 0, 0, 0, 0
-local clickCount, clickFlash = 0, 0
+local clickCount, clickFlash, clickOnAt = 0, 0, 0
 local AIM = "tpfarm_aim"
 
 local gui = Instance.new("ScreenGui")
@@ -2023,23 +2023,59 @@ do
     local VIM = game:GetService("VirtualInputManager")
     local clickDot, clickRing
 
+    -- His question, and it is the right one: a spot saved as pixels dies the moment the
+    -- window changes size. Measured 2026-08-27 -- 452,552 is 56.5%,92.2% across an 800x599
+    -- window, and the same two numbers on a 1280x720 window land at 35%,77%, a different
+    -- place entirely. So the spot is stored as a fraction of the window and turned back into
+    -- pixels against whatever the window is right now, every single time it is used.
     local function clickPos()
-        local x, y = CFG.clickX, CFG.clickY
-        if type(x) ~= "number" or type(y) ~= "number" or (x == 0 and y == 0) then
-            local okm, m = pcall(function() return game:GetService("UserInputService"):GetMouseLocation() end)
-            if okm and m then
-                x, y = math.floor(m.X), math.floor(m.Y)
-                CFG.clickX, CFG.clickY = x, y
-                LOG(string.format("click spot taken from where his cursor was sitting: %d,%d", x, y))
-            else
-                local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize
-                x = math.floor((vp and vp.X or 1280) / 2)
-                y = math.floor((vp and vp.Y or 720) / 2)
-                CFG.clickX, CFG.clickY = x, y
+        local cam = workspace.CurrentCamera
+        local vp = cam and cam.ViewportSize
+        if not vp or vp.X < 50 then return nil end
+        local fx, fy = CFG.clickFX, CFG.clickFY
+        if type(fx) ~= "number" or type(fy) ~= "number" or fx <= 0 or fy <= 0 then
+            local px, py = CFG.clickX, CFG.clickY
+            if type(px) ~= "number" or px <= 0 then
+                local okm, m = pcall(function()
+                    return game:GetService("UserInputService"):GetMouseLocation()
+                end)
+                if okm and m and m.X > 0 then px, py = m.X, m.Y end
             end
+            if type(px) == "number" and px > 0 then
+                fx, fy = px / vp.X, py / vp.Y
+                LOG(string.format("click spot learned: %d,%d on a %dx%d window, kept as %.4f,%.4f of the window",
+                    px, py, math.floor(vp.X), math.floor(vp.Y), fx, fy))
+            else
+                fx, fy = 0.5, 0.9
+                LOG("no cursor to learn from, click spot defaults to the middle bottom of the window")
+            end
+            CFG.clickFX, CFG.clickFY = fx, fy
         end
+        local x = math.floor(fx * vp.X + 0.5)
+        local y = math.floor(fy * vp.Y + 0.5)
+        CFG.clickX, CFG.clickY = x, y
         return x, y
     end
+
+    -- If the window is resized the fraction does not move but the pixels do, and this says so
+    -- out loud rather than leaving him to wonder whether the spot survived.
+    task.spawn(function()
+        local lastVP = nil
+        while STATE.alive() do
+            local cam = workspace.CurrentCamera
+            local vp = cam and cam.ViewportSize
+            if vp and vp.X > 50 then
+                local key = math.floor(vp.X) .. "x" .. math.floor(vp.Y)
+                if lastVP and key ~= lastVP then
+                    local x, y = clickPos()
+                    LOG(string.format("window went %s -> %s, click spot follows to %s,%s",
+                        lastVP, key, tostring(x), tostring(y)))
+                end
+                lastVP = key
+            end
+            task.wait(1)
+        end
+    end)
 
     -- A stray click on his own panel would press whatever button is under it, so the spot is
     -- refused while it sits over the panel rather than quietly toggling the farm off.
@@ -2087,18 +2123,32 @@ do
         st.Parent = clickRing
     end
 
+    -- His rule for the circle: AUTO OPEN on, it shows up five seconds later. AUTO OPEN off,
+    -- it is gone. The five seconds cover the stretch where he is still pressing things, so it
+    -- does not flash on and off while he sets up.
+    local CLICK_DELAY = 5
     task.spawn(function()
         while STATE.alive() do
             if not CFG.autoOpen then
+                clickOnAt = 0
+                clickDot.Visible = false
+                clickRing.Visible = false
+                task.wait(0.25)
+            elseif clickOnAt == 0 then
+                clickOnAt = os.clock()
+                task.wait(0.25)
+            elseif os.clock() - clickOnAt < CLICK_DELAY then
                 clickDot.Visible = false
                 clickRing.Visible = false
                 task.wait(0.25)
             else
                 local x, y = clickPos()
-                if overPanel(x, y) then
+                if not x then
+                    task.wait(0.5)
+                elseif overPanel(x, y) then
                     clickDot.Visible = false
                     clickRing.Visible = false
-                    openState = "click spot is on the panel, moved nothing"
+                    openState = "click spot sits on the panel, not clicking there"
                     task.wait(1)
                 else
                     if sendClick(x, y) then
@@ -2117,7 +2167,8 @@ do
     -- The circle he asked for: it sits on the spot and pulses on every click, so the clicking is
     -- something he can see happening rather than something he has to trust is happening.
     keep(RunService.RenderStepped:Connect(function()
-        if not CFG.autoOpen then return end
+        if not CFG.autoOpen or clickOnAt == 0 then return end
+        if os.clock() - clickOnAt < CLICK_DELAY then return end
         local x, y = CFG.clickX, CFG.clickY
         if type(x) ~= "number" or type(y) ~= "number" then return end
         if overPanel(x, y) then return end
