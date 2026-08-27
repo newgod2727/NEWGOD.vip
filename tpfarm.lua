@@ -1117,6 +1117,162 @@ local function vapeStateText()
     return state
 end
 
+local VAPE_REF_FILE = "RobloxComm/vape_ref.json"
+local VLOG_FILE = "RobloxComm/vape_watch.log"
+local vlogLines = {}
+
+-- A log that stays small and dies with the client. Nothing copies it anywhere, it is
+-- truncated the moment this script loads, and every 30 seconds it is rewritten with only
+-- the last 30 seconds of lines, so it can never grow into the 9 MB the farm log once was.
+local function VLOG(msg)
+    local line = os.date("%H:%M:%S") .. "  " .. tostring(msg)
+    vlogLines[#vlogLines + 1] = { t = os.clock(), s = line }
+    pcall(function() appendfile(VLOG_FILE, line .. string.char(10)) end)
+end
+
+task.spawn(function()
+    pcall(function() writefile(VLOG_FILE, "") end)
+    while STATE.alive() do
+        task.wait(30)
+        local keep, now = {}, os.clock()
+        for _, e in ipairs(vlogLines) do
+            if now - e.t <= 30 then keep[#keep + 1] = e end
+        end
+        local dropped = #vlogLines - #keep
+        vlogLines = keep
+        local body = {}
+        for _, e in ipairs(keep) do body[#body + 1] = e.s end
+        pcall(function()
+            writefile(VLOG_FILE, table.concat(body, string.char(10)) .. string.char(10))
+        end)
+        if dropped > 0 then
+            pcall(function()
+                appendfile(VLOG_FILE, os.date("%H:%M:%S") .. "  trimmed " .. dropped
+                    .. " line(s) older than 30s" .. string.char(10))
+            end)
+        end
+    end
+end)
+
+local function vapeRefLoad()
+    local ok, raw = pcall(readfile, VAPE_REF_FILE)
+    if not ok or type(raw) ~= "string" or #raw < 10 then return nil end
+    local ok2, t = pcall(function() return HttpService:JSONDecode(raw) end)
+    if ok2 and type(t) == "table" and type(t.modules) == "table" then return t end
+    return nil
+end
+
+local function vapeRefSave(why)
+    local v = shared and shared.vape
+    if not (v and type(v.Modules) == "table") then return false end
+    local ref = { placeId = game.PlaceId, at = os.date("%Y-%m-%d %H:%M:%S"), modules = {} }
+    local n = 0
+    for name, m in pairs(v.Modules) do
+        if type(m) == "table" and type(m.Toggle) == "function" then
+            ref.modules[tostring(name)] = { enabled = m.Enabled == true }
+            n = n + 1
+        end
+    end
+    local ok = pcall(function() writefile(VAPE_REF_FILE, HttpService:JSONEncode(ref)) end)
+    VLOG("reference " .. (ok and "saved" or "FAILED to save") .. " (" .. tostring(why) .. "), " .. n .. " modules")
+    return ok
+end
+
+-- Never walks the whole list switching things off: three at most in one pass, the rest wait
+-- for the next check. Switching every enabled module off at once takes the whole machine down.
+local VAPE_MAX_OFF_PER_PASS = 3
+
+local function vapeSmartFill(why)
+    local ref = vapeRefLoad()
+    if not ref then
+        VLOG("no reference file yet (" .. tostring(why) .. "), nothing to compare against")
+        return 0
+    end
+    local v = shared and shared.vape
+    if not (v and type(v.Modules) == "table") then
+        VLOG("vape is not loaded (" .. tostring(why) .. ")")
+        return -1
+    end
+    local toOn, toOff = {}, {}
+    for name, want in pairs(ref.modules) do
+        local m = v.Modules[name]
+        if type(m) == "table" and type(m.Toggle) == "function" then
+            -- while the farm is off, AutoClicker being off is deliberate, not a mismatch
+            local skip = (name == "AutoClicker") and (forceOn ~= true)
+            if not skip then
+                local isOn = m.Enabled == true
+                if want.enabled and not isOn then
+                    toOn[#toOn + 1] = tostring(name)
+                elseif (not want.enabled) and isOn then
+                    toOff[#toOff + 1] = tostring(name)
+                end
+            end
+        end
+    end
+    table.sort(toOn)
+    table.sort(toOff)
+    if #toOn == 0 and #toOff == 0 then
+        VLOG(string.format("check (%s): all %d modules match what he set", tostring(why),
+            (select(2, vapeRead()))))
+        return 0
+    end
+    VLOG(string.format("check (%s): %d to switch on [%s], %d to switch off [%s]",
+        tostring(why), #toOn, table.concat(toOn, ","), #toOff, table.concat(toOff, ",")))
+    local changed = 0
+    for _, name in ipairs(toOn) do
+        if not STATE.alive() then break end
+        local m = v.Modules[name]
+        if type(m) == "table" and m.Enabled ~= true then
+            local ok, err = pcall(m.Toggle, m)
+            VLOG("  on  " .. name .. " -> ok=" .. tostring(ok) .. " enabled=" .. tostring(m.Enabled)
+                .. (ok and "" or (" " .. tostring(err))))
+            changed = changed + 1
+            task.wait(0.3)
+        end
+    end
+    local offDone = 0
+    for _, name in ipairs(toOff) do
+        if not STATE.alive() then break end
+        if offDone >= VAPE_MAX_OFF_PER_PASS then
+            VLOG("  holding " .. (#toOff - offDone) .. " more off-switches for the next check")
+            break
+        end
+        local m = v.Modules[name]
+        if type(m) == "table" and m.Enabled == true then
+            local ok, err = pcall(m.Toggle, m)
+            VLOG("  off " .. name .. " -> ok=" .. tostring(ok) .. " enabled=" .. tostring(m.Enabled)
+                .. (ok and "" or (" " .. tostring(err))))
+            offDone = offDone + 1
+            changed = changed + 1
+            task.wait(0.5)
+        end
+    end
+    return changed
+end
+
+-- Ten seconds after landing in a server: is vape up, and does what it is running match what
+-- he set? If it does not, it is filled in for him. If vape is not there at all, it keeps
+-- looking every ten seconds for two minutes rather than deciding once and giving up.
+task.spawn(function()
+    local lastJob = nil
+    while STATE.alive() do
+        if game.JobId ~= lastJob then
+            lastJob = game.JobId
+            VLOG("joined server " .. tostring(game.JobId):sub(1, 8) .. ", checking vape in 10s")
+            task.wait(10)
+            if not STATE.alive() then return end
+            if vapeSmartFill("10s after joining") == -1 then
+                for _ = 1, 12 do
+                    task.wait(10)
+                    if not STATE.alive() then return end
+                    if vapeSmartFill("still waiting for vape") ~= -1 then break end
+                end
+            end
+        end
+        task.wait(2)
+    end
+end)
+
 local function paintCrateBtn(spec)
     local on = CFG[spec.flag] == true
     spec.btn.Text = spec.label
@@ -1155,7 +1311,13 @@ local function setFarm(on)
     end
     farmBusy = true
     LOG("setFarm(" .. tostring(on) .. ") pressed")
-    if on then CFG.lobbyHold = false end
+    if on then
+        CFG.lobbyHold = false
+        task.spawn(function()
+            task.wait(0.4)
+            pcall(vapeSmartFill, "ENABLE FARM")
+        end)
+    end
     forceOn = on
     wasFarming = on
     paintAll()
@@ -1177,6 +1339,17 @@ local function setFarm(on)
             paintAll()
         end
         if not on then
+            -- He called this one a must: the farm going off takes AutoClicker off with it.
+            -- One module, never a loop over the list.
+            local vv = shared and shared.vape
+            local ac = vv and vv.Modules and vv.Modules["AutoClicker"]
+            if type(ac) == "table" and ac.Enabled == true and type(ac.Toggle) == "function" then
+                local okc = pcall(ac.Toggle, ac)
+                VLOG("DISABLE FARM: AutoClicker off, ok=" .. tostring(okc)
+                    .. " enabled=" .. tostring(ac.Enabled))
+            else
+                VLOG("DISABLE FARM: AutoClicker was already off")
+            end
             CFG.autoOpen = false
             openState = "off"
             paintAll()
@@ -1723,7 +1896,7 @@ task.spawn(function()
     LOG("startup: enabling farm")
     setFarm(true)
     while farmBusy and STATE.alive() do task.wait(0.1) end
-    LOG("startup: farm is up, vape is " .. vapeStateText() .. " and this script will not touch it")
+    LOG("startup: farm is up, vape is " .. vapeStateText())
     buyState = "started, vape " .. vapeStateText()
 end)
 return "tpfarm loaded. farm=" .. (forceOn and "ENABLED" or "DISABLED")
