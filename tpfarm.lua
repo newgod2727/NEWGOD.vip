@@ -765,12 +765,25 @@ local function openPass()
     opening = false
 end
 
-local VAPE_DEFAULT = { "Anti-AFK", "AntiFall", "AutoClicker", "Invisible", "Killaura",
-    "Phase", "Reach", "SilentAim", "Speed", "TriggerBot" }
+local VAPE_COMBAT = { "AimAssist", "Arrows", "AutoClicker", "HitBoxes", "Killaura",
+    "Reach", "SilentAim", "SpinBot", "TargetStrafe", "TriggerBot" }
+
+local function isCombat(name)
+    for _, n in ipairs(VAPE_COMBAT) do
+        if n == name then return true end
+    end
+    return false
+end
 
 local function vapeWanted()
-    if type(CFG.vapeList) == "table" and #CFG.vapeList > 0 then return CFG.vapeList end
-    return VAPE_DEFAULT
+    if type(CFG.vapeList) == "table" and #CFG.vapeList > 0 then
+        local out = {}
+        for _, n in ipairs(CFG.vapeList) do
+            if isCombat(n) then out[#out + 1] = n end
+        end
+        if #out > 0 then return out end
+    end
+    return VAPE_COMBAT
 end
 
 local vapeBusy = false
@@ -786,7 +799,9 @@ local function vapeSet(on)
     else
         local live = {}
         for name, m in pairs(v.Modules) do
-            if type(m) == "table" and m.Enabled == true then live[#live + 1] = tostring(name) end
+            if type(m) == "table" and m.Enabled == true and isCombat(tostring(name)) then
+                live[#live + 1] = tostring(name)
+            end
         end
         if #live > 0 then
             table.sort(live)
@@ -845,15 +860,13 @@ local function setFarm(on)
     CFG.doPlayers = on
     CFG.autoDeploy = on
     CFG.oneShot = on
-    CFG.autoBuy = on
-    CFG.autoOpen = on
     if not on then
         current = nil
         releaseCam()
     end
     local n = vapeSet(on)
     paintAll()
-    buyState = on and ("enabled, vape on " .. n) or ("all off, vape off " .. n)
+    buyState = on and ("combat on, vape " .. n) or ("combat off, vape " .. n)
 end
 
 task.spawn(function()
@@ -1193,9 +1206,11 @@ do
         local n = 0
         pcall(function()
             for _, v in ipairs(Lighting:GetChildren()) do
-                if v:IsA("PostEffect") or v:IsA("Atmosphere") or v:IsA("Sky") then
-                    pcall(function() v:Destroy() end)
-                    n = n + 1
+                if v:IsA("PostEffect") then
+                    local ok = pcall(function()
+                        if v.Enabled then v.Enabled = false n = n + 1 end
+                    end)
+                    if not ok then n = n end
                 end
             end
         end)
