@@ -710,61 +710,52 @@ footer .furl:hover{color:var(--gold2)}
   <section class="view" data-t="SKYWARS">
     <div class="vhead">
       <h2>SKYWARS</h2>
-      <p>Seven accounts, three teams, three game modes, one machine &mdash; plus a solo farm that was taken apart frame by frame. Every number on this page was read off a running client, not estimated.</p>
+      <p>Seven accounts on one machine, a farm that now tunes itself, and every claim on this page backed by a number that was read off a running client. Nothing here is an estimate.</p>
     </div>
 
     <div class="stat">
+      <div class="stt"><b class="count" data-to="565">565</b><span>rounds this session</span></div>
+      <div class="stt"><b class="count" data-to="22.5" data-dec="1" data-suffix=" h">22.5 h</b><span>unbroken, never banned</span></div>
+      <div class="stt"><b class="count" data-to="35.1" data-dec="1">35.1</b><span>best kills per minute</span></div>
       <div class="stt"><b class="count" data-to="18239">18,239</b><span>lines of Lua</span></div>
-      <div class="stt"><b class="count" data-to="1043">1,043</b><span>functions</span></div>
       <div class="stt"><b class="count" data-to="5756">5,756</b><span>fights analysed</span></div>
-      <div class="stt"><b class="count" data-to="22376">22,376</b><span>damage events</span></div>
       <div class="stt"><b class="count" data-to="97921">97,921</b><span>chest-content rows</span></div>
-      <div class="stt"><b class="count" data-to="7">7</b><span>accounts, three teams</span></div>
     </div>
 
     <div class="card">
       <h3>What it is</h3>
-      <p>Seven Roblox clients on one desktop, split into three teams that run at the same time on three different servers: <span class="k">four</span> on EggWars, <span class="k">two</span> on Duos, <span class="k">one</span> on Solo. Each team queues itself, parties itself, takes its own roll call, and plays without anyone touching a key.</p>
-      <p>The leader of the EggWars team is also a fighting bot. It kills, collects, upgrades its sword and buys, and still carries the party, the roll call and the rescue job for the other three.</p>
+      <p>Seven Roblox clients on one desktop, split into teams that run at the same time on different servers. Each team queues itself, parties itself, takes its own roll call, and plays without anyone touching a key. The leader is also a fighting bot &mdash; it kills, collects, upgrades its sword and buys, and still carries the party, the roll call and the rescue job for the rest.</p>
+      <p>It has run unattended for a full day at a time. The ban checker polled the account every ten minutes for <span class="k">22.5 hours straight</span> and got a healthy answer every single time.</p>
     </div>
 
     <div class="card">
-      <h3>The six layers</h3>
-      <ul>
-        <li><span class="k">One entry point, not one file.</span> Autoexec holds a single loader. It waits for the player, reads a roster, decides which role this client is, then loads the rest in order. It cannot be one file: the farm sits exactly on Luau's 200-local-register ceiling, so pasting the leader and the tick loop into it will not compile at all.</li>
-        <li><span class="k">Identity is never hard-coded.</span> The leader publishes its own name and UserId to a shared file on load; every other client reads it back. Bots recognise the leader by UserId, not by name, because a name can be changed and a farm that trusts names can be walked into.</li>
-        <li><span class="k">Queue keeper.</span> Every 5 seconds: if in the lobby, and able to queue, and not already queued, call joinQueue. The leader calls immediately, bots wait 45 s so the party can pull them in first.</li>
-        <li><span class="k">Fighting does not wait for the game.</span> The gate is the place, not the round state. In the match place with a body means work starts, with no waiting for the server to announce the round or to drop you on the floor.</li>
-        <li><span class="k">Half-second self-check.</span> Four questions every 0.5 s: did I move, did I pick anything up, did I kill anything, did I deal or take damage. Four no's means this bot is AFK no matter what the panel says, and a fixed ladder of recovery steps runs.</li>
-        <li><span class="k">Recording.</span> Every username and every chat line in the round, plus position and behaviour for anything unusual. 567 files and 42.4 MB so far.</li>
-      </ul>
-    </div>
-
-    <div class="card">
-      <h3>Five findings worth more than the code</h3>
+      <h3>The farm tunes itself now</h3>
+      <p>The settings that decide how it fights are no longer mine. A genetic algorithm plays with them, scores each set on real rounds, breeds the winners and throws the rest away.</p>
       <div class="tablewrap"><table>
-        <tr><th>Finding</th><th>Number</th><th>Why it matters</th></tr>
-        <tr><td class="kk">The server caps hit distance</td><td class="nn">10.35 studs</td><td>4.5 blocks x 2.3. Sitting 10.8 away means zero damage forever, with no error and no log. That 0.45 was the entire reason for six minutes of hitting nothing.</td></tr>
-        <tr><td class="kk">The combat tool was not attacking</td><td class="nn">0 of 144,834</td><td>A remote spy over 8 seconds caught 144,834 method calls and not one attack, while the breaker module reported itself enabled. The real path is the game's own two damage events.</td></tr>
-        <tr><td class="kk">Nothing was blocking the queue</td><td class="nn">585 s</td><td>Sat in the lobby for 585 seconds with canQueue returning true the whole time. Nothing refused us. The call was simply never made.</td></tr>
-        <tr><td class="kk">Hard-coded framework ids are a timer</td><td class="nn">4 of 6 died</td><td>A game update regenerates them, and they fail inside a pcall, so the feature just silently stops existing. Resolve by module name instead.</td></tr>
-        <tr><td class="kk">The ceiling is CPU, not RAM</td><td class="nn">1165% of 1200%</td><td>Seven clients doing nothing at all already eat a 6-core i7. Memory still had 11.5 GB free. Every future estimate starts from that, not from zero.</td></tr>
+        <tr><th>Live state of the run</th><th>Value</th></tr>
+        <tr><td class="kk">Generation</td><td class="nn">15</td></tr>
+        <tr><td class="kk">Population per generation</td><td class="nn">16</td></tr>
+        <tr><td class="kk">Genomes in the archive</td><td class="nn">272</td></tr>
+        <tr><td class="kk">Named genes it is allowed to move</td><td class="nn">29</td></tr>
+        <tr><td class="kk">Rounds each genome must survive</td><td class="nn">12</td></tr>
+        <tr><td class="kk">Champion fitness / its best round</td><td class="nn">61.78 / 17 kills</td></tr>
       </table></div>
+      <p style="margin-top:14px">Beside it a learning classifier system writes its own if-then combat rules from what actually happened, rather than from what I assumed. It has seen <span class="k">72 distinct situations</span> across <span class="k">9,636 decision windows</span>, answered every one of its 256 test cases, and <span class="k">65 rules</span> survived pruning &mdash; built on 8 bits of situation and 4 possible actions.</p>
+      <p class="note">This is the part I am least in charge of, and that is on purpose. A number the machine found by playing beats a number I picked because it sounded right.</p>
     </div>
 
     <div class="card">
-      <h3>Where the time actually goes</h3>
-      <p>From 2,722 state rows over 11 days and 611 rounds:</p>
+      <h3>Only one thing actually deals damage</h3>
+      <p>Nine segments in one match, each one a different way of trying to hurt somebody, all counted the same way:</p>
       <div class="tablewrap"><table>
-        <tr><th>Phase</th><th>Median</th><th>n</th></tr>
-        <tr><td class="kk">Pregame</td><td class="nn">13.0 s</td><td class="nn">302</td></tr>
-        <tr><td class="kk">Countdown</td><td class="nn">3.0 s</td><td class="nn">355</td></tr>
-        <tr><td class="kk">In game, the only productive part</td><td class="nn">15.0 s</td><td class="nn">297</td></tr>
-        <tr><td class="kk">Still sitting in a finished server</td><td class="nn">11.9 s</td><td class="nn">170</td></tr>
-        <tr><td class="kk">Teleport and load</td><td class="nn">9.5 s</td><td class="nn">170</td></tr>
-        <tr><td class="kk">Full cycle</td><td class="nn">52.0 s</td><td class="nn">1075</td></tr>
+        <tr><th>Method</th><th>Fired</th><th>Landed</th><th>Damage</th></tr>
+        <tr><td class="kk">Firing the game's own damage event myself</td><td class="nn">151</td><td class="nn">48</td><td class="nn">669</td></tr>
+        <tr><td class="kk">Replaying the raw packets</td><td class="nn">151</td><td class="nn">0</td><td class="nn">0</td></tr>
+        <tr><td class="kk">Same, from 400 studs away</td><td class="nn">200</td><td class="nn">0</td><td class="nn">0</td></tr>
+        <tr><td class="kk">Sweeping the whole map at once</td><td class="nn">1,345</td><td class="nn">2</td><td class="nn">30</td></tr>
+        <tr><td class="kk">Letting the combat library do it</td><td class="nn">0 self-fired</td><td class="nn">77</td><td class="nn">1,099</td></tr>
       </table></div>
-      <p class="note" style="margin-top:12px">69% of every cycle is dead time. Making the fighting faster cannot win more than 29% of anything. The money is in the two waits.</p>
+      <p class="note" style="margin-top:12px">The last row was the highest damage on the server that round, and it fired nothing of its own. Packet replay is worth exactly zero, and a wider net is worth almost zero. Everything downstream of this was built on that one result.</p>
     </div>
 
     <div class="card">
@@ -776,10 +767,21 @@ footer .furl:hover{color:var(--gold2)}
         <tr><td class="kk">Odd numbers like 24 or 27</td><td class="nn">armour, subtracted off the 29 or the 32</td></tr>
         <tr><td class="kk">Hits to finish a full-health player</td><td class="nn">exactly four, in 427 of 621 kills</td></tr>
         <tr><td class="kk">Gap between two landed hits</td><td class="nn">0.4 s is the mode, 5,830 times</td></tr>
-        <tr><td class="kk">100 health gone, everyone on the server</td><td class="nn">median 1.40 s</td></tr>
+        <tr><td class="kk">100 health gone, best on the server</td><td class="nn">median 1.40 s</td></tr>
         <tr><td class="kk">100 health gone, us</td><td class="nn">2.5 s</td></tr>
       </table></div>
-      <p class="note" style="margin-top:12px">The gap is not damage, it is travel. Finding the next target and teleporting costs about 0.2 s and the dwell costs 0.4 s, so hit-and-move pays that toll four times per kill. The fix was to stop leaving &mdash; hold the target until they drop &mdash; not to swing faster.</p>
+      <p class="note" style="margin-top:12px">The gap is not damage, it is travel. 54.6% of frames are already inside killing range and 39.8% are beyond 60 studs &mdash; the middle is empty. Hit-and-move pays the travel toll four times per kill, so the fix was to stop leaving, not to swing faster.</p>
+    </div>
+
+    <div class="card">
+      <h3>How long to stay on one target, settled by 825 rounds</h3>
+      <div class="tablewrap"><table>
+        <tr><th>Dwell before switching</th><th>Kills per round</th><th>Damage per round</th></tr>
+        <tr><td class="kk">0.2 s</td><td class="nn">4.18</td><td class="nn">648</td></tr>
+        <tr><td class="kk">0.4 s</td><td class="nn">4.73</td><td class="nn">626</td></tr>
+        <tr><td class="kk">0.6 s</td><td class="nn">4.23</td><td class="nn">647</td></tr>
+      </table></div>
+      <p class="note" style="margin-top:12px">Damage barely moves across all three, kills move by 13%. That is the whole lesson: total damage is a vanity number, and anything tuned against it will be tuned wrong. Judge on finishes. Which sword you are holding was worth about 12 damage a round by comparison.</p>
     </div>
 
     <div class="card">
@@ -794,21 +796,53 @@ footer .furl:hover{color:var(--gold2)}
         <tr><td class="kk">0.5 s</td><td class="nn">136</td></tr>
         <tr><td class="kk">0.6 s and over</td><td class="nn">80</td></tr>
       </table></div>
-      <p class="note" style="margin-top:12px">Median 0.435 s. 79% lands in the 0.4 and 0.5 buckets and only 3% gets inside 0.3 s. That shape is a server-side gate, not a limit of mine.</p>
+      <p class="note" style="margin-top:12px">Median 0.435 s. 79% lands in the 0.4 and 0.5 buckets and only 3% gets inside 0.3 s. That shape is a server-side cooldown, not a limit of mine.</p>
       <ul style="margin-top:14px">
         <li><span class="k">Send more.</span> Dropped the send interval from 0.08 s to 0.05 s &mdash; about 60 attack packets a second against 2.3 accepted. The median did not move by one millisecond. Fire rate and result are completely uncorrelated.</li>
-        <li><span class="k">Send several in one frame.</span> Swings went from 232 to 939, damage rose 5 to 20%, and hits inside 0.3 s stayed at 3%. Same frame does not mean same instant; the server still processes and refuses them one at a time. Turned back off, because the extra traffic is pure exposure.</li>
-        <li><span class="k">Delay the packets on the wire.</span> Toggling a firewall rule to hold traffic back for a moment. Zero hits while blocked, the same 0.4 s after, plus a few one-second stalls &mdash; the reliable layer resends under the original sequence number, so the server treats it as a resend rather than a new action. Pure loss.</li>
+        <li><span class="k">Send several in one frame.</span> Swings went from 232 to 939, damage rose 5 to 20%, and hits inside 0.3 s stayed at 3%. Same frame does not mean same instant; the server still refuses them one at a time. Turned back off, because the extra traffic is pure exposure.</li>
+        <li><span class="k">Delay the packets on the wire.</span> Zero hits while blocked, the same 0.4 s after, plus a few one-second stalls &mdash; the reliable layer resends under the original sequence number, so the server treats it as a resend rather than a new action. Pure loss.</li>
       </ul>
-      <p class="note" style="margin-top:12px">Melee is at the floor: four hits, three gaps, 0.4 s each is 1.3 s, and that matches the recorded hold times line for line. The only ways left are needing fewer hits, or opening a second damage line that has its own cooldown.</p>
+      <p class="note" style="margin-top:12px">Melee is at the floor: four hits, three gaps, 0.4 s each is 1.3 s, and that matches the recorded hold times line for line. Do not tune this again &mdash; the only ways left are needing fewer hits, or a second damage line with its own cooldown.</p>
+    </div>
+
+    <div class="card">
+      <h3>Range is a wall, distance is free</h3>
+      <p>Two findings that sound like opposites and are both true.</p>
+      <p><span class="k">Reach is hard-capped.</span> Across 7,393 attack windows, every distance from 1 to 9 studs did damage. At 10 studs and beyond: 59 swings, zero damage, 27 windows, no error and no log line. Sitting 0.45 studs too far away looks exactly like a broken script.</p>
+      <p><span class="k">Getting there costs nothing.</span> Our bots' longest single step in a round runs to a median of <span class="k">296.8 studs</span>, against <span class="k">22.3</span> for a normal player, with a 99th-percentile movement rate of 2,923 studs a second. So "that target is too far" is never a real reason. The only questions worth asking are whether the landing spot is legal and whether the server agrees you arrived.</p>
     </div>
 
     <div class="card">
       <h3>The best player was standing inside the map</h3>
       <p>An honest question with no answer, so it became a detector: sample every player's torso each tick and ask the world whether anything solid overlaps it, excluding characters and shrinking the box to 60% so the floor underfoot does not count.</p>
-      <p>The top player came back <span class="k">inside dirt, stone and smooth stone for eight consecutive samples</span>, at heights from &minus;26 to &minus;44.6. Not standing on the island. Standing in it.</p>
+      <p>The top opponent came back <span class="k">inside dirt and stone for eight consecutive samples</span>, at heights from &minus;26 to &minus;44.6. Not standing on the island. Standing in it.</p>
       <p>Reproducing it needed no special module: write the body into the centre of a block and rewrite that same coordinate every frame. Measured at <span class="k">six seconds held, 0.52 studs of drift, zero pushes out, full health, no kick</span>. The trick is rewriting the original coordinate rather than the one you get back &mdash; physics nudges you a little each frame, and reading it back walks you straight out of the wall.</p>
-      <p class="note">What it buys is not damage, it is not being interrupted. The server checks distance, not line of sight.</p>
+      <p class="note">What it buys is not damage and not immunity, it is not being interrupted. The server checks distance, not line of sight.</p>
+    </div>
+
+    <div class="card">
+      <h3>The lag was one function called every frame</h3>
+      <p>Frame rate sat at 31.5 with no obvious cause. Walking the world returned <span class="k">45,292 objects</span>, and the helper that looked through them for the things that mattered was costing <span class="k">87.5 ms every call</span> &mdash; inside a loop that ran every frame. Caching the instances and rescanning every 15 seconds dropped it to microseconds.</p>
+      <div class="tablewrap"><table>
+        <tr><th>Recovery</th><th>Before</th><th>After</th></tr>
+        <tr><td class="kk">After the automatic downgrade</td><td class="nn">20.7 fps</td><td class="nn">59.2 fps</td></tr>
+        <tr><td class="kk">Fresh round</td><td class="nn">26.3 fps</td><td class="nn">60.0 fps</td></tr>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <h3>Something has to check whether I am lying</h3>
+      <p>A separate verifier runs <span class="k">19 checks every five minutes</span>, and every check has to point at a number measured in the last fifteen minutes or it fails. Not "is the flag on" &mdash; "show me the reading".</p>
+      <p>The check I like most compares our own damage total against the figure the game itself reports, and fails if they drift apart. Last run: <span class="k">897 against 906</span>. First ever run scored 18 of 19, and the single failure was my own bad path, which is exactly the sort of thing it exists to catch.</p>
+      <p class="note">A dashboard that reads its own optimism is worth nothing. This one is allowed to call the farm a liar.</p>
+    </div>
+
+    <div class="card">
+      <h3>Moving off one executor and onto another</h3>
+      <p>The whole thing used to run on a different executor. Five days and four support tickets produced no real answer, and the project turned out to have a single developer who was away &mdash; so it got replaced rather than waited on.</p>
+      <p>The failure that ended it was found with a handle inspector, not a guess: the executor was holding Roblox's own single-instance lock and never letting go. Thirty-six minutes after launch, one executor process and two game clients were all holding the same lock. That one fact explained both long-running mysteries at once &mdash; a wait-for-process message filling <span class="k">16% of every log file</span>, and "open five clients, only two of them ever start".</p>
+      <p>The port is done and checked rather than hoped: eleven files compile clean, and six of the big scripts are <span class="k">SHA256-identical</span> to the originals, so nothing was quietly rewritten on the way across. The new headless launch chain kills a client and has it back in a live match in <span class="k">25 seconds</span> with nobody touching the machine.</p>
+      <p class="note">It cost something too, and that belongs here: the new one can watch outgoing traffic but not incoming, and it has no remote control, so a live client can no longer be reached from another machine. Both were things the old one could do.</p>
     </div>
 
     <div class="card">
@@ -817,6 +851,17 @@ footer .furl:hover{color:var(--gold2)}
       <p>Roblox refuses some property writes at run time <span class="k">without throwing</span>. It prints a warning, leaves the value alone, and the surrounding pcall reports success &mdash; so the loop happily writes it again for every object, every round, forever. One 22-minute log held <span class="k">20,863</span> copies of the same warning, arriving 550 to 620 at a time inside a single second.</p>
       <p>That burst is a long frame, and a long frame during map load is exactly what the hang monitor kills. Three separate deaths had a byte-identical final sequence: the warning flood, a second graphics device opening, then the timeout.</p>
       <p class="note">The fix is not deleting the line, it is a guard: write, read it back, and if it did not take, record the property name and never write it again this session. One warning instead of twenty thousand &mdash; and next time it names itself instead of hiding in a crash log.</p>
+    </div>
+
+    <div class="card">
+      <h3>Four bugs that all hid the same way</h3>
+      <ul>
+        <li><span class="k">A heartbeat cannot prove a heartbeat.</span> The client sat disconnected for <span class="k">24 minutes 49 seconds</span> while its own status file cheerfully kept writing "7 players, body present". Anything that reports on itself will report success right through its own death. It is now checked by a second watcher reading the game's log independently.</li>
+        <li><span class="k">Lua's word class quietly drops underscores.</span> A pattern reading settings skipped <span class="k">nine</span> of them because their names contained an underscore, so the tuner's numbers never reached the client. No error, no warning, just older values.</li>
+        <li><span class="k">Varargs inside a nested closure kill the script.</span> Twice in fifteen minutes.</li>
+        <li><span class="k">The watchdog was the attacker.</span> Its tidy-up mistook freshly launched clients for duplicates and killed them at seven seconds old, then relaunched them &mdash; which read from the outside as "the clients keep crashing".</li>
+      </ul>
+      <p class="note">Every one of these looked like something else. That is the argument for measuring rather than reasoning: all four were invisible to reading the code and obvious the moment something counted.</p>
     </div>
 
     <div class="card">
@@ -847,14 +892,8 @@ footer .furl:hover{color:var(--gold2)}
 
     <div class="card">
       <h3>How the code gets checked now</h3>
-      <p>A hand-written checker only ever saw top-level declarations, so it could not see a variable declared inside one closure and used from another &mdash; which is exactly the shape of the worst bugs here. It got replaced with four layers behind one command.</p>
-      <ul>
-        <li>Own rules: byte-order marks, control bytes, block comments, raw tabs in strings, the 200-local ceiling, and use-before-declaration.</li>
-        <li>The real compiler, to answer whether it even builds.</li>
-        <li>A language server for shadowing, dead branches, deprecated calls and types.</li>
-        <li>A linter with a generated standard library, because the executor's own globals are not in anyone's default list.</li>
-      </ul>
-      <p class="note">First run found five things the old checker structurally could not: a helper declared inside a loop body and called from somewhere else, so auto-armour had <span class="k">never run once</span>; a log path declared 49 lines below the code that printed it, so the file meant to report a broken sync was itself broken; two same-named variables meaning different things; and two use-before-declaration bugs in the older EggWars scripts.</p>
+      <p>A hand-written checker only ever saw top-level declarations, so it could not see a variable declared inside one closure and used from another &mdash; which is exactly the shape of the worst bugs here. It got replaced with four layers behind one command: own rules, the real compiler, a language server, and a linter with a generated standard library for the executor's own globals.</p>
+      <p class="note">First run found five things the old checker structurally could not: a helper declared inside a loop body and called from elsewhere, so auto-armour had <span class="k">never run once</span>; a log path declared 49 lines below the code that printed it, so the file meant to report a broken sync was itself broken; two same-named variables meaning different things; and two use-before-declaration bugs in the older scripts.</p>
     </div>
 
     <div class="card">
@@ -1177,7 +1216,8 @@ return GROUP .. &quot; loader finished&quot;
         <li>The round recorder has opened 221 rounds and closed none of them.</li>
         <li>The time to break the first objective is never written to disk, and it is 66% of the only productive 15 seconds, so the highest-value number in the whole system is the one nobody can see.</li>
         <li>Every client has a saved graphics profile that has never once been applied.</li>
-        <li>Two use-before-declaration bugs in the older EggWars scripts are found and confirmed but not yet fixed, because that half is not currently running.</li>
+        <li>Two use-before-declaration bugs in the older scripts are found and confirmed but not yet fixed, because that half is not currently running.</li>
+        <li>The new executor cannot see incoming traffic, so anti-cheat replies are still invisible. There is no measurement of that side at all yet.</li>
       </ul>
     </div>
   </section>
@@ -1233,6 +1273,25 @@ return GROUP .. &quot; loader finished&quot;
     </div>
 
     <div class="card">
+      <h3>Other tools, all open</h3>
+      <div class="bento" style="margin-top:4px">
+        <a class="bt" style="text-decoration:none" href="https://github.com/newgod2727/newgod-realvault" target="_blank" rel="noopener">
+          <span class="num">01</span>
+          <h3 style="font-size:1.1rem">realvault</h3>
+          <p>Pulls saved Roblox accounts out of one executor's encrypted vault and writes them in the format another one imports. Zero dependencies. Measured: 10 of 10 accounts recovered and signed back in.</p>
+          <span class="go">github.com/newgod2727/newgod-realvault</span>
+        </a>
+        <a class="bt" style="text-decoration:none" href="https://github.com/newgod2727/show-claude-code-usage" target="_blank" rel="noopener">
+          <span class="num">02</span>
+          <h3 style="font-size:1.1rem">show-claude-code-usage</h3>
+          <p>Prices a Claude Code session from its own transcript and splits the bill by subagent and by token kind, so fan-out has a number instead of a feeling.</p>
+          <span class="go">github.com/newgod2727/show-claude-code-usage</span>
+        </a>
+      </div>
+      <p class="note" style="margin-top:16px">Also running but not packaged: a ban checker that polls the two endpoints which actually answer honestly about an account's standing, every ten minutes; and a verifier that re-measures 19 claims about the farm and fails any that cannot show a fresh reading.</p>
+    </div>
+
+    <div class="card">
       <h3>Things it does that are easy to get wrong</h3>
       <ul>
         <li>The panel pushes itself to the bottom of the window order every three seconds. &ldquo;It did not open&rdquo; is usually &ldquo;it opened and it is buried&rdquo; &mdash; look for a <span class="k">pythonw</span> process before you believe it failed.</li>
@@ -1249,7 +1308,29 @@ return GROUP .. &quot; loader finished&quot;
       <p>The link never changes. Paste it once, you always get the newest build.</p>
     </div>
     <div class="card">
-      <h3>Current build</h3>
+      <h3>Now</h3>
+      <ul>
+        <li>The whole stack moved onto a different executor. Eleven files compile clean and six of the big scripts are SHA256-identical to the originals, so nothing was rewritten on the way across.</li>
+        <li>The farm tunes its own combat settings &mdash; generation 15, 272 genomes in the archive, champion scoring 61.78.</li>
+        <li>A learning classifier writes its own if-then rules: 72 situations, 9,636 decision windows, 65 rules kept.</li>
+        <li>A separate verifier runs 19 checks every five minutes and every one has to point at a fresh measurement.</li>
+        <li>Headless relaunch: killed client back in a live match in 25 seconds, hands off.</li>
+        <li>Ran 22.5 hours unbroken with the ban checker green on every ten-minute poll.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Fixed</h3>
+      <ul>
+        <li>A silently refused property write was flooding 20,863 warnings into one log and killing the client during map load. Now guarded &mdash; write, read back, and stop if it did not take.</li>
+        <li>Frame rate: one helper was costing 87.5 ms per call inside a per-frame loop across 45,292 objects. Cached; 20.7 fps to 59.2.</li>
+        <li>The client could sit disconnected for 24 minutes while its own status file reported everything fine. A second watcher now reads the game log independently.</li>
+        <li>The watchdog was killing freshly launched clients as duplicates, which read from the outside as constant crashes.</li>
+        <li>A settings pattern was dropping nine values whose names contained an underscore, so the tuner's numbers never arrived.</li>
+        <li>Reach is capped at 9 studs: 7,393 windows, every distance 1 to 9 deals damage, 10 and beyond is 59 swings and zero damage.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Earlier</h3>
       <ul>
         <li>Fixed the shot resolving to the wrong character — kills went from 1 in 12 to 12 in 12.</li>
         <li>Fixed the ultimate never firing when it was already charged.</li>
