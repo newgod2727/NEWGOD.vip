@@ -334,7 +334,7 @@ footer .furl:hover{color:var(--gold2)}
       <div class="actions">
         <button class="btn" type="button" data-goto="Scripts">See the scripts</button>
         <a class="btn ghost" href="https://github.com/newgod2727" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><use href="#icoGh"/></svg>GitHub</a>
-        <a class="btn ghost" href="https://x.com/newgod_2626" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><use href="#icoX"/></svg>X</a>
+        <a class="btn ghost" href="https://x.com/newgod_2626" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><use href="#icoX"/></svg>@newgod_2626</a>
       </div>
     </div>
 
@@ -374,10 +374,10 @@ footer .furl:hover{color:var(--gold2)}
     <div class="block">
       <p class="eyebrow">By the numbers</p>
       <div class="chips">
-        <div class="chip3"><b class="count" data-to="96" data-suffix="%">0</b><span>farm accuracy</span></div>
-        <div class="chip3"><b class="count" data-to="7">0</b><span>accounts &middot; 3 teams</span></div>
-        <div class="chip3"><b class="count" data-to="18239">0</b><span>lines of Lua</span></div>
-        <div class="chip3"><b class="count" data-to="1043">0</b><span>functions</span></div>
+        <div class="chip3"><b class="count" data-to="96" data-suffix="%">96%</b><span>farm accuracy</span></div>
+        <div class="chip3"><b class="count" data-to="7">7</b><span>accounts &middot; 3 teams</span></div>
+        <div class="chip3"><b class="count" data-to="18239">18,239</b><span>lines of Lua</span></div>
+        <div class="chip3"><b class="count" data-to="1043">1,043</b><span>functions</span></div>
       </div>
     </div>
 
@@ -524,12 +524,12 @@ footer .furl:hover{color:var(--gold2)}
       <p>Seven accounts, three teams, three game modes, one machine. Built 2026-08-10 to 2026-08-21. Every number below was read off the machine, not estimated.</p>
     </div>
     <div class="stat">
-      <div class="stt"><b class="count" data-to="11">0</b><span>source files</span></div>
-      <div class="stt"><b class="count" data-to="18239">0</b><span>lines of Lua</span></div>
-      <div class="stt"><b class="count" data-to="1043">0</b><span>functions</span></div>
-      <div class="stt"><b class="count" data-to="217">0</b><span>checkpoints in 10 days</span></div>
-      <div class="stt"><b class="count" data-to="42.4" data-dec="1" data-suffix=" MB">0</b><span>runtime logs, 567 files</span></div>
-      <div class="stt"><b class="count" data-to="7">0</b><span>accounts, three teams</span></div>
+      <div class="stt"><b class="count" data-to="11">11</b><span>source files</span></div>
+      <div class="stt"><b class="count" data-to="18239">18,239</b><span>lines of Lua</span></div>
+      <div class="stt"><b class="count" data-to="1043">1,043</b><span>functions</span></div>
+      <div class="stt"><b class="count" data-to="217">217</b><span>checkpoints in 10 days</span></div>
+      <div class="stt"><b class="count" data-to="42.4" data-dec="1" data-suffix=" MB">42.4 MB</b><span>runtime logs, 567 files</span></div>
+      <div class="stt"><b class="count" data-to="7">7</b><span>accounts, three teams</span></div>
     </div>
     <div class="card">
       <h3>What it is</h3>
@@ -1020,6 +1020,7 @@ return GROUP .. &quot; loader finished&quot;
     var pre = el.getAttribute("data-prefix") || "";
     var suf = el.getAttribute("data-suffix") || "";
     if (reduce){ el.textContent = pre + fmt(to, dec) + suf; return; }
+    el.textContent = pre + fmt(0, dec) + suf;
     var dur = 1100, start = null;
     function step(ts){
       if (!start) start = ts;
