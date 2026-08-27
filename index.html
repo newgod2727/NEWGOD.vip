@@ -4,16 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>NEWGOD</title>
+<meta name="description" content="NEWGOD. Roblox scripts, measured not promised.">
+<meta name="theme-color" content="#14110d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%230B0B0E'/%3E%3CclipPath id='c'%3E%3Crect x='0' y='96' width='512' height='416'/%3E%3C/clipPath%3E%3Cg clip-path='url(%23c)'%3E%3Cpolyline points='104,372 104,96 200,372 272,96 344,372 416,96' fill='none' stroke='%23FCBC24' stroke-width='68' stroke-linejoin='miter' stroke-miterlimit='30' stroke-linecap='butt'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Spline+Sans:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{
   font-size:21px;
-  --bg:#14110d; --bg2:#191510; --line:#2c241a;
+  --bg:#14110d; --bg2:#191510; --panel:#0f0c09; --line:#2c241a;
   --gold:#e7b173; --gold2:#f3cf99; --gold3:#c98e4a;
-  --ink:#efe4d6; --dim:#a4948181;
-  --sage:#9bbf95; --coral:#e09181;
+  --mtl:#FCBC24; --mtl2:#FFF3C9; --mtl3:#E0A310;
+  --ink:#efe4d6; --dim:rgba(164,148,129,.85); --sage:#9bbf95; --coral:#e09181;
+  --card1:rgba(28,23,16,.62); --card2:rgba(17,14,10,.66);
+  --r:18px;
 }
 *{box-sizing:border-box}
 html{scrollbar-width:thin;scrollbar-color:#c98e4a #16120d}
@@ -26,103 +31,263 @@ html{scrollbar-width:thin;scrollbar-color:#c98e4a #16120d}
 body{
   margin:0;background:var(--bg);color:var(--ink);
   font-family:"Spline Sans",-apple-system,"Noto Sans HK",sans-serif;
-  font-size:1.05rem;line-height:1.72;
+  font-size:1.05rem;line-height:1.72;overflow-x:hidden;
 }
 .hidden{display:none !important}
+a{color:inherit}
+
+.bg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:radial-gradient(120% 90% at 50% -10%,#1b1610,#14110d 55%,#100d09)}
+.bg span{position:absolute;border-radius:50%;filter:blur(72px)}
+.bg .b1{width:48vw;height:48vw;left:-10vw;top:-12vw;background:radial-gradient(circle at 50% 50%,rgba(252,188,36,.20),transparent 65%);animation:drift1 26s ease-in-out infinite alternate}
+.bg .b2{width:42vw;height:42vw;right:-8vw;top:0;background:radial-gradient(circle at 50% 50%,rgba(231,177,115,.16),transparent 65%);animation:drift2 31s ease-in-out infinite alternate}
+.bg .b3{width:56vw;height:56vw;left:22vw;bottom:-30vw;background:radial-gradient(circle at 50% 50%,rgba(201,142,74,.14),transparent 65%);animation:drift3 36s ease-in-out infinite alternate}
+@keyframes drift1{from{transform:translate(0,0)}to{transform:translate(8vw,6vw)}}
+@keyframes drift2{from{transform:translate(0,0)}to{transform:translate(-7vw,5vw)}}
+@keyframes drift3{from{transform:translate(0,0)}to{transform:translate(5vw,-7vw)}}
+
 .topbar{
   position:sticky;top:0;z-index:20;width:100%;max-width:100vw;overflow:hidden;
-  background:rgba(20,17,13,.94);backdrop-filter:blur(8px);
-  border-bottom:1px solid var(--line);padding:14px 16px 16px;
+  background:rgba(16,13,9,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);padding:13px 16px 15px;
 }
-.brand{
-  max-width:1000px;margin:0 auto 12px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
-}
+.brand{max-width:1040px;margin:0 auto 12px;display:flex;align-items:center;gap:13px;flex-wrap:wrap}
+.brand .bmark{width:34px;height:34px;flex:0 0 auto;filter:drop-shadow(0 0 10px rgba(252,188,36,.4))}
 .brand h1{
-  font-family:Fraunces,Georgia,serif;font-weight:800;letter-spacing:.04em;
-  font-size:2rem;margin:0;color:var(--gold);
+  font-family:Fraunces,Georgia,serif;font-weight:800;letter-spacing:.05em;
+  font-size:1.7rem;margin:0;line-height:1;
+  background:linear-gradient(180deg,#FFF3C9,#FDD35E 30%,#FCBC24 60%,#E0A310);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
 }
-.brand span{color:var(--dim);font-size:.82rem;letter-spacing:.22em;text-transform:uppercase}
-nav{
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;
-  max-width:1000px;width:100%;margin:0 auto;
-}
+.brand span{color:var(--dim);font-size:.72rem;letter-spacing:.24em;text-transform:uppercase;margin-left:2px}
+nav{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;max-width:1040px;width:100%;margin:0 auto}
 .tab{
   min-width:0;justify-content:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  display:flex;align-items:center;padding:11px 10px;border-radius:11px;cursor:pointer;
-  background:var(--bg2);border:1px solid var(--line);color:var(--ink);
-  font-family:inherit;font-size:.86rem;font-weight:600;letter-spacing:.04em;
-  transition:background .15s,border-color .15s,color .15s;
+  display:flex;align-items:center;padding:11px 10px;border-radius:12px;cursor:pointer;
+  background:rgba(255,243,201,.03);border:1px solid var(--line);color:var(--ink);
+  font-family:inherit;font-size:.84rem;font-weight:600;letter-spacing:.04em;
+  transition:background .2s,border-color .2s,color .2s,box-shadow .2s,transform .08s;
 }
-.tab:hover{border-color:var(--gold3)}
-.tab.active{background:linear-gradient(180deg,#e7b173,#c98e4a);color:#1a1510;border-color:transparent}
-main{max-width:1000px;margin:0 auto;padding:34px 16px 90px}
+.tab:hover{border-color:var(--gold3);color:var(--gold2);background:rgba(231,177,115,.07)}
+.tab:active{transform:translateY(1px)}
+.tab.active{
+  background:linear-gradient(180deg,#f3cf99,#e7b173 52%,#c98e4a);color:#1a1510;border-color:transparent;
+  box-shadow:0 10px 26px -12px rgba(252,188,36,.55),inset 0 1px 0 rgba(255,255,255,.35);
+}
+
+main{max-width:1040px;margin:0 auto;padding:30px 16px 70px}
 .view{display:none}
 .view.active{display:block}
-.vhead{margin-bottom:26px}
-.vhead h2{font-family:Fraunces,Georgia,serif;font-size:2.3rem;line-height:1.15;margin:0 0 8px;color:var(--gold2)}
-.vhead p{margin:0;color:#c9b9a5}
-.card{
-  background:var(--bg2);border:1px solid var(--line);border-radius:16px;
-  padding:22px 22px 24px;margin:0 0 20px;
+.view.active>*{animation:rise .5s cubic-bezier(.2,.7,.2,1) backwards}
+.view.active>*:nth-child(1){animation-delay:.02s}
+.view.active>*:nth-child(2){animation-delay:.07s}
+.view.active>*:nth-child(3){animation-delay:.12s}
+.view.active>*:nth-child(4){animation-delay:.17s}
+.view.active>*:nth-child(5){animation-delay:.22s}
+.view.active>*:nth-child(6){animation-delay:.27s}
+.view.active>*:nth-child(7){animation-delay:.32s}
+.view.active>*:nth-child(8){animation-delay:.37s}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+
+.hero{text-align:center;padding:30px 8px 34px}
+.hero .emblem{width:118px;height:118px;margin:0 auto 22px;filter:drop-shadow(0 0 26px rgba(252,188,36,.5));animation:pulse 4.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{filter:drop-shadow(0 0 20px rgba(252,188,36,.38))}50%{filter:drop-shadow(0 0 34px rgba(252,188,36,.62))}}
+.hero .word{width:min(500px,84%);height:auto;margin:0 auto 20px;display:block;filter:drop-shadow(0 8px 34px rgba(252,188,36,.26))}
+.hero .tag{font-size:1.18rem;color:#d9c8af;margin:0 auto 24px;max-width:640px}
+.hero .tag b{color:var(--gold2);font-weight:600}
+.hchips{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:0 0 22px}
+.hchip{
+  min-width:150px;padding:16px 20px;border-radius:16px;border:1px solid transparent;
+  background:linear-gradient(180deg,var(--card1),var(--card2)) padding-box,
+    linear-gradient(135deg,rgba(255,243,201,.4),rgba(231,177,115,.12) 45%,rgba(255,243,201,.3)) border-box;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
 }
-.card h3{margin:0 0 10px;font-size:1.1rem;color:var(--gold);letter-spacing:.02em}
+.hchip b{
+  display:block;font-family:"JetBrains Mono",monospace;font-weight:600;font-size:1.85rem;line-height:1;
+  background:linear-gradient(180deg,#FFF3C9,#FCBC24 60%,#E0A310);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.hchip span{display:block;margin-top:8px;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.hero .sell{font-family:"JetBrains Mono",monospace;font-size:.78rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold3);margin:6px 0 0}
+.hero .scrollcue{
+  display:inline-flex;align-items:center;gap:8px;margin:26px auto 0;cursor:pointer;
+  background:transparent;border:1px solid var(--line);border-radius:999px;
+  color:var(--gold);font-family:inherit;font-size:.86rem;font-weight:600;letter-spacing:.04em;
+  padding:11px 22px;transition:border-color .2s,color .2s,transform .08s,background .2s;
+}
+.hero .scrollcue:hover{border-color:var(--gold3);background:rgba(231,177,115,.08);color:var(--gold2)}
+.hero .scrollcue:active{transform:translateY(1px)}
+
+.vhead{margin-bottom:24px;padding-top:6px}
+.vhead h2{font-family:Fraunces,Georgia,serif;font-size:2.35rem;line-height:1.12;margin:0 0 8px;
+  background:linear-gradient(180deg,#FFF3C9,#f3cf99 45%,#c98e4a);
+  -webkit-background-clip:text;background-clip:text;color:transparent;}
+.vhead p{margin:0;color:#cdbda7;font-size:1.02rem}
+
+.card{
+  position:relative;border:1px solid transparent;border-radius:var(--r);
+  background:linear-gradient(180deg,var(--card1),var(--card2)) padding-box,
+    linear-gradient(135deg,rgba(255,243,201,.26),rgba(231,177,115,.09) 42%,rgba(201,142,74,.05) 72%,rgba(255,243,201,.2)) border-box;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  box-shadow:0 26px 60px -42px rgba(0,0,0,.92),inset 0 1px 0 rgba(255,243,201,.05);
+  padding:24px 24px 26px;margin:0 0 20px;
+  transition:transform .25s ease,box-shadow .25s ease;
+}
+.card:hover{
+  transform:translateY(-3px);
+  box-shadow:0 34px 74px -36px rgba(0,0,0,.92),0 0 0 1px rgba(252,188,36,.16),0 0 42px -14px rgba(252,188,36,.22),inset 0 1px 0 rgba(255,243,201,.08);
+}
+.card h3{margin:0 0 12px;font-size:1.14rem;color:var(--gold);letter-spacing:.01em;display:flex;align-items:center;gap:10px}
+.card h3::before{content:"";width:9px;height:9px;border-radius:2px;background:linear-gradient(135deg,#FDD35E,#E0A310);box-shadow:0 0 10px rgba(252,188,36,.6);flex:0 0 auto}
 .card p{margin:0 0 10px}
 .card p:last-child{margin-bottom:0}
-.codewrap{position:relative}
-code.block{
-  display:block;background:#0f0c09;border:1px solid var(--line);border-radius:12px;
-  padding:18px 20px;margin:0 0 14px;overflow-x:auto;white-space:pre;
-  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:.8rem;color:var(--gold2);
+
+.plat{display:flex;gap:9px;flex-wrap:wrap;margin:0 0 15px}
+.chip{
+  border:1px solid var(--line);border-radius:999px;padding:6px 15px;
+  font-family:"JetBrains Mono",monospace;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--gold);background:rgba(255,243,201,.04);
 }
+
+.term{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel);margin:0 0 14px;
+  box-shadow:0 22px 52px -42px rgba(0,0,0,.92),inset 0 1px 0 rgba(255,243,201,.04)}
+.term-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(231,177,115,.06),rgba(231,177,115,.01))}
+.dots{display:inline-flex;gap:6px;flex:0 0 auto}
+.dots i{width:10px;height:10px;border-radius:50%}
+.dots i:nth-child(1){background:#c98e4a}.dots i:nth-child(2){background:#8a6a3f}.dots i:nth-child(3){background:#5a4630}
+.term-name{font-family:"JetBrains Mono",monospace;font-size:.7rem;letter-spacing:.05em;color:var(--gold3);margin-right:auto}
+code.block{display:block;background:transparent;border:0;padding:16px 18px;margin:0;overflow-x:auto;white-space:pre;
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:.8rem;color:var(--gold2);line-height:1.55}
+code.block.tall{max-height:58vh;overflow-y:auto;font-size:.7rem;line-height:1.6;color:#d8cdbb}
+
 .copy{
   display:inline-flex;align-items:center;gap:9px;cursor:pointer;
-  background:linear-gradient(180deg,#e7b173,#c98e4a);color:#1a1510;border:0;
-  border-radius:11px;padding:13px 22px;font-family:inherit;font-weight:700;font-size:.92rem;
-  letter-spacing:.03em;transition:filter .15s,transform .05s;
+  background:linear-gradient(180deg,#f3cf99,#e7b173 55%,#c98e4a);color:#1a1510;border:0;
+  border-radius:11px;padding:12px 22px;font-family:inherit;font-weight:700;font-size:.86rem;
+  letter-spacing:.02em;transition:filter .15s,transform .06s,box-shadow .2s;
+  box-shadow:0 10px 24px -14px rgba(252,188,36,.6),inset 0 1px 0 rgba(255,255,255,.35);
 }
 .copy:hover{filter:brightness(1.08)}
 .copy:active{transform:translateY(1px)}
-.copy.done{background:linear-gradient(180deg,#9bbf95,#7fa87a)}
-.plat{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}
-.chip{
-  border:1px solid var(--line);border-radius:999px;padding:6px 15px;
-  font-size:.76rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);background:#0f0c09;
+.copy.done{background:linear-gradient(180deg,#b6d6b0,#9bbf95 55%,#7fa87a);box-shadow:0 10px 24px -14px rgba(155,191,149,.6),inset 0 1px 0 rgba(255,255,255,.35)}
+.copy.sm{padding:8px 16px;font-size:.76rem;flex:0 0 auto}
+.link-btn{
+  display:inline-flex;align-items:center;gap:8px;text-decoration:none;cursor:pointer;
+  background:rgba(255,243,201,.04);color:var(--gold2);border:1px solid var(--line);
+  border-radius:11px;padding:11px 20px;font-family:inherit;font-weight:600;font-size:.84rem;letter-spacing:.02em;
+  transition:border-color .2s,background .2s,color .2s,transform .08s;margin:0 8px 12px 0;
 }
-ol,ul{margin:0;padding-left:1.3em}
-li{margin:0 0 9px}
+.link-btn:hover{border-color:var(--gold3);background:rgba(231,177,115,.09);color:var(--gold2)}
+.link-btn:active{transform:translateY(1px)}
+.link-btn::after{content:"\2197";font-size:.9em;opacity:.8}
+.dl-btn::after{content:"\2193"}
+
+ol,ul{margin:0;padding-left:0;list-style:none}
+.card li,.vhead+*+* li{position:relative;padding-left:26px;margin:0 0 11px}
 li:last-child{margin-bottom:0}
+.card ul>li::before{content:"";position:absolute;left:4px;top:.62em;width:8px;height:8px;border-radius:2px;
+  background:linear-gradient(135deg,#FDD35E,#E0A310);box-shadow:0 0 8px rgba(252,188,36,.5)}
+.card ol{counter-reset:st}
+.card ol>li{counter-increment:st}
+.card ol>li::before{content:counter(st);position:absolute;left:0;top:.05em;width:22px;height:22px;border-radius:7px;
+  display:flex;align-items:center;justify-content:center;font-family:"JetBrains Mono",monospace;font-size:.66rem;font-weight:600;
+  color:#1a1510;background:linear-gradient(135deg,#f3cf99,#c98e4a)}
+.broken ul>li::before{background:linear-gradient(135deg,#e09181,#b85f52);box-shadow:0 0 8px rgba(224,145,129,.45)}
 .k{color:var(--gold2);font-weight:600}
-.note{color:#bda98f;font-size:.92rem}
-.pager{
-  display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:1000px;margin:38px auto 0;
+.note{color:#bda98f;font-size:.9rem}
+.card p a[href]{color:var(--gold2);text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(231,177,115,.5)}
+
+.stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:13px;margin:0 0 20px}
+.stt{
+  border:1px solid transparent;border-radius:15px;padding:17px 19px;
+  background:linear-gradient(180deg,var(--card1),var(--card2)) padding-box,
+    linear-gradient(135deg,rgba(255,243,201,.28),rgba(231,177,115,.08) 60%,rgba(255,243,201,.2)) border-box;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
 }
-.pager button{
-  cursor:pointer;background:var(--bg2);border:1px solid var(--line);color:var(--ink);
-  border-radius:13px;padding:17px 14px;font-family:inherit;font-weight:700;font-size:.95rem;
-}
-.pager button:hover:not(:disabled){border-color:var(--gold3);color:var(--gold2)}
-.pager button:disabled{opacity:.32;cursor:default}
-.codewrap .copy{margin-top:2px}
-code.block.tall{max-height:60vh;overflow-y:auto;font-size:.7rem;line-height:1.6;color:#d8cdbb}
-table{width:100%;max-width:100%;border-collapse:collapse;margin:6px 0 0;font-size:.86rem}
-th,td{text-align:left;padding:10px 11px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere;word-break:break-word}
-th{font-family:"JetBrains Mono",monospace;font-size:.66rem;letter-spacing:.1em;color:var(--gold3)}
+.stt b{display:block;font-family:"JetBrains Mono",monospace;font-size:1.5rem;font-weight:600;line-height:1.15;
+  background:linear-gradient(180deg,#FFF3C9,#FCBC24 60%,#E0A310);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stt span{display:block;font-size:.7rem;color:#bda98f;margin-top:6px;line-height:1.5;letter-spacing:.02em}
+
+.tablewrap{overflow-x:auto;border-radius:12px;border:1px solid var(--line);margin:6px 0 0}
+table{width:100%;border-collapse:collapse;font-size:.84rem;min-width:min(560px,100%)}
+th,td{text-align:left;padding:11px 13px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere;word-break:break-word}
+tr:last-child td{border-bottom:0}
+tbody tr:hover td,table tr:hover td{background:rgba(231,177,115,.045)}
+th{font-family:"JetBrains Mono",monospace;font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gold3);background:rgba(255,243,201,.03)}
 td.kk{color:var(--gold2);font-weight:600}
 td.nn{font-family:"JetBrains Mono",monospace;color:var(--sage)}
-.stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:0 0 20px}
-.stt{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:15px 17px}
-.stt b{display:block;font-family:"JetBrains Mono",monospace;font-size:1.35rem;color:var(--gold2);font-weight:600;line-height:1.2}
-.stt span{display:block;font-size:.72rem;color:#bda98f;margin-top:5px;line-height:1.5}
-footer{
-  max-width:1000px;margin:0 auto;padding:0 16px 60px;color:var(--dim);
-  font-size:.78rem;letter-spacing:.18em;text-transform:uppercase;text-align:center;
+
+.pager{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:1040px;margin:20px auto 0;padding:0 16px}
+.pager button{
+  cursor:pointer;border:1px solid transparent;color:var(--ink);border-radius:14px;padding:17px 14px;
+  font-family:inherit;font-weight:700;font-size:.92rem;letter-spacing:.02em;
+  background:linear-gradient(180deg,var(--card1),var(--card2)) padding-box,
+    linear-gradient(135deg,rgba(255,243,201,.2),rgba(231,177,115,.06)) border-box;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  transition:color .2s,box-shadow .2s,transform .08s;
+}
+.pager button:hover:not(:disabled){color:var(--gold2);box-shadow:0 0 0 1px rgba(252,188,36,.2),0 0 30px -14px rgba(252,188,36,.5)}
+.pager button:active:not(:disabled){transform:translateY(1px)}
+.pager button:disabled{opacity:.3;cursor:default}
+
+footer{max-width:1040px;margin:0 auto;padding:44px 16px 60px;text-align:center}
+footer .fmark{width:30px;height:30px;margin:0 auto 12px;filter:drop-shadow(0 0 10px rgba(252,188,36,.4))}
+footer .fname{font-family:Fraunces,Georgia,serif;font-weight:800;letter-spacing:.14em;color:var(--gold);font-size:1rem}
+footer .furl{display:block;margin-top:6px;color:var(--dim);font-family:"JetBrains Mono",monospace;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;text-decoration:none}
+footer .furl:hover{color:var(--gold2)}
+
+@media (max-width:520px){
+  :root{font-size:19px}
+  .hero .emblem{width:96px;height:96px}
+  main{padding:24px 13px 60px}
+  .card{padding:20px 18px 22px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important;transition:none !important}
 }
 </style>
 </head>
 <body>
 
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="ngGrad" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#FFF3C9"/><stop offset="0.2" stop-color="#FDD35E"/>
+      <stop offset="0.48" stop-color="#FCBC24"/><stop offset="0.76" stop-color="#E0A310"/>
+      <stop offset="1" stop-color="#FFDE8C"/>
+    </linearGradient>
+    <clipPath id="ngMkClip"><rect x="0" y="96" width="512" height="416"/></clipPath>
+    <mask id="ngMkMask" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <g clip-path="url(#ngMkClip)">
+        <polyline points="104,372 104,96 200,372 272,96 344,372 416,96" fill="none" stroke="#ffffff" stroke-width="54" stroke-linejoin="miter" stroke-miterlimit="30" stroke-linecap="butt"/>
+      </g>
+    </mask>
+    <clipPath id="ngWdA"><rect x="-400" y="0" width="1391" height="150"/></clipPath>
+    <clipPath id="ngWdB"><rect x="-400" y="0" width="1391" height="219"/></clipPath>
+    <mask id="ngWdMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1188" height="508.203">
+      <g transform="translate(54,54) scale(1.82741)">
+        <g clip-path="url(#ngWdA)">
+          <polyline points="0,150 0,0 75,150 93,0" fill="none" stroke="#ffffff" stroke-width="36" stroke-linejoin="miter" stroke-miterlimit="30" stroke-linecap="butt"/>
+          <polyline points="181,0 94,0 94,150 181,150" fill="none" stroke="#ffffff" stroke-width="36" stroke-linejoin="miter" stroke-miterlimit="30" stroke-linecap="butt"/>
+          <polyline points="402,27 375,0 336,0 309,27 309,123 336,150 375,150 402,123 402,78 355.5,78" fill="none" stroke="#ffffff" stroke-width="36" stroke-linejoin="miter" stroke-miterlimit="30" stroke-linecap="butt"/>
+          <polyline points="432,0 471,0 498,27 498,123 471,150 432,150 405,123 405,27 432,0" fill="none" stroke="#ffffff" stroke-width="36" stroke-linejoin="miter" stroke-miterlimit="30" stroke-linecap="butt"/>
+          <polyline points="501,150 501,0 558,0 591,33 591,117 558,150 501,150" fill="none" stroke="#ffffff" stroke-width="36" stroke-linejoin="miter" stroke-miterlimit="30" stroke-linecap="butt"/>
+        </g>
+        <g clip-path="url(#ngWdB)">
+          <polyline points="176,0 212.45,150 243.5,51 274.55,150 311,0" fill="none" stroke="#ffffff" stroke-width="36" stroke-linejoin="miter" stroke-miterlimit="30" stroke-linecap="butt"/>
+        </g>
+      </g>
+    </mask>
+    <symbol id="ngmark" viewBox="0 0 512 512"><rect width="512" height="512" fill="url(#ngGrad)" mask="url(#ngMkMask)"/></symbol>
+    <symbol id="ngword" viewBox="0 0 1188 508.203"><rect width="1188" height="508.203" fill="url(#ngGrad)" mask="url(#ngWdMask)"/></symbol>
+  </defs>
+</svg>
+
+<div class="bg"><span class="b1"></span><span class="b2"></span><span class="b3"></span></div>
+
 <div class="topbar">
   <div class="brand">
+    <svg class="bmark" viewBox="0 0 512 512"><use href="#ngmark"/></svg>
     <h1>NEWGOD</h1>
     <span>roblox scripts</span>
   </div>
@@ -132,6 +297,19 @@ footer{
 <main>
 
   <section class="view active" data-t="Games">
+    <div class="hero">
+      <svg class="emblem" viewBox="0 0 512 512"><use href="#ngmark"/></svg>
+      <svg class="word" viewBox="0 0 1188 508.203" role="img" aria-label="NEWGOD"><use href="#ngword"/></svg>
+      <p class="tag">Roblox scripts, <b>measured, not promised</b>. Open the game, paste one line, and it runs on PC and mobile the same way.</p>
+      <div class="hchips">
+        <div class="hchip"><b class="count" data-to="96" data-suffix="%">0</b><span>accuracy</span></div>
+        <div class="hchip"><b class="count" data-to="7">0</b><span>accounts &middot; 3 teams</span></div>
+        <div class="hchip"><b class="count" data-to="18239">0</b><span>lines measured</span></div>
+      </div>
+      <p class="sell">No key &middot; No checkpoint &middot; No ad link</p>
+      <button class="scrollcue" type="button" id="heroCue">See the scripts &darr;</button>
+    </div>
+
     <div class="vhead">
       <h2>Pick the game</h2>
       <p>Open the game first, then paste the one line for it. Each script only works in its own game.</p>
@@ -141,10 +319,10 @@ footer{
       <h3>SkyWars &mdash; Solo</h3>
       <p>Goes for tier four chests only, waits for a Diamond or an Onyx sword, then fights from below where nothing can reach back. Loads Vape for you.</p>
       <div class="plat"><span class="chip">Game ID 8542259458</span><span class="chip">PC</span><span class="chip">Mobile</span></div>
-      <p><a class="copy" style="display:inline-block;text-decoration:none;margin:0 0 10px" href="https://www.roblox.com/games/8542259458/SkyWars" target="_blank" rel="noopener">Open SkyWars on Roblox</a></p>
-      <div class="codewrap">
+      <p><a class="link-btn" href="https://www.roblox.com/games/8542259458/SkyWars" target="_blank" rel="noopener">Open SkyWars on Roblox</a></p>
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-name">skywars.lua</span><button class="copy sm" type="button" data-copy="src-skywars">Copy the SkyWars line</button></div>
         <code class="block" id="src-skywars">loadstring(game:HttpGet("https://newgod.vip/skywars/loader"))()</code>
-        <button class="copy" type="button" data-copy="src-skywars">Copy the SkyWars line</button>
       </div>
     </div>
 
@@ -152,10 +330,10 @@ footer{
       <h3>AIMBOT</h3>
       <p>The TP Farm line. Teleports onto a target, lands a headshot, moves to the next one.</p>
       <div class="plat"><span class="chip">Game ID 80139795758532</span><span class="chip">PC</span><span class="chip">iOS</span><span class="chip">Android</span></div>
-      <p><a class="copy" style="display:inline-block;text-decoration:none;margin:0 0 10px" href="https://www.roblox.com/games/80139795758532/AIMBOT" target="_blank" rel="noopener">Open AIMBOT on Roblox</a></p>
-      <div class="codewrap">
+      <p><a class="link-btn" href="https://www.roblox.com/games/80139795758532/AIMBOT" target="_blank" rel="noopener">Open AIMBOT on Roblox</a></p>
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-name">aimbot.lua</span><button class="copy sm" type="button" data-copy="src-aimbot">Copy the AIMBOT line</button></div>
         <code class="block" id="src-aimbot">loadstring(game:HttpGet("https://newgod.vip/loader"))()</code>
-        <button class="copy" type="button" data-copy="src-aimbot">Copy the AIMBOT line</button>
       </div>
     </div>
 
@@ -163,10 +341,10 @@ footer{
       <h3>NEWGOD DEAGLE</h3>
       <p>Every switch is already on the moment it loads. It parks you high above the map where nothing reaches you, and shoots from up there &mdash; the server never checks the distance. One window, six tabs, and a RISK tab that caps how loud you are.</p>
       <div class="plat"><span class="chip">Main 84556640895285</span><span class="chip">Ranked 112087763192016</span><span class="chip">Event 94334870778766</span><span class="chip">PC</span><span class="chip">Mobile</span></div>
-      <p><a class="copy" style="display:inline-block;text-decoration:none;margin:0 0 10px" href="https://www.roblox.com/games/84556640895285/Deagle-Arena" target="_blank" rel="noopener">Open Deagle Arena on Roblox</a></p>
-      <div class="codewrap">
+      <p><a class="link-btn" href="https://www.roblox.com/games/84556640895285/Deagle-Arena" target="_blank" rel="noopener">Open Deagle Arena on Roblox</a></p>
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-name">deagle.lua</span><button class="copy sm" type="button" data-copy="src-deagle">Copy the NEWGOD DEAGLE line</button></div>
         <code class="block" id="src-deagle">loadstring(game:HttpGet("https://newgod.vip/deagle"))()</code>
-        <button class="copy" type="button" data-copy="src-deagle">Copy the NEWGOD DEAGLE line</button>
       </div>
       <ul>
         <li>Fires on the frame the cooldown ends, not up to a whole wait() late, and drops to the game's own 0.9s floor as soon as shots land.</li>
@@ -183,9 +361,9 @@ footer{
       <h3>HACKFORMAT &mdash; any game</h3>
       <p>Not a hack. It edits what is already on your screen: every menu another script drew gets repainted into the gold style, and it stands between the client and the things that close it. It draws nothing of its own &mdash; no window, no button, nothing to press.</p>
       <div class="plat"><span class="chip">Any game</span><span class="chip">PC</span><span class="chip">Mobile</span></div>
-      <div class="codewrap">
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-name">format.lua</span><button class="copy sm" type="button" data-copy="src-format">Copy the HACKFORMAT line</button></div>
         <code class="block" id="src-format">loadstring(game:HttpGet("https://newgod.vip/format"))()</code>
-        <button class="copy" type="button" data-copy="src-format">Copy the HACKFORMAT line</button>
       </div>
       <ul>
         <li>Repaints every menu on your screen into one style, including menus drawn after it runs, and makes each one draggable with the position remembered.</li>
@@ -218,9 +396,9 @@ footer{
 
     <div class="card">
       <div class="plat"><span class="chip">PC</span><span class="chip">iOS</span><span class="chip">Android</span></div>
-      <div class="codewrap">
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-name">tpfarm.lua</span><button class="copy sm" id="copyBtn" type="button">Copy the script</button></div>
         <code class="block" id="line">loadstring(game:HttpGet("https://newgod.vip/loader"))()</code>
-        <button class="copy" id="copyBtn" type="button">Copy the script</button>
       </div>
     </div>
 
@@ -276,12 +454,12 @@ footer{
       <p>Seven accounts, three teams, three game modes, one machine. Built 2026-08-10 to 2026-08-21. Every number below was read off the machine, not estimated.</p>
     </div>
     <div class="stat">
-      <div class="stt"><b>11</b><span>source files</span></div>
-      <div class="stt"><b>18,239</b><span>lines of Lua</span></div>
-      <div class="stt"><b>1,043</b><span>functions</span></div>
-      <div class="stt"><b>217</b><span>checkpoints in 10 days</span></div>
-      <div class="stt"><b>42.4 MB</b><span>runtime logs, 567 files</span></div>
-      <div class="stt"><b>7</b><span>accounts, three teams</span></div>
+      <div class="stt"><b class="count" data-to="11">0</b><span>source files</span></div>
+      <div class="stt"><b class="count" data-to="18239">0</b><span>lines of Lua</span></div>
+      <div class="stt"><b class="count" data-to="1043">0</b><span>functions</span></div>
+      <div class="stt"><b class="count" data-to="217">0</b><span>checkpoints in 10 days</span></div>
+      <div class="stt"><b class="count" data-to="42.4" data-dec="1" data-suffix=" MB">0</b><span>runtime logs, 567 files</span></div>
+      <div class="stt"><b class="count" data-to="7">0</b><span>accounts, three teams</span></div>
     </div>
     <div class="card">
       <h3>What it is</h3>
@@ -301,19 +479,19 @@ footer{
     </div>
     <div class="card">
       <h3>Five findings worth more than the code</h3>
-      <table>
+      <div class="tablewrap"><table>
         <tr><th>Finding</th><th>Number</th><th>Why it matters</th></tr>
         <tr><td class="kk">The server caps hit distance</td><td class="nn">10.35 studs</td><td>4.5 blocks x 2.3. Sitting 10.8 away means zero damage forever, with no error and no log. That 0.45 was the entire reason for six minutes of hitting nothing.</td></tr>
         <tr><td class="kk">The combat tool was not attacking</td><td class="nn">0 of 144,834</td><td>A remote spy over 8 seconds caught 144,834 method calls and not one attack, while the breaker module reported itself enabled. The real path is the game's own two damage events.</td></tr>
         <tr><td class="kk">Nothing was blocking the queue</td><td class="nn">585 s</td><td>Sat in the lobby for 585 seconds with canQueue returning true the whole time. Nothing refused us. The call was simply never made.</td></tr>
         <tr><td class="kk">Hard-coded framework ids are a timer</td><td class="nn">4 of 6 died</td><td>A game update regenerates them, and they fail inside a pcall, so the feature just silently stops existing. Resolve by module name instead.</td></tr>
         <tr><td class="kk">The ceiling is CPU, not RAM</td><td class="nn">1165% of 1200%</td><td>Seven clients doing nothing at all already eat a 6-core i7. Memory still had 11.5 GB free. Every future estimate starts from that, not from zero.</td></tr>
-      </table>
+      </table></div>
     </div>
     <div class="card">
       <h3>Where the time actually goes</h3>
       <p>From 2,722 state rows over 11 days and 611 rounds:</p>
-      <table>
+      <div class="tablewrap"><table>
         <tr><th>Phase</th><th>Median</th><th>n</th></tr>
         <tr><td class="kk">Pregame</td><td class="nn">13.0 s</td><td class="nn">302</td></tr>
         <tr><td class="kk">Countdown</td><td class="nn">3.0 s</td><td class="nn">355</td></tr>
@@ -321,14 +499,16 @@ footer{
         <tr><td class="kk">Still sitting in a finished server</td><td class="nn">11.9 s</td><td class="nn">170</td></tr>
         <tr><td class="kk">Teleport and load</td><td class="nn">9.5 s</td><td class="nn">170</td></tr>
         <tr><td class="kk">Full cycle</td><td class="nn">52.0 s</td><td class="nn">1075</td></tr>
-      </table>
+      </table></div>
       <p class="note" style="margin-top:12px">69% of every cycle is dead time. Making the fighting faster cannot win more than 29% of anything. The money is in the two waits.</p>
     </div>
     <div class="card">
       <h3>Open source: BOOST</h3>
       <p>Seven Roblox clients on one machine pin the CPU at 100%. This is the whole file that brings it back down. Measured: <span class="k">97.1% to 66.4%</span> of total CPU across seven clients.</p>
       <p class="note">Frame rate is the one lever that cuts both sides at once. The picture is drawn per frame and the automation runs per frame, so halving the cap halves both.</p>
-      <div class="codewrap"><code class="block tall" id="src-boost">-- BOOST - one per client, cuts the work each Roblox client does per frame.
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-name">BOOST.lua</span><button class="copy sm" type="button" data-copy="src-boost">Copy BOOST.lua</button></div>
+        <code class="block tall" id="src-boost">-- BOOST - one per client, cuts the work each Roblox client does per frame.
 --
 -- Measured on RAMST 2026-08-20 19:0x with seven clients up: the machine sat at
 -- 100% CPU, the seven together taking 1165% of one core out of the 1200% this
@@ -531,13 +711,16 @@ STATE.onCleanup(function()
 end)
 
 return &quot;BOOST active, reading &quot; .. FPS_FILE
-</code><button class="copy" type="button" data-copy="src-boost">Copy BOOST.lua</button></div>
+</code>
+      </div>
     </div>
     <div class="card">
       <h3>Open source: the group loader</h3>
       <p>One script per team. It loads the combat library first, then the boost, then the farm, and it reports a missing file <span class="k">by name</span> rather than skipping it in silence, because a farm that quietly did not load looks exactly like a farm that loaded and did nothing, and that is the failure that costs a whole night.</p>
       <p class="note">Account identifiers are replaced with placeholders here.</p>
-      <div class="codewrap"><code class="block tall" id="src-group">-- GROUP_ABCD_EGG - the four EggWars accounts
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-name">GROUP_ABCD_EGG.lua</span><button class="copy sm" type="button" data-copy="src-group">Copy the group loader</button></div>
+        <code class="block tall" id="src-group">-- GROUP_ABCD_EGG - the four EggWars accounts
 --
 -- One script for the whole ABCD EGG group. His call on 2026-08-20:
 -- &quot;it was only one scirpt execute only to the whole group as tha tmkae sure each
@@ -627,9 +810,10 @@ end
 
 say(&quot;loader done&quot;)
 return GROUP .. &quot; loader finished&quot;
-</code><button class="copy" type="button" data-copy="src-group">Copy the group loader</button></div>
+</code>
+      </div>
     </div>
-    <div class="card">
+    <div class="card broken">
       <h3>What is still broken</h3>
       <ul>
         <li>The round recorder has opened 221 rounds and closed none of them.</li>
@@ -650,32 +834,32 @@ return GROUP .. &quot; loader finished&quot;
       <p>The zip holds both builds and the readme. If you only want one file, take the one for your machine.</p>
       <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span></div>
       <p>
-        <a class="copy" style="display:inline-block;text-decoration:none;margin:0 8px 10px 0" href="https://newgod.vip/toolbox/PyToolbox.zip" download>Download PyToolbox.zip</a>
-        <a class="copy" style="display:inline-block;text-decoration:none;margin:0 8px 10px 0" href="https://newgod.vip/toolbox/desktop-toolbox.py" download>desktop toolbox.py</a>
-        <a class="copy" style="display:inline-block;text-decoration:none;margin:0 0 10px" href="https://newgod.vip/toolbox/laptop-toolbox.py" download>laptop toolbox.py</a>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/PyToolbox.zip" download>Download PyToolbox.zip</a>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/desktop-toolbox.py" download>desktop toolbox.py</a>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/laptop-toolbox.py" download>laptop toolbox.py</a>
       </p>
-      <div class="codewrap">
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-name">download</span><button class="copy sm" type="button" data-copy="src-tb-zip">Copy the PyToolbox.zip link</button></div>
         <code class="block" id="src-tb-zip">https://newgod.vip/toolbox/PyToolbox.zip</code>
-        <button class="copy" type="button" data-copy="src-tb-zip">Copy the PyToolbox.zip link</button>
       </div>
-      <div class="codewrap">
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-name">run</span><button class="copy sm" type="button" data-copy="src-tb-run">Copy the line that starts toolbox.py</button></div>
         <code class="block" id="src-tb-run">pythonw.exe toolbox.py</code>
-        <button class="copy" type="button" data-copy="src-tb-run">Copy the line that starts toolbox.py</button>
       </div>
-      <p class="note">Start it with <span class="k">pythonw.exe</span>, not <span class="k">python.exe</span>, or you get a console window sitting behind it. Source is at <a style="color:var(--gold2);text-decoration:underline;text-underline-offset:3px" href="https://github.com/newgod2727/toolbox" target="_blank" rel="noopener">github.com/newgod2727/toolbox</a>.</p>
+      <p class="note">Start it with <span class="k">pythonw.exe</span>, not <span class="k">python.exe</span>, or you get a console window sitting behind it. Source is at <a href="https://github.com/newgod2727/toolbox" target="_blank" rel="noopener">github.com/newgod2727/toolbox</a>.</p>
     </div>
 
     <div class="card">
       <h3>Two builds, not one file</h3>
       <p>The desktop one and the laptop one are different on purpose. One hostname check picks the build, so both live in one file rather than two forks.</p>
-      <table>
+      <div class="tablewrap"><table>
         <tr><th>&nbsp;</th><th>laptop</th><th>desktop</th></tr>
         <tr><td class="kk">Disk readout</td><td class="nn">C only</td><td class="nn">C and E</td></tr>
         <tr><td class="kk">GAME MODE button</td><td class="nn">yes</td><td class="nn">no</td></tr>
         <tr><td class="kk">RELAUNCH button</td><td class="nn">no</td><td class="nn">yes</td></tr>
         <tr><td class="kk">Priority sweep</td><td class="nn">follows GAME MODE, boosts and tames</td><td class="nn">always on, boosts only</td></tr>
         <tr><td class="kk">Page 6</td><td class="nn">desktop screen control</td><td class="nn">window layout slots A&ndash;G</td></tr>
-      </table>
+      </table></div>
       <p class="note">Change <span class="k">IS_DESKTOP</span>, <span class="k">SSH_HOST</span>, <span class="k">SSH_KEY</span> and the tool paths before you run it. Everything else works as it ships.</p>
     </div>
 
@@ -723,7 +907,11 @@ return GROUP .. &quot; loader finished&quot;
   <button id="next" type="button">Next &rarr;</button>
 </div>
 
-<footer>NEWGOD</footer>
+<footer>
+  <svg class="fmark" viewBox="0 0 512 512"><use href="#ngmark"/></svg>
+  <div class="fname">NEWGOD</div>
+  <a class="furl" href="https://newgod.vip">newgod.vip</a>
+</footer>
 
 <script>
 (function(){
@@ -731,6 +919,7 @@ return GROUP .. &quot; loader finished&quot;
   var nav = document.getElementById("nav");
   var prev = document.getElementById("prev");
   var next = document.getElementById("next");
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var cur = 0;
 
   views.forEach(function(v, i){
@@ -742,6 +931,37 @@ return GROUP .. &quot; loader finished&quot;
     nav.appendChild(b);
   });
 
+  function fmt(n, dec){
+    var s = dec > 0 ? n.toFixed(dec) : String(Math.round(n));
+    var parts = s.split(".");
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return parts.join(".");
+  }
+
+  function animateCount(el){
+    if (el.getAttribute("data-done")) return;
+    el.setAttribute("data-done", "1");
+    var to = parseFloat(el.getAttribute("data-to")) || 0;
+    var dec = parseInt(el.getAttribute("data-dec") || "0", 10);
+    var pre = el.getAttribute("data-prefix") || "";
+    var suf = el.getAttribute("data-suffix") || "";
+    if (reduce){ el.textContent = pre + fmt(to, dec) + suf; return; }
+    var dur = 1100, start = null;
+    function step(ts){
+      if (!start) start = ts;
+      var p = Math.min((ts - start) / dur, 1);
+      var e = 1 - Math.pow(1 - p, 3);
+      el.textContent = pre + fmt(to * e, dec) + suf;
+      if (p < 1) requestAnimationFrame(step);
+      else el.textContent = pre + fmt(to, dec) + suf;
+    }
+    requestAnimationFrame(step);
+  }
+
+  function runCounts(view){
+    Array.prototype.forEach.call(view.querySelectorAll(".count"), animateCount);
+  }
+
   function go(i){
     if (i < 0 || i >= views.length) return;
     cur = i;
@@ -749,7 +969,8 @@ return GROUP .. &quot; loader finished&quot;
     Array.prototype.forEach.call(nav.children, function(b, n){ b.classList.toggle("active", n === i); });
     prev.disabled = (i === 0);
     next.disabled = (i === views.length - 1);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+    runCounts(views[i]);
   }
 
   prev.addEventListener("click", function(){ go(cur - 1); });
@@ -762,7 +983,16 @@ return GROUP .. &quot; loader finished&quot;
     if (e.key === "ArrowRight") go(cur + 1);
   });
 
+  var cue = document.getElementById("heroCue");
+  if (cue){
+    cue.addEventListener("click", function(){
+      var card = document.querySelector(".view.active .card");
+      if (card) card.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    });
+  }
+
   function wireCopy(btn, src){
+    if (!btn || !src) return;
     var label = btn.textContent;
     btn.addEventListener("click", function(){
       var text = src.textContent;
