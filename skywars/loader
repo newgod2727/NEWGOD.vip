@@ -52,21 +52,15 @@ local GAMES = {
 		places = { [8542275097] = "match", [8542259458] = "lobby", [8951451142] = "eggwars" },
 		-- Only solo exists today. Duo and the rest get their own rows here and
 		-- nothing else in this file has to change.
-		-- HACKFORMAT goes first in every mode. It draws nothing of its own; it
-		-- repaints whatever the other files draw and stands between the client
-		-- and the things that close it, and all of that has to be installed
-		-- before the map starts streaming.
 		modes = {
 			-- farm: the farming set and nothing else. No recorder, no xp bar,
 			-- no logs written for anybody. This is the default.
 			farm = {
-				"HACKFORMAT.lua",
 				"SOLO_FARM.lua",
 				"SOLO_PLAY.lua",
 			},
 			-- solo: everything, including the recorder and the xp bar.
 			solo = {
-				"HACKFORMAT.lua",
 				"SOLO_REC.lua",
 				"XP_BAR.lua",
 				"SOLO_FARM.lua",
