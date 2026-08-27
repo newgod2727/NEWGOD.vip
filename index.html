@@ -1360,11 +1360,15 @@ document.addEventListener("DOMContentLoaded", function(){
 
     if (!window.ScrollTrigger) return;
 
-    var hidden = gsap.utils.toArray(".reveal, .bt, .rule, .plan, .chip3, .linkcard");
+    var vh0 = window.innerHeight || 800;
+    var hidden = gsap.utils.toArray(".reveal, .bt, .rule, .plan, .chip3, .linkcard")
+      .filter(function(el){ return el.getBoundingClientRect().top > vh0 * 0.9; });
 
     function show(els){
-      gsap.to(els, { autoAlpha: 1, y: 0, duration: .65, stagger: .1, ease: "power3.out", overwrite: "auto" });
+      gsap.to(els, { autoAlpha: 1, y: 0, duration: .65, stagger: .08, ease: "power3.out", overwrite: "auto" });
     }
+
+    if (!hidden.length) return function(){};
 
     gsap.set(hidden, { autoAlpha: 0, y: 24 });
 
@@ -1373,19 +1377,29 @@ document.addEventListener("DOMContentLoaded", function(){
       once: true,
       onEnter: function(batch){ show(batch); }
     });
-
     ScrollTrigger.refresh();
 
     function rescue(){
       var vh = window.innerHeight || 800;
-      var stuck = hidden.filter(function(el){
-        if (gsap.getProperty(el, "opacity") !== 0) return false;
-        return el.getBoundingClientRect().top < vh;
-      });
+      var stuck = [];
+      for (var i = hidden.length - 1; i >= 0; i--) {
+        var el = hidden[i];
+        if (gsap.getProperty(el, "opacity") !== 0) { hidden.splice(i, 1); continue; }
+        if (el.getBoundingClientRect().top < vh) { stuck.push(el); hidden.splice(i, 1); }
+      }
       if (stuck.length) show(stuck);
     }
-    setTimeout(rescue, 1500);
-    window.addEventListener("load", function(){ ScrollTrigger.refresh(); setTimeout(rescue, 400); });
+
+    var pending = false;
+    function onScroll(){
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(function(){ pending = false; rescue(); });
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    window.addEventListener("load", function(){ ScrollTrigger.refresh(); setTimeout(rescue, 300); });
+    setTimeout(rescue, 1400);
 
     gsap.utils.toArray(".count").forEach(function(el){
       var to  = parseFloat(el.getAttribute("data-to")) || 0;
