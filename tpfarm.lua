@@ -214,11 +214,12 @@ if not okDC then DataClient = nil end
 local CFG = loadCfg({ on = false, back = 5, tpEvery = 2, jumpEvery = 3, settle = 0.25,
               autoDeploy = true, doBots = true, doPlayers = true, oneShot = true,
               autoBuy = false, buyBasic = false, buySuper = false, buyGold = true,
-              vapeList = {}, guiX = 24, guiY = 150 })
+              autoOpen = false, vapeList = {}, guiX = 24, guiY = 150 })
 getgenv().TPFARM = CFG
 
 local list, idx, current, holdUntil = {}, 1, nil, 0
 local forceOn, wasFarming = true, false
+local BOOST_STATE, BOOST_FPS = "starting", 0
 local frameN, lastDeploy = 0, 0
 local shots, landed, kills, reloads, oneShotFires = 0, 0, 0, 0, 0
 local AIM = "tpfarm_aim"
@@ -240,11 +241,11 @@ STATE.onCleanup(function()
 end)
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.fromOffset(252, 450)
+frame.Size = UDim2.fromOffset(252, 480)
 do
     local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
     local gx = math.clamp(CFG.guiX or 24, 0, math.max(0, vp.X - 252))
-    local gy = math.clamp(CFG.guiY or 150, 0, math.max(0, vp.Y - 450))
+    local gy = math.clamp(CFG.guiY or 150, 0, math.max(0, vp.Y - 480))
     frame.Position = UDim2.fromOffset(gx, gy)
 end
 frame.BackgroundColor3 = Color3.fromRGB(20, 17, 13); frame.BorderSizePixel = 0
@@ -266,7 +267,7 @@ mark.Font = Enum.Font.GothamBold; mark.TextSize = 11
 mark.TextXAlignment = Enum.TextXAlignment.Right; mark.Active = true; mark.Parent = frame
 
 local mark2 = Instance.new("TextLabel")
-mark2.Size = UDim2.fromOffset(120, 14); mark2.Position = UDim2.fromOffset(8, 304)
+mark2.Size = UDim2.fromOffset(120, 14); mark2.Position = UDim2.fromOffset(8, 334)
 mark2.BackgroundTransparency = 1; mark2.Text = "NEWGOD"
 mark2.TextColor3 = Color3.fromRGB(231, 177, 115); mark2.TextTransparency = 0.5
 mark2.Font = Enum.Font.GothamBold; mark2.TextSize = 10
@@ -308,7 +309,7 @@ do
 end
 
 local status = Instance.new("TextLabel")
-status.Size = UDim2.new(1, -16, 0, 116); status.Position = UDim2.fromOffset(8, 326)
+status.Size = UDim2.new(1, -16, 0, 116); status.Position = UDim2.fromOffset(8, 356)
 status.BackgroundTransparency = 1; status.Text = "off"
 status.TextColor3 = Color3.fromRGB(190, 180, 168); status.Font = Enum.Font.Gotham
 status.TextSize = 11; status.TextWrapped = true
@@ -342,6 +343,7 @@ local buyBasic = mk("BASIC OFF", 8, 240, 75, GREY)
 local buySuper = mk("SUPER OFF", 89, 240, 74, GREY)
 local buyGold = mk("GOLD ON", 169, 240, 75, GOLD)
 local autoBuyBtn = mk("AUTO BUY OFF", 8, 270, 236, GREY)
+local autoOpenBtn = mk("AUTO OPEN OFF", 8, 300, 236, GREY)
 
 local function rstate()
     if not RoundClient then return "?" end
@@ -533,11 +535,26 @@ local CRATE = {
 local BURST = 1200
 local buying, buyState = false, "idle"
 
-local CrateUI
+local CrateUI, InterfaceUI
 pcall(function() CrateUI = require(RS.Client.Providers.Interface.CrateClient) end)
-local realOpenMenu = CrateUI and rawget(CrateUI, "OpenMenu")
+pcall(function() InterfaceUI = require(RS.Client.Providers.Interface.InterfaceClient) end)
+
+if CrateUI and ENV.__TPFARM_REAL_OPENMENU == nil then
+    ENV.__TPFARM_REAL_OPENMENU = rawget(CrateUI, "OpenMenu")
+end
+if InterfaceUI and ENV.__TPFARM_REAL_SETMENU == nil then
+    ENV.__TPFARM_REAL_SETMENU = rawget(InterfaceUI, "SetMenu")
+end
+local realOpenMenu = ENV.__TPFARM_REAL_OPENMENU
+local realSetMenu = ENV.__TPFARM_REAL_SETMENU
+if CrateUI and realOpenMenu then CrateUI.OpenMenu = realOpenMenu end
+if InterfaceUI and realSetMenu then InterfaceUI.SetMenu = realSetMenu end
 
 local function shutCrateScreen()
+    if InterfaceUI and realSetMenu then
+        local cur = InterfaceUI.Menu and InterfaceUI.Menu.Name
+        if cur == "Crate" then pcall(realSetMenu, nil) end
+    end
     local pgui = me:FindFirstChild("PlayerGui")
     local menus = pgui and pgui:FindFirstChild("Menus")
     local sg = menus and menus:FindFirstChild("Crate")
@@ -545,12 +562,17 @@ local function shutCrateScreen()
 end
 
 local function muteCrateUI(on)
-    if CrateUI and realOpenMenu then
-        if on then
-            CrateUI.OpenMenu = function() end
-        else
-            CrateUI.OpenMenu = realOpenMenu
+    if on then
+        if CrateUI and realOpenMenu then CrateUI.OpenMenu = function() end end
+        if InterfaceUI and realSetMenu then
+            InterfaceUI.SetMenu = function(name, ...)
+                if name == "Crate" then return end
+                return realSetMenu(name, ...)
+            end
         end
+    else
+        if CrateUI and realOpenMenu then CrateUI.OpenMenu = realOpenMenu end
+        if InterfaceUI and realSetMenu then InterfaceUI.SetMenu = realSetMenu end
     end
     shutCrateScreen()
 end
@@ -632,6 +654,59 @@ local function buyPass()
     buying = false
 end
 
+local OpenCrate = CrateRemotes and CrateRemotes:FindFirstChild("RequestPurchaseCrate")
+local Unboxed = CrateRemotes and CrateRemotes:FindFirstChild("PlayerUnboxed")
+local opening, openState, openedTotal = false, "idle", 0
+
+local function ownedOf(kind)
+    local n = 0
+    pcall(function()
+        for _, k in pairs(DataClient.Data.items.crates.owned) do
+            if k == kind then n = n + 1 end
+        end
+    end)
+    return n
+end
+
+local function openPass()
+    if opening or not OpenCrate then return end
+    opening = true
+    muteCrateUI(true)
+    local ok, err = pcall(function()
+        for _, spec in ipairs(CRATE) do
+            if not STATE.alive() then break end
+            if CFG[spec.flag] then
+                local left = ownedOf(spec.key)
+                local t0, miss = os.clock(), 0
+                while STATE.alive() and left > 0 and miss < 4 do
+                    local before = ownedOf(spec.key)
+                    OpenCrate:FireServer(spec.key)
+                    local wait0 = os.clock()
+                    local landed = false
+                    while STATE.alive() and os.clock() - wait0 < 6 do
+                        task.wait(0.08)
+                        if ownedOf(spec.key) < before then landed = true break end
+                    end
+                    if landed then
+                        miss = 0
+                        openedTotal = openedTotal + 1
+                        left = ownedOf(spec.key)
+                        openState = string.format("%s opened %d, %d left", spec.label, openedTotal, left)
+                    else
+                        miss = miss + 1
+                        openState = spec.label .. " no answer x" .. miss
+                    end
+                    shutCrateScreen()
+                    if os.clock() - t0 > 240 then break end
+                end
+            end
+        end
+    end)
+    muteCrateUI(false)
+    if not ok then openState = "open error: " .. tostring(err) end
+    opening = false
+end
+
 local VAPE_DEFAULT = { "Anti-AFK", "AntiFall", "AutoClicker", "Invisible", "Killaura",
     "Phase", "Reach", "SilentAim", "Speed", "TriggerBot" }
 
@@ -685,6 +760,8 @@ local function paintAll()
     depBtn.BackgroundColor3 = CFG.autoDeploy and GOLD or GREY
     autoBuyBtn.Text = CFG.autoBuy and "AUTO BUY ON" or "AUTO BUY OFF"
     autoBuyBtn.BackgroundColor3 = CFG.autoBuy and GOLD or GREY
+    autoOpenBtn.Text = CFG.autoOpen and "AUTO OPEN ON" or "AUTO OPEN OFF"
+    autoOpenBtn.BackgroundColor3 = CFG.autoOpen and GOLD or GREY
     for _, spec in ipairs(CRATE) do paintCrateBtn(spec) end
     paintUlt()
 end
@@ -698,6 +775,7 @@ local function setFarm(on)
     CFG.autoDeploy = on
     CFG.oneShot = on
     CFG.autoBuy = on
+    CFG.autoOpen = on
     if not on then
         current = nil
         releaseCam()
@@ -709,7 +787,20 @@ end
 
 task.spawn(function()
     while STATE.alive() do
-        if forceOn and CFG.autoBuy and not buying then
+        if forceOn and CFG.autoOpen and not opening and not buying then
+            local any = false
+            for _, spec in ipairs(CRATE) do
+                if CFG[spec.flag] and ownedOf(spec.key) > 0 then any = true break end
+            end
+            if any then openPass() end
+        end
+        task.wait(3)
+    end
+end)
+
+task.spawn(function()
+    while STATE.alive() do
+        if forceOn and CFG.autoBuy and not buying and not opening then
             local any = false
             for _, spec in ipairs(CRATE) do
                 if CFG[spec.flag] and cashNow() >= spec.price then any = true break end
@@ -735,6 +826,11 @@ autoBuyBtn.MouseButton1Click:Connect(function()
     CFG.autoBuy = not CFG.autoBuy
     autoBuyBtn.Text = CFG.autoBuy and "AUTO BUY ON" or "AUTO BUY OFF"
     autoBuyBtn.BackgroundColor3 = CFG.autoBuy and GOLD or GREY
+end)
+autoOpenBtn.MouseButton1Click:Connect(function()
+    CFG.autoOpen = not CFG.autoOpen
+    autoOpenBtn.Text = CFG.autoOpen and "AUTO OPEN ON" or "AUTO OPEN OFF"
+    autoOpenBtn.BackgroundColor3 = CFG.autoOpen and GOLD or GREY
 end)
 lobbyBtn.MouseButton1Click:Connect(function()
     setFarm(false)
@@ -902,9 +998,9 @@ task.spawn(function()
             tostring(bl and bl:GetAttribute("_ammo")), acc,
             ultState, oneShotFires,
             np, nb, shots, landed, kills, reloads,
-            cashNow(), buyState,
+            cashNow(), buyState .. "   open: " .. openState,
             (forceOn and "FARM ENABLED" or "FARM DISABLED") .. "   crates " .. crateOwned()
-                .. "   mouse unlocked x" .. UNLOCK_FIXES,
+                .. string.format("   fps %.0f   boost: %s", BOOST_FPS, BOOST_STATE),
             tostring((getgenv().__TPFARM_PROMPT_BLOCKED) or 0))
         task.wait(0.2)
     end
@@ -928,9 +1024,95 @@ depBtn.Text = CFG.autoDeploy and "RESPAWN ON" or "RESPAWN OFF"
 depBtn.BackgroundColor3 = CFG.autoDeploy and GOLD or GREY
 if type(CFG.autoBuy) ~= "boolean" then CFG.autoBuy = false end
 if type(CFG.vapeList) ~= "table" then CFG.vapeList = {} end
+if type(CFG.autoOpen) ~= "boolean" then CFG.autoOpen = false end
 forceOn = CFG.on == true
 wasFarming = forceOn
 paintAll()
+
+
+do
+    local Lighting = game:GetService("Lighting")
+    local Stats = game:GetService("Stats")
+    local boostedJob = nil
+    local hits = 0
+
+    local function cheapRender()
+        pcall(function()
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+            settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level04
+        end)
+        pcall(function()
+            Lighting.GlobalShadows = false
+            Lighting.FogEnd = 9e9
+            Lighting.Brightness = 1
+        end)
+        pcall(function()
+            local sg = game:GetService("UserSettings"):GetService("UserGameSettings")
+            sg.SavedQualityLevel = Enum.SavedQualitySetting.QualityLevel1
+        end)
+    end
+
+    local function cheapTerrain()
+        pcall(function()
+            local t = workspace:FindFirstChildOfClass("Terrain")
+            if not t then return end
+            t.WaterWaveSize = 0
+            t.WaterWaveSpeed = 0
+            t.WaterReflectance = 0
+            t.Decoration = false
+        end)
+    end
+
+    local function killEffects()
+        local n = 0
+        pcall(function()
+            for _, d in ipairs(workspace:GetDescendants()) do
+                if d:IsA("ParticleEmitter") or d:IsA("Trail") or d:IsA("Smoke")
+                    or d:IsA("Fire") or d:IsA("Sparkles") or d:IsA("Beam") then
+                    if d.Enabled then d.Enabled = false n = n + 1 end
+                elseif d:IsA("Texture") or d:IsA("Decal") then
+                    if d.Transparency < 1 then d.Transparency = 1 n = n + 1 end
+                end
+            end
+        end)
+        return n
+    end
+
+    local function fps()
+        local n = 0
+        local c = RunService.RenderStepped:Connect(function() n = n + 1 end)
+        local t0 = os.clock()
+        task.wait(4)
+        c:Disconnect()
+        local secs = os.clock() - t0
+        if secs <= 0 then return 0 end
+        return n / secs
+    end
+
+    local function sweep(why)
+        cheapRender()
+        cheapTerrain()
+        local n = killEffects()
+        hits = hits + 1
+        BOOST_STATE = string.format("%s, %d effects off, sweep %d", why, n, hits)
+    end
+
+    task.spawn(function()
+        task.wait(3)
+        while STATE.alive() do
+            if boostedJob ~= game.JobId then
+                boostedJob = game.JobId
+                sweep("new round")
+            end
+            local f = fps()
+            BOOST_FPS = f
+            if f < 30 then
+                sweep(string.format("fps %.0f", f))
+            end
+            task.wait(20)
+        end
+    end)
+end
 
 rebuild()
 return "tpfarm loaded. farm=" .. (forceOn and "ENABLED" or "DISABLED")
