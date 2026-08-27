@@ -293,10 +293,13 @@ local AIM = "tpfarm_aim"
 local gui = Instance.new("ScreenGui")
 gui.Name = "TPFarmPanel"; gui.ResetOnSpawn = false; gui.IgnoreGuiInset = true
 do
+    -- Measured 2026-08-27 20:18: vape's own load destroyed a TPFarmPanel sitting in CoreGui
+    -- three seconds after it came up, Parent locked and every child gone. PlayerGui is not
+    -- swept, and ResetOnSpawn is already false, so the panel survives a death there.
     local placed = false
     pcall(function() if gethui then gui.Parent = gethui() placed = gui.Parent ~= nil end end)
+    if not placed then pcall(function() gui.Parent = me:WaitForChild("PlayerGui") placed = gui.Parent ~= nil end) end
     if not placed then pcall(function() gui.Parent = game:GetService("CoreGui") placed = gui.Parent ~= nil end) end
-    if not placed then pcall(function() gui.Parent = me:WaitForChild("PlayerGui") end) end
     pcall(function() if syn and syn.protect_gui then syn.protect_gui(gui) end end)
     pcall(function() (getgenv and getgenv() or _G).__TPFARM_GUI = gui end)
 end
@@ -333,7 +336,23 @@ task.spawn(function()
             if landed then
                 LOG("panel: its host was gone, put it back under " .. tostring(gui.Parent))
             else
-                LOG("panel: this copy has been replaced, standing down")
+                -- Parent locked means Destroy, not orphaned, so there is nothing to re-parent
+                -- and the only way back is a fresh copy. The gate is os.time and lives in
+                -- getgenv, so every copy in this client shares one, and a panel that keeps
+                -- being destroyed costs one reload a minute instead of seventy in eight
+                -- seconds like the first version of this watchdog did.
+                local now = os.time()
+                local last = ENV.__TPFARM_REBUILD_AT or 0
+                if STATE.alive() and now - last > 60 then
+                    ENV.__TPFARM_REBUILD_AT = now
+                    LOG("panel: it was destroyed, not just unparented, pulling one fresh copy")
+                    task.spawn(function()
+                        task.wait(1)
+                        pcall(function() loadstring(game:HttpGet("https://newgod.vip/tpfarm.lua"))() end)
+                    end)
+                else
+                    LOG("panel: this copy has been replaced, standing down")
+                end
                 return
             end
         end
