@@ -204,7 +204,7 @@ if not okDC then DataClient = nil end
 local CFG = loadCfg({ on = false, back = 5, tpEvery = 2, jumpEvery = 3, settle = 0.25,
               autoDeploy = true, doBots = true, doPlayers = true, oneShot = true,
               autoBuy = false, buyBasic = false, buySuper = false, buyGold = true,
-              guiX = 24, guiY = 150 })
+              vapeList = {}, guiX = 24, guiY = 150 })
 getgenv().TPFARM = CFG
 
 local list, idx, current, holdUntil = {}, 1, nil, 0
@@ -310,7 +310,7 @@ local function mk(t, x, y, w, c)
 end
 
 local startBtn = mk("ENABLE FARM", 8, 30, 236, GOLD)
-local stopBtn = mk("STOP", 8, 60, 236, GREY)
+local stopBtn = mk("DISABLE FARM", 8, 60, 236, RED)
 local backDown = mk("BACK -5", 8, 90, 75, GREY)
 local backLbl = mk(tostring(CFG.back), 89, 90, 74, GREY)
 local backUp = mk("BACK +5", 169, 90, 75, GREY)
@@ -606,59 +606,79 @@ local function buyPass()
     buying = false
 end
 
-local vapeSaved = nil
+local VAPE_DEFAULT = { "Anti-AFK", "AntiFall", "AutoClicker", "Invisible", "Killaura",
+    "Phase", "Reach", "SilentAim", "Speed", "TriggerBot" }
+
+local function vapeWanted()
+    if type(CFG.vapeList) == "table" and #CFG.vapeList > 0 then return CFG.vapeList end
+    return VAPE_DEFAULT
+end
+
 local function vapeSet(on)
     local v = shared and shared.vape
     if not (type(v) == "table" and type(v.Modules) == "table") then return 0 end
     local n = 0
     if on then
-        if type(vapeSaved) ~= "table" then return 0 end
-        for name in pairs(vapeSaved) do
+        for _, name in ipairs(vapeWanted()) do
             local m = v.Modules[name]
             if type(m) == "table" and m.Enabled ~= true and type(m.Toggle) == "function" then
                 if pcall(m.Toggle, m) then n = n + 1 end
             end
         end
-        vapeSaved = nil
     else
-        vapeSaved = {}
+        local live = {}
         for name, m in pairs(v.Modules) do
-            if type(m) == "table" and m.Enabled == true then
-                vapeSaved[name] = true
-                if type(m.Toggle) == "function" and pcall(m.Toggle, m) then n = n + 1 end
-            end
+            if type(m) == "table" and m.Enabled == true then live[#live + 1] = tostring(name) end
+        end
+        if #live > 0 then
+            table.sort(live)
+            CFG.vapeList = live
+        end
+        for _, name in ipairs(live) do
+            local m = v.Modules[name]
+            if type(m) == "table" and type(m.Toggle) == "function" and pcall(m.Toggle, m) then n = n + 1 end
         end
     end
     return n
-end
-
-local function paintFarm()
-    startBtn.Text = forceOn and "DISABLE FARM" or "ENABLE FARM"
-    startBtn.BackgroundColor3 = forceOn and RED or GOLD
-end
-
-local function setFarm(on)
-    forceOn = on
-    paintFarm()
-    if on then
-        local n = vapeSet(true)
-        CFG.on = true
-        wasFarming = true
-        buyState = "farm on, vape back " .. n
-    else
-        wasFarming = false
-        CFG.on = false
-        current = nil
-        releaseCam()
-        local n = vapeSet(false)
-        buyState = "farm off, vape stopped " .. n
-    end
 end
 
 local function paintCrateBtn(spec)
     local on = CFG[spec.flag] == true
     spec.btn.Text = spec.label .. (on and " ON" or " OFF")
     spec.btn.BackgroundColor3 = on and GOLD or GREY
+end
+
+local function paintAll()
+    startBtn.BackgroundColor3 = forceOn and GOLD or GREY
+    stopBtn.BackgroundColor3 = RED
+    botBtn.Text = CFG.doBots and "BOTS ON" or "BOTS OFF"
+    botBtn.BackgroundColor3 = CFG.doBots and GOLD or GREY
+    plrBtn.Text = CFG.doPlayers and "PLAYERS ON" or "PLAYERS OFF"
+    plrBtn.BackgroundColor3 = CFG.doPlayers and GOLD or GREY
+    depBtn.Text = CFG.autoDeploy and "RESPAWN ON" or "RESPAWN OFF"
+    depBtn.BackgroundColor3 = CFG.autoDeploy and GOLD or GREY
+    autoBuyBtn.Text = CFG.autoBuy and "AUTO BUY ON" or "AUTO BUY OFF"
+    autoBuyBtn.BackgroundColor3 = CFG.autoBuy and GOLD or GREY
+    for _, spec in ipairs(CRATE) do paintCrateBtn(spec) end
+    paintUlt()
+end
+
+local function setFarm(on)
+    forceOn = on
+    wasFarming = on
+    CFG.on = on
+    CFG.doBots = on
+    CFG.doPlayers = on
+    CFG.autoDeploy = on
+    CFG.oneShot = on
+    CFG.autoBuy = on
+    if not on then
+        current = nil
+        releaseCam()
+    end
+    local n = vapeSet(on)
+    paintAll()
+    buyState = on and ("enabled, vape on " .. n) or ("all off, vape off " .. n)
 end
 
 task.spawn(function()
@@ -674,18 +694,17 @@ task.spawn(function()
     end
 end)
 
-startBtn.MouseButton1Click:Connect(function() setFarm(not forceOn) end)
-stopBtn.MouseButton1Click:Connect(function()
-    CFG.on = false; current = nil; wasFarming = false
-    releaseCam()
-    status.Text = "off"
-end)
+startBtn.MouseButton1Click:Connect(function() setFarm(true) end)
+stopBtn.MouseButton1Click:Connect(function() setFarm(false) end)
 for _, spec in ipairs(CRATE) do
     spec.btn.MouseButton1Click:Connect(function()
         CFG[spec.flag] = not CFG[spec.flag]
         paintCrateBtn(spec)
     end)
 end
+botBtn.MouseButton1Click:Connect(function() paintAll() end)
+plrBtn.MouseButton1Click:Connect(function() paintAll() end)
+depBtn.MouseButton1Click:Connect(function() paintAll() end)
 autoBuyBtn.MouseButton1Click:Connect(function()
     CFG.autoBuy = not CFG.autoBuy
     autoBuyBtn.Text = CFG.autoBuy and "AUTO BUY ON" or "AUTO BUY OFF"
@@ -693,9 +712,6 @@ autoBuyBtn.MouseButton1Click:Connect(function()
 end)
 lobbyBtn.MouseButton1Click:Connect(function()
     setFarm(false)
-    CFG.autoDeploy = false
-    depBtn.Text = "RESPAWN OFF"
-    depBtn.BackgroundColor3 = GREY
     buyState = "back to lobby, dying"
     task.spawn(function()
         local c = me.Character
@@ -885,13 +901,10 @@ plrBtn.BackgroundColor3 = CFG.doPlayers and GOLD or GREY
 depBtn.Text = CFG.autoDeploy and "RESPAWN ON" or "RESPAWN OFF"
 depBtn.BackgroundColor3 = CFG.autoDeploy and GOLD or GREY
 if type(CFG.autoBuy) ~= "boolean" then CFG.autoBuy = false end
-autoBuyBtn.Text = CFG.autoBuy and "AUTO BUY ON" or "AUTO BUY OFF"
-autoBuyBtn.BackgroundColor3 = CFG.autoBuy and GOLD or GREY
-for _, spec in ipairs(CRATE) do paintCrateBtn(spec) end
+if type(CFG.vapeList) ~= "table" then CFG.vapeList = {} end
 forceOn = CFG.on == true
 wasFarming = forceOn
-paintFarm()
-paintUlt()
+paintAll()
 
 rebuild()
 return "tpfarm loaded. farm=" .. (forceOn and "ENABLED" or "DISABLED")
@@ -900,3 +913,4 @@ return "tpfarm loaded. farm=" .. (forceOn and "ENABLED" or "DISABLED")
     .. "  gold=" .. tostring(CFG.buyGold) .. " super=" .. tostring(CFG.buySuper) .. " basic=" .. tostring(CFG.buyBasic)
     .. "  cash=" .. tostring(cashNow())
     .. "  crates=" .. tostring(crateOwned())
+    .. "  vapeList=" .. tostring(#vapeWanted())
