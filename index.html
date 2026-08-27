@@ -428,7 +428,6 @@ footer .furl:hover{color:var(--gold2)}
 
     <div class="hero">
       <div class="hero-badge" data-anim="badge"><span class="dot"></span>Live &middot; scripts updated from one link</div>
-      <svg class="emblem" data-anim="emblem" viewBox="0 0 512 512"><use href="#ngmark"/></svg>
       <svg class="word" data-anim="word" viewBox="0 0 1188 508.203" role="img" aria-label="NEWGOD"><use href="#ngword"/></svg>
       <p class="lead" data-anim="lead">Roblox scripts, automation farms, and Windows tools &mdash; all built and run by one person. <b>Measured, not promised</b>, and made to feel smooth.</p>
       <div class="actions" data-anim="actions">
@@ -1352,8 +1351,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
     var tl = gsap.timeline({ defaults: { ease: "power3.out" } });
     tl.from('[data-anim="badge"]', { autoAlpha: 0, y: 14, duration: .5 })
-      .from('[data-anim="emblem"]', { autoAlpha: 0, y: 24, scale: .82, duration: .8 }, "-=.25")
-      .from('[data-anim="word"]',   { autoAlpha: 0, y: 26, scale: .95, duration: .8 }, "-=.55")
+      .from('[data-anim="word"]',   { autoAlpha: 0, y: 26, scale: .95, duration: .8 }, "-=.25")
       .from('[data-anim="lead"]',   { autoAlpha: 0, y: 18, duration: .6 }, "-=.5")
       .from('[data-anim="actions"] > *', { autoAlpha: 0, y: 16, duration: .5, stagger: .07 }, "-=.4");
 
