@@ -1407,15 +1407,33 @@ return GROUP .. &quot; loader finished&quot;
     Array.prototype.forEach.call(view.querySelectorAll(".count"), animateCount);
   }
 
-  function go(i){
+  function slug(name){
+    return String(name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  }
+
+  function go(i, quiet){
     if (i < 0 || i >= views.length) return;
     cur = i;
     views.forEach(function(v, n){ v.classList.toggle("active", n === i); });
     Array.prototype.forEach.call(nav.children, function(b, n){ b.classList.toggle("active", n === i); });
     prev.disabled = (i === 0);
     next.disabled = (i === views.length - 1);
-    window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+    if (!quiet) window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+    var want = "#" + slug(views[i].getAttribute("data-t"));
+    if (location.hash !== want) {
+      try { history.replaceState(null, "", want); } catch (e) {}
+    }
     runCounts(views[i]);
+    if (window.__ngReveal) window.__ngReveal();
+  }
+
+  function fromHash(quiet){
+    var h = (location.hash || "").replace(/^#/, "").toLowerCase();
+    if (!h) return false;
+    for (var i = 0; i < views.length; i++){
+      if (slug(views[i].getAttribute("data-t")) === h){ go(i, quiet); return true; }
+    }
+    return false;
   }
 
   function goByName(name){
@@ -1472,7 +1490,9 @@ return GROUP .. &quot; loader finished&quot;
     if (src) wireCopy(b, src);
   });
 
-  go(0);
+  window.addEventListener("hashchange", function(){ fromHash(false); });
+
+  if (!fromHash(true)) go(0, true);
 })();
 </script>
 
