@@ -785,8 +785,7 @@ local function openPass()
     opening = false
 end
 
-local VAPE_COMBAT = { "AimAssist", "Arrows", "AutoClicker", "HitBoxes", "Killaura",
-    "Reach", "SilentAim", "SpinBot", "TargetStrafe", "TriggerBot" }
+local VAPE_COMBAT = { "AutoClicker", "Reach", "SilentAim", "TriggerBot" }
 
 local function isCombat(name)
     for _, n in ipairs(VAPE_COMBAT) do
