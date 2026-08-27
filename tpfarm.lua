@@ -103,13 +103,23 @@ local function grab(root, ...)
     return node
 end
 local UNLOCK_FIXES = 0
+local camDragging
+do
+    local UIS0 = game:GetService("UserInputService")
+    camDragging = function()
+        local ok, held = pcall(function()
+            return UIS0:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+                or UIS0:IsMouseButtonPressed(Enum.UserInputType.MouseButton3)
+        end)
+        return ok and held == true
+    end
+end
 do
     local UIS2 = game:GetService("UserInputService")
     local function unlockMouse()
-        local fixed = false
         if me.CameraMode ~= Enum.CameraMode.Classic then
             pcall(function() me.CameraMode = Enum.CameraMode.Classic end)
-            fixed = true
+            UNLOCK_FIXES = UNLOCK_FIXES + 1
         end
         if me.CameraMinZoomDistance ~= 8 then
             pcall(function() me.CameraMinZoomDistance = 8 end)
@@ -117,15 +127,15 @@ do
         if me.CameraMaxZoomDistance ~= 40 then
             pcall(function() me.CameraMaxZoomDistance = 40 end)
         end
+        if camDragging() then return end
         if UIS2.MouseBehavior ~= Enum.MouseBehavior.Default then
             pcall(function() UIS2.MouseBehavior = Enum.MouseBehavior.Default end)
-            fixed = true
+            UNLOCK_FIXES = UNLOCK_FIXES + 1
         end
         if UIS2.MouseIconEnabled ~= true then
             pcall(function() UIS2.MouseIconEnabled = true end)
-            fixed = true
+            UNLOCK_FIXES = UNLOCK_FIXES + 1
         end
-        if fixed then UNLOCK_FIXES = UNLOCK_FIXES + 1 end
     end
     local dirty = true
     local function raise() dirty = true end
@@ -410,6 +420,14 @@ end
 
 local camHeld = false
 local function look(from, to)
+    if camDragging() then
+        if camHeld then
+            pcall(function() cam.CameraType = Enum.CameraType.Custom end)
+            camHeld = false
+            ENV.__TPFARM_CAM_HELD = false
+        end
+        return
+    end
     if not camHeld then
         cam.CameraType = Enum.CameraType.Scriptable
         camHeld = true
