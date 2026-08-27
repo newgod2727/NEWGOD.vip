@@ -44,6 +44,28 @@ do
 end
 
 
+local LOGDIR = "RobloxComm"
+local LOGFILE = "RobloxComm/tpfarm.log"
+local LOG
+do
+    local ok = pcall(function()
+        if not isfolder(LOGDIR) then makefolder(LOGDIR) end
+        if not isfile(LOGFILE) then writefile(LOGFILE, "") end
+    end)
+    if ok then
+        LOG = function(...)
+            local a = table.pack(...)
+            local parts = { os.date("%H:%M:%S"), tostring(game.JobId):sub(1, 8) }
+            for i = 1, a.n do parts[#parts + 1] = tostring(a[i]) end
+            pcall(function()
+                appendfile(LOGFILE, table.concat(parts, "  ") .. string.char(10))
+            end)
+        end
+    else
+        LOG = function() end
+    end
+end
+
 local ENV = getgenv and getgenv() or _G
 if type(ENV.__TPFARM_CONNS) ~= "table" then ENV.__TPFARM_CONNS = {} end
 local function keep(c)
@@ -51,6 +73,9 @@ local function keep(c)
     t[#t + 1] = c
     return c
 end
+
+LOG("")
+LOG("==== tpfarm loading ====")
 
 local BLOCK_ULT_PROMPT = 3612256554
 do
@@ -716,6 +741,7 @@ end
 local function buyPass()
     if buying or not BuyCrate then return end
     buying = true
+    LOG("buyPass start")
     muteCrateUI(true)
     local ok, err = pcall(function()
         for _, spec in ipairs(CRATE) do
@@ -727,8 +753,12 @@ local function buyPass()
         end
     end)
     muteCrateUI(false)
-    if not ok then buyState = "buy error: " .. tostring(err) end
+    if not ok then
+        LOG("buyPass ERROR " .. tostring(err))
+        buyState = "buy error: " .. tostring(err)
+    end
     buying = false
+    LOG("buyPass end")
 end
 
 local OpenCrate = CrateRemotes and CrateRemotes:FindFirstChild("RequestPurchaseCrate")
@@ -747,6 +777,7 @@ end
 local function openPass()
     if opening or not OpenCrate then return end
     opening = true
+    LOG("openPass start")
     muteCrateUI(true)
     local ok, err = pcall(function()
         for _, spec in ipairs(CRATE) do
@@ -781,8 +812,12 @@ local function openPass()
         end
     end)
     muteCrateUI(false)
-    if not ok then openState = "open error: " .. tostring(err) end
+    if not ok then
+        LOG("openPass ERROR " .. tostring(err))
+        openState = "open error: " .. tostring(err)
+    end
     opening = false
+    LOG("openPass end")
 end
 
 local VAPE_COMBAT = { "AutoClicker", "SilentAim", "TriggerBot", "Reach" }
@@ -836,24 +871,33 @@ function vapeApply(on)
         return 0
     end
     pcall(function() setthreadidentity(8) end)
+    LOG("vapeApply start on=" .. tostring(on))
     local n = 0
     for _, name in ipairs(VAPE_COMBAT) do
         if not STATE.alive() then break end
         local m = v.Modules[name]
         if type(m) == "table" and type(m.Toggle) == "function" then
             if (m.Enabled == true) ~= on then
+                LOG("  toggle " .. name .. " -> " .. tostring(on) .. " ... calling")
                 local ok, err = pcall(m.Toggle, m)
                 if ok then
                     n = n + 1
+                    LOG("  toggle " .. name .. " returned ok, Enabled=" .. tostring(m.Enabled))
                 else
                     vapeDead = true
+                    LOG("  toggle " .. name .. " THREW " .. tostring(err))
                     buyState = "vape " .. name .. " threw, not touching vape again: " .. tostring(err)
                     return n
                 end
+            else
+                LOG("  toggle " .. name .. " skipped, already " .. tostring(on))
             end
+        else
+            LOG("  toggle " .. name .. " missing from vape")
         end
         task.wait(0.1)
     end
+    LOG("vapeApply done, changed " .. n)
     return n
 end
 
@@ -883,8 +927,12 @@ end
 
 local farmBusy = false
 local function setFarm(on)
-    if farmBusy then return end
+    if farmBusy then
+        LOG("setFarm(" .. tostring(on) .. ") ignored, one is already running")
+        return
+    end
     farmBusy = true
+    LOG("setFarm(" .. tostring(on) .. ") pressed")
     forceOn = on
     wasFarming = on
     paintAll()
@@ -893,21 +941,26 @@ local function setFarm(on)
         local n = vapeApply(on)
         if not vapeDead then buyState = (on and "vape on " or "vape off ") .. n end
         local steps = {
-            function() CFG.on = on if not on then current = nil end end,
-            function() CFG.doBots = on end,
-            function() CFG.doPlayers = on end,
-            function() CFG.autoDeploy = on end,
-            function() CFG.oneShot = on end,
+            { "shooting and aiming", function() CFG.on = on if not on then current = nil end end },
+            { "bots", function() CFG.doBots = on end },
+            { "players", function() CFG.doPlayers = on end },
+            { "respawn", function() CFG.autoDeploy = on end },
+            { "auto ult", function() CFG.oneShot = on end },
         }
-        for _, f in ipairs(steps) do
+        for _, step in ipairs(steps) do
             task.wait(0.05)
             if not STATE.alive() then break end
-            f()
+            LOG("  step " .. step[1] .. " -> " .. tostring(on))
+            step[2]()
             paintAll()
         end
-        if not on then releaseCam() end
+        if not on then
+            LOG("  releasing camera")
+            releaseCam()
+        end
         paintAll()
         farmBusy = false
+        LOG("setFarm(" .. tostring(on) .. ") finished")
     end)
 end
 
@@ -1027,6 +1080,7 @@ local lobbyBusy = false
 lobbyBtn.MouseButton1Click:Connect(function()
     if lobbyBusy then return end
     lobbyBusy = true
+    LOG("BACK TO LOBBY pressed")
     setFarm(false)
     buyState = "back to lobby, dying"
     task.spawn(function()
@@ -1332,6 +1386,7 @@ do
     end
 
     local function sweep(why)
+        LOG("boost sweep: " .. tostring(why))
         lastSweep = os.clock()
         cheapRender()
         cheapTerrain()
@@ -1370,6 +1425,17 @@ do
         end
     end)
 end
+
+task.spawn(function()
+    local Stats = game:GetService("Stats")
+    while STATE.alive() do
+        local mem = 0
+        pcall(function() mem = Stats:GetTotalMemoryUsageMb() end)
+        LOG(string.format("alive  farm=%s  fps=%.0f  ram=%.0f  buy=%s  open=%s",
+            tostring(forceOn), BOOST_FPS, mem, tostring(buying), tostring(opening)))
+        task.wait(2)
+    end
+end)
 
 rebuild()
 task.spawn(function()
