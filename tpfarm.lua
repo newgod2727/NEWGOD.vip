@@ -729,11 +729,23 @@ local function faceFlat(curCF, dest, lookAt)
     return CFrame.new(dest, dest + flat)
 end
 
+-- Nothing reaches him at 15 studs: measured 2026-08-27 with a 54 kill streak, health pinned
+-- at 200/200 for the whole sample and deaths 0. This is the guard for when that stops being
+-- true. On a real drop he climbs out of reach and stops firing until it comes back, and
+-- every drop and every death is written down so a death is never a mystery afterwards.
+local RETREAT_UP = 70
+local RETREAT_LOW = 0.55
+local RETREAT_SAFE = 0.85
+local RETREAT_SECS = 6
+local retreatUntil, retreatCount, deathCount = 0, 0, 0
+local function retreating() return os.clock() < retreatUntil end
+
 local function headHopCF(mh, t)
     local hd = t.head
     if not (hd and hd.Parent) then return nil end
     local hp = hd.Position
-    local dest = hp + Vector3.new(0, TP_UP, 0)
+    local up = retreating() and (TP_UP + RETREAT_UP) or TP_UP
+    local dest = hp + Vector3.new(0, up, 0)
     if CFG.back and CFG.back ~= 0 then
         local face = t.hrp and t.hrp.CFrame.LookVector or Vector3.new(0, 0, -1)
         local flat = Vector3.new(face.X, 0, face.Z)
@@ -1632,6 +1644,46 @@ lobbyBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
+-- The survival watch. It samples fast enough to see a hit land, not just to notice one
+-- happened, and it never touches vape or the panel: it only changes how high the next hop
+-- goes and whether the trigger is allowed to pull.
+task.spawn(function()
+    local lastHP, lastChar = nil, nil
+    while STATE.alive() do
+        local ch = me.Character
+        local hum = ch and ch:FindFirstChildOfClass("Humanoid")
+        if hum then
+            if ch ~= lastChar then
+                lastChar = ch
+                lastHP = hum.Health
+                keep(hum.Died:Connect(function()
+                    deathCount = deathCount + 1
+                    LOG(string.format("DIED #%d at y=%.0f, retreats so far %d, round %s",
+                        deathCount,
+                        (myHrp() and myHrp().Position.Y) or -1,
+                        retreatCount, tostring(rstate())))
+                end))
+            end
+            local hp, mx = hum.Health, math.max(1, hum.MaxHealth)
+            if lastHP and hp < lastHP - 0.5 then
+                LOG(string.format("took %.0f damage: %.0f -> %.0f of %.0f, y=%.0f",
+                    lastHP - hp, lastHP, hp, mx, (myHrp() and myHrp().Position.Y) or -1))
+            end
+            if hp > 0 and hp / mx <= RETREAT_LOW and not retreating() then
+                retreatCount = retreatCount + 1
+                retreatUntil = os.clock() + RETREAT_SECS
+                LOG(string.format("RETREAT #%d: health %.0f of %.0f, climbing to %d studs and holding fire",
+                    retreatCount, hp, mx, TP_UP + RETREAT_UP))
+            elseif retreating() and hp / mx >= RETREAT_SAFE then
+                retreatUntil = 0
+                LOG(string.format("back in: health %.0f of %.0f", hp, mx))
+            end
+            lastHP = hp
+        end
+        task.wait(0.2)
+    end
+end)
+
 task.spawn(function()
     while STATE.alive() do
         task.wait(2)
@@ -1753,6 +1805,7 @@ task.spawn(function()
                         task.wait(0.03)
                     end
                     local mh = myHrp()
+                    if retreating() then mh = nil end
                     if mh and t.life.Parent and t.hit.Parent and t.life.Health > 0 and t.head.Parent and (bl:GetAttribute("_ammo") or 0) >= 1 then
                         local aim = CFrame.lookAt(mh.Position + Vector3.new(0, 1.5, 0), t.head.Position)
                         local hp0 = t.life.Health
@@ -1788,9 +1841,11 @@ task.spawn(function()
         local bl = blaster()
         local acc = shots > 0 and math.floor(landed / shots * 100) or 0
         status.Text = string.format(
-            "%s  round %s   back %d  head+%d   tp/%df  jump/%df\ntarget %s  hp %s\nammo %s   accuracy %d%%\nult: %s   fires %d\narena %d players + %d bots\nshots %d  landed %d  KILLS %d  reloads %d\ncash %d  vape %s   crate: %s\n%s   blocked %d",
+            "%s  round %s   back %d  head+%d%s   tp/%df  jump/%df\ntarget %s  hp %s\nammo %s   accuracy %d%%\nult: %s   fires %d\narena %d players + %d bots\nshots %d  landed %d  KILLS %d  reloads %d\ncash %d  vape %s   crate: %s\n%s   blocked %d",
             (inLobby() and (CFG.lobbyHold and "LOBBY HELD" or "LOBBY") or "ARENA"),
-            rstate(), CFG.back, TP_UP, CFG.tpEvery, CFG.jumpEvery,
+            rstate(), CFG.back, TP_UP,
+            (retreating() and "  RETREAT" or (deathCount > 0 and ("  deaths " .. deathCount) or "")),
+            CFG.tpEvery, CFG.jumpEvery,
             current and current.name or "-",
             current and tostring(math.floor(current.life.Health)) or "-",
             tostring(bl and bl:GetAttribute("_ammo")), acc,
