@@ -347,6 +347,10 @@ footer .furl:hover{color:var(--gold2)}
 .cta h2{font-family:Fraunces,Georgia,serif;font-size:2.1rem;margin:0 0 10px;
   background:linear-gradient(180deg,#FFF3C9,#f3cf99 45%,#c98e4a);-webkit-background-clip:text;background-clip:text;color:transparent}
 .cta p{margin:0 auto 24px;max-width:520px;color:#cdbda7}
+.cta .eyebrow{margin-bottom:10px}
+.ctacode{max-width:620px;margin:0 auto 22px;text-align:left}
+.brand .btag{font-family:"JetBrains Mono",monospace;font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);white-space:nowrap}
+@media (max-width:560px){ .brand .btag{display:none} }
 
 @media (max-width:760px){ .split{grid-template-columns:1fr} }
 @media (prefers-reduced-motion:reduce){ .ticker-row{animation:none} }
@@ -411,6 +415,7 @@ footer .furl:hover{color:var(--gold2)}
   <div class="brand">
     <svg class="bmark" viewBox="0 0 512 512"><use href="#ngmark"/></svg>
     <svg class="bword" viewBox="0 0 1188 508.203" role="img" aria-label="NEWGOD"><use href="#ngword"/></svg>
+    <span class="btag">roblox scripts</span>
     <span class="bspace"></span>
     <a class="iconlink" href="https://x.com/newgod_2626" target="_blank" rel="noopener" aria-label="X"><svg viewBox="0 0 24 24"><use href="#icoX"/></svg></a>
     <a class="iconlink" href="https://github.com/newgod2727" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24"><use href="#icoGh"/></svg></a>
@@ -488,7 +493,7 @@ footer .furl:hover{color:var(--gold2)}
     <div class="block reveal">
       <p class="eyebrow">By the numbers</p>
       <div class="chips">
-        <div class="chip3"><b class="count" data-to="96" data-suffix="%">96%</b><span>farm accuracy</span></div>
+        <div class="chip3"><b class="count" data-to="96" data-suffix="%">96%</b><span>aimbot accuracy</span></div>
         <div class="chip3"><b class="count" data-to="7">7</b><span>accounts &middot; 3 teams</span></div>
         <div class="chip3"><b class="count" data-to="18239">18,239</b><span>lines of Lua</span></div>
         <div class="chip3"><b class="count" data-to="1043">1,043</b><span>functions</span></div>
@@ -574,10 +579,15 @@ footer .furl:hover{color:var(--gold2)}
     </div>
 
     <div class="cta reveal">
-      <h2>Take a script</h2>
-      <p>One line. No key, no checkpoint, no ad link. Paste it once and the link keeps giving you the newest build.</p>
+      <p class="eyebrow" style="margin-bottom:10px">Start here</p>
+      <h2>Paste this into your executor</h2>
+      <p>The universal one. It repaints every menu on your screen into one style and handles the things that close your client. Works in any game.</p>
+      <div class="code ctacode">
+        <div class="code-top"><span class="code-name">format.lua</span><button class="copy sm" type="button" data-copy="src-cta">Copy the line</button></div>
+        <code class="block" id="src-cta">loadstring(game:HttpGet("https://newgod.vip/format"))()</code>
+      </div>
       <div class="actions">
-        <button class="btn" type="button" data-goto="Scripts">See the scripts</button>
+        <button class="btn ghost" type="button" data-goto="Scripts">All the scripts</button>
         <button class="btn ghost" type="button" data-goto="How to use">How to use</button>
       </div>
     </div>
@@ -1287,8 +1297,8 @@ return GROUP .. &quot; loader finished&quot;
 })();
 </script>
 
-<script defer>
-(function(){
+<script>
+document.addEventListener("DOMContentLoaded", function(){
   var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   function relTime(iso){
@@ -1394,7 +1404,7 @@ return GROUP .. &quot; loader finished&quot;
     if (!window.gsap || reduce || !window.ScrollTrigger) return;
     ScrollTrigger.refresh();
   };
-})();
+});
 </script>
 
 </body>
