@@ -249,19 +249,40 @@ do
 end
 frame.BackgroundColor3 = Color3.fromRGB(20, 17, 13); frame.BorderSizePixel = 0
 frame.Active = true; frame.Parent = gui
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 26); title.BackgroundTransparency = 1
+title.Text = "TP FARM"; title.TextColor3 = Color3.fromRGB(231, 177, 115)
+title.Font = Enum.Font.GothamBold; title.TextSize = 15; title.Parent = frame
+
+local mark = Instance.new("TextLabel")
+mark.Size = UDim2.fromOffset(74, 26); mark.Position = UDim2.fromOffset(170, 0)
+mark.BackgroundTransparency = 1; mark.Text = "NEWGOD"
+mark.TextColor3 = Color3.fromRGB(231, 177, 115); mark.TextTransparency = 0.35
+mark.Font = Enum.Font.GothamBold; mark.TextSize = 11
+mark.TextXAlignment = Enum.TextXAlignment.Right; mark.Parent = frame
+
+local mark2 = Instance.new("TextLabel")
+mark2.Size = UDim2.fromOffset(120, 14); mark2.Position = UDim2.fromOffset(8, 304)
+mark2.BackgroundTransparency = 1; mark2.Text = "NEWGOD"
+mark2.TextColor3 = Color3.fromRGB(231, 177, 115); mark2.TextTransparency = 0.5
+mark2.Font = Enum.Font.GothamBold; mark2.TextSize = 10
+mark2.TextXAlignment = Enum.TextXAlignment.Left; mark2.Parent = frame
+
 do
     local UIS = game:GetService("UserInputService")
     local dragging, dragStart, startPos = false, nil, nil
-    keep(frame.InputBegan:Connect(function(input)
+    local function beginDrag(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
             or input.UserInputType == Enum.UserInputType.Touch then
-            local dy = input.Position.Y - frame.AbsolutePosition.Y
-            if dy < 0 or dy > 26 then return end
             dragging = true
             dragStart = input.Position
             startPos = frame.Position
         end
-    end))
+    end
+    keep(title.InputBegan:Connect(beginDrag))
+    keep(mark.InputBegan:Connect(beginDrag))
     keep(UIS.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
             or input.UserInputType == Enum.UserInputType.Touch then
@@ -283,26 +304,6 @@ do
         end
     end))
 end
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
-
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 26); title.BackgroundTransparency = 1
-title.Text = "TP FARM"; title.TextColor3 = Color3.fromRGB(231, 177, 115)
-title.Font = Enum.Font.GothamBold; title.TextSize = 15; title.Parent = frame
-
-local mark = Instance.new("TextLabel")
-mark.Size = UDim2.fromOffset(74, 26); mark.Position = UDim2.fromOffset(170, 0)
-mark.BackgroundTransparency = 1; mark.Text = "NEWGOD"
-mark.TextColor3 = Color3.fromRGB(231, 177, 115); mark.TextTransparency = 0.35
-mark.Font = Enum.Font.GothamBold; mark.TextSize = 11
-mark.TextXAlignment = Enum.TextXAlignment.Right; mark.Parent = frame
-
-local mark2 = Instance.new("TextLabel")
-mark2.Size = UDim2.fromOffset(120, 14); mark2.Position = UDim2.fromOffset(8, 304)
-mark2.BackgroundTransparency = 1; mark2.Text = "NEWGOD"
-mark2.TextColor3 = Color3.fromRGB(231, 177, 115); mark2.TextTransparency = 0.5
-mark2.Font = Enum.Font.GothamBold; mark2.TextSize = 10
-mark2.TextXAlignment = Enum.TextXAlignment.Left; mark2.Parent = frame
 
 local status = Instance.new("TextLabel")
 status.Size = UDim2.new(1, -16, 0, 116); status.Position = UDim2.fromOffset(8, 326)
