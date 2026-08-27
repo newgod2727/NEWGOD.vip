@@ -822,7 +822,7 @@ end
 
 local VAPE_COMBAT = { "AutoClicker", "SilentAim", "TriggerBot", "Reach" }
 local VAPE_EXTRA = { "Invisible", "Killaura", "Phase", "Speed", "Anti-AFK" }
-local VAPE_NEVER_OFF = { SilentAim = true }
+local VAPE_NEVER_OFF = { SilentAim = true, TriggerBot = true, Reach = true }
 
 local function isCombat(name)
     for _, n in ipairs(VAPE_COMBAT) do
@@ -879,7 +879,7 @@ function vapeApply(on)
         if not STATE.alive() then break end
         local m = v.Modules[name]
         if (not on) and VAPE_NEVER_OFF[name] then
-            LOG("  toggle " .. name .. " SKIPPED, turning it off crashes the client")
+            LOG("  toggle " .. name .. " SKIPPED, disable only ever turns AutoClicker off")
             task.wait(0.05)
             m = nil
         end
