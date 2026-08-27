@@ -1022,24 +1022,30 @@ lobbyBtn.MouseButton1Click:Connect(function()
     setFarm(false)
     buyState = "back to lobby, dying"
     task.spawn(function()
-        for _ = 1, 4 do
+        local c0 = me.Character
+        local hum = c0 and c0:FindFirstChildOfClass("Humanoid")
+        if not hum then
+            buyState = "no character to leave with"
+            lobbyBusy = false
+            return
+        end
+        for _ = 1, 2 do
             if not STATE.alive() then break end
-            local c = me.Character
-            local hum = c and c:FindFirstChildOfClass("Humanoid")
-            if not hum then break end
-            if hum.Health <= 0 then break end
+            if me.Character ~= c0 then break end
+            if hum.Parent == nil or hum.Health <= 0 then break end
             pcall(function() hum.Health = 0 end)
-            pcall(function() hum.MaxHealth = 0 end)
-            task.wait(0.6)
+            local w = os.clock()
+            while os.clock() - w < 1.2 do
+                task.wait(0.1)
+                if me.Character ~= c0 or hum.Parent == nil or hum.Health <= 0 then break end
+            end
         end
-        task.wait(1)
-        local c2 = me.Character
-        local hum2 = c2 and c2:FindFirstChildOfClass("Humanoid")
-        if hum2 and hum2.Health > 0 then
-            buyState = "the server refused the kill, still in the round"
-        else
+        if me.Character ~= c0 or hum.Parent == nil or hum.Health <= 0 then
             buyState = "back in the lobby"
+        else
+            buyState = "the server refused the kill, still in the round"
         end
+        task.wait(3)
         lobbyBusy = false
     end)
 end)
