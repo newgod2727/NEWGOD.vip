@@ -1118,60 +1118,39 @@ end
 
 -- A vape panel is any ScreenGui that owns a PRESS A KEY TO BIND label. Only the one
 -- shared.vape.gui points at is the live one; every other is a leftover from a second load.
-local function vapeLooksLikePanel(sg)
-    for _, d in ipairs(sg:GetDescendants()) do
-        if d:IsA("TextLabel") and d.Text == "PRESS A KEY TO BIND" then return true end
-    end
-    return false
-end
-
+-- The sweep that used to live here destroyed vape's live menu twice over on 2026-08-27,
+-- because shared.vape.gui is not pointed at the new panel until some way into vape's own
+-- start-up, so anything comparing against it in that window calls the real one a leftover.
+-- Duplicates are stopped at the source now -- one loader, one lock -- so nothing here needs
+-- to go hunting for panels to destroy, and this returns 0 without touching anything.
 local function vapeSweepDuplicates()
-    local live = vapeGui()
-    -- Measured 2026-08-27 20:06: shared.vape survives a teleport but every Instance in it does
-    -- not, so shared.vape.gui was already destroyed while a fresh vape was still loading. With
-    -- no live panel to compare against, the sweep called the new one a leftover and killed it,
-    -- and vape sat at Loaded=false with no window for the rest of the server.
-    -- A destroyed instance is still a non nil value, so the first version of this guard let
-    -- the sweep run while shared.vape.gui pointed at a corpse, and it then called the real
-    -- new panel a leftover and destroyed that too. Measured 2026-08-27: Parent locked,
-    -- 0 descendants, and his vape menu could never be opened again for the rest of the client.
-    if not live or live.Parent == nil then
-        LOG("vape: no live panel to compare against, not destroying anything")
-        return 0
-    end
-    local killed, seen = 0, 0
-    local hosts = {}
-    pcall(function() if gethui then table.insert(hosts, gethui()) end end)
-    pcall(function() table.insert(hosts, game:GetService("CoreGui")) end)
-    for _, h in ipairs(hosts) do
-        for _, sg in ipairs(h:GetChildren()) do
-            if sg:IsA("ScreenGui") and sg ~= live and vapeLooksLikePanel(sg) then
-                seen = seen + 1
-                pcall(function() sg:Destroy() end)
-                killed = killed + 1
-            end
-        end
-    end
-    if killed > 0 then LOG("vape: destroyed " .. killed .. " leftover vape panel(s)") end
-    return killed
+    return 0
 end
 
 -- An orphaned vape gui can never be opened again, no matter what its keybind does, which is
 -- what "i cant see vape menu" was: measured Parent nil, Enabled false. So the parent is kept
 -- alive, and the one close only ever happens once per client -- after that the menu is his.
+-- Measured 2026-08-27: the CoreGui.RobloxGui stand-in put up at 20:53:29 was gone again by
+-- 20:55:24, and vape's menu went with it, destroyed, twice over. Whatever clears CoreGui on
+-- this client does not touch PlayerGui -- the panel has been living there without trouble --
+-- so the menu is moved there and kept there.
 local function vapeGuiKeepAlive()
     local g = vapeGui()
     if not g then return false end
-    if g.Parent == nil then
-        pcall(function() setthreadidentity(8) end)
-        pcall(function() if gethui then g.Parent = gethui() end end)
-        if g.Parent == nil then
-            pcall(function() g.Parent = game:GetService("CoreGui") end)
-        end
-        if g.Parent then
-            LOG("vape: its menu had no parent so it could never open, put it under " .. tostring(g.Parent))
-            return true
-        end
+    local pgui = me:FindFirstChild("PlayerGui")
+    if not pgui then return false end
+    if g.Parent == pgui then return false end
+    local was = tostring(g.Parent)
+    local moved = false
+    pcall(function()
+        setthreadidentity(8)
+        g.Parent = pgui
+        moved = g.Parent == pgui
+    end)
+    if moved then
+        pcall(function() g.DisplayOrder = 9999998 end)
+        LOG("vape: its menu was under " .. was .. ", moved it into PlayerGui so it stops being wiped")
+        return true
     end
     return false
 end
@@ -1207,8 +1186,55 @@ local function vapeReloadBroken()
     return true
 end
 
+-- His saved layout had Utility at X 956, World at 1175 and Inventory at 1411 while the
+-- Roblox window is about 1020 px wide, so three whole columns were drawn past the right
+-- edge and could never be seen. Whatever vape decides to use as a default, nothing is
+-- allowed to sit outside the viewport: anything hanging off an edge is pulled back in,
+-- and anything that cannot fit is centred.
+local function vapeGuiOnScreen()
+    local g = vapeGui()
+    if not g or g.Parent == nil then return 0 end
+    local cam = workspace.CurrentCamera
+    local vp = cam and cam.ViewportSize
+    if not vp or vp.X < 200 then return 0 end
+    local moved = 0
+    local roots = {}
+    for _, c in ipairs(g:GetChildren()) do
+        if c:IsA("GuiObject") then
+            for _, w in ipairs(c:GetChildren()) do
+                if w:IsA("Frame") and w.Visible then roots[#roots + 1] = w end
+            end
+        end
+    end
+    for _, w in ipairs(roots) do
+        local sz, ap = w.AbsoluteSize, w.AbsolutePosition
+        if sz.X > 80 and sz.Y > 50 then
+            local maxX = vp.X - sz.X - 8
+            local maxY = vp.Y - sz.Y - 8
+            local nx = math.clamp(ap.X, 8, math.max(8, maxX))
+            local ny = math.clamp(ap.Y, 8, math.max(8, maxY))
+            if maxX < 8 then nx = math.floor((vp.X - sz.X) / 2) end
+            if maxY < 8 then ny = math.floor((vp.Y - sz.Y) / 2) end
+            if math.abs(nx - ap.X) > 1 or math.abs(ny - ap.Y) > 1 then
+                local p = w.Position
+                pcall(function()
+                    w.Position = UDim2.new(p.X.Scale, p.X.Offset + (nx - ap.X),
+                                           p.Y.Scale, p.Y.Offset + (ny - ap.Y))
+                end)
+                moved = moved + 1
+            end
+        end
+    end
+    if moved > 0 then
+        LOG(string.format("vape: pulled %d of its windows back inside the %dx%d screen",
+            moved, math.floor(vp.X), math.floor(vp.Y)))
+    end
+    return moved
+end
+
 local function vapeCloseOwnGui(why)
     vapeGuiKeepAlive()
+    pcall(vapeGuiOnScreen)
     local g = vapeGui()
     if not g then return false end
     if ENV.__TPFARM_VAPE_CLOSED then return false end
@@ -1270,6 +1296,7 @@ local function ensureVape()
     VAPE_STATE = "loading"
     LOG("vape: nothing loaded, this script is loading it once")
     ensureVapeHost()
+    local myToken = ENV.__TPFARM_VAPE_AT
     task.spawn(function()
         pcall(function() setthreadidentity(8) end)
         local t0 = os.clock()
@@ -1296,10 +1323,12 @@ local function ensureVape()
             task.wait(2)
             vapeSweepDuplicates()
             vapeCloseOwnGui("just loaded")
-        else
+        elseif ENV.__TPFARM_VAPE_AT == myToken then
             ENV.__TPFARM_VAPE = nil
             VAPE_STATE = "load failed"
             LOG("vape: 180s and shared.vape never appeared, giving this attempt up")
+        else
+            LOG("vape: this waiter belongs to an older copy, leaving the current attempt alone")
         end
     end)
 end
@@ -1312,7 +1341,7 @@ task.spawn(function()
             ENV.__TPFARM_VAPE = "up"
             VAPE_STATE = "up"
             vapeGuiKeepAlive()
-            vapeSweepDuplicates()
+            pcall(vapeGuiOnScreen)
         elseif vapeUp() and vapeReloadBroken() then
             VAPE_STATE = "menu was destroyed, reloading"
             ensureVape()
