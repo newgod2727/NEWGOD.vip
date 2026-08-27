@@ -710,21 +710,24 @@ footer .furl:hover{color:var(--gold2)}
   <section class="view" data-t="SKYWARS">
     <div class="vhead">
       <h2>SKYWARS</h2>
-      <p>Seven accounts, three teams, three game modes, one machine. Built 2026-08-10 to 2026-08-21. Every number below was read off the machine, not estimated.</p>
+      <p>Seven accounts, three teams, three game modes, one machine &mdash; plus a solo farm that was taken apart frame by frame. Every number on this page was read off a running client, not estimated.</p>
     </div>
+
     <div class="stat">
-      <div class="stt"><b class="count" data-to="11">11</b><span>source files</span></div>
       <div class="stt"><b class="count" data-to="18239">18,239</b><span>lines of Lua</span></div>
       <div class="stt"><b class="count" data-to="1043">1,043</b><span>functions</span></div>
-      <div class="stt"><b class="count" data-to="217">217</b><span>checkpoints in 10 days</span></div>
-      <div class="stt"><b class="count" data-to="42.4" data-dec="1" data-suffix=" MB">42.4 MB</b><span>runtime logs, 567 files</span></div>
+      <div class="stt"><b class="count" data-to="5756">5,756</b><span>fights analysed</span></div>
+      <div class="stt"><b class="count" data-to="22376">22,376</b><span>damage events</span></div>
+      <div class="stt"><b class="count" data-to="97921">97,921</b><span>chest-content rows</span></div>
       <div class="stt"><b class="count" data-to="7">7</b><span>accounts, three teams</span></div>
     </div>
+
     <div class="card">
       <h3>What it is</h3>
       <p>Seven Roblox clients on one desktop, split into three teams that run at the same time on three different servers: <span class="k">four</span> on EggWars, <span class="k">two</span> on Duos, <span class="k">one</span> on Solo. Each team queues itself, parties itself, takes its own roll call, and plays without anyone touching a key.</p>
       <p>The leader of the EggWars team is also a fighting bot. It kills, collects, upgrades its sword and buys, and still carries the party, the roll call and the rescue job for the other three.</p>
     </div>
+
     <div class="card">
       <h3>The six layers</h3>
       <ul>
@@ -736,6 +739,7 @@ footer .furl:hover{color:var(--gold2)}
         <li><span class="k">Recording.</span> Every username and every chat line in the round, plus position and behaviour for anything unusual. 567 files and 42.4 MB so far.</li>
       </ul>
     </div>
+
     <div class="card">
       <h3>Five findings worth more than the code</h3>
       <div class="tablewrap"><table>
@@ -747,6 +751,7 @@ footer .furl:hover{color:var(--gold2)}
         <tr><td class="kk">The ceiling is CPU, not RAM</td><td class="nn">1165% of 1200%</td><td>Seven clients doing nothing at all already eat a 6-core i7. Memory still had 11.5 GB free. Every future estimate starts from that, not from zero.</td></tr>
       </table></div>
     </div>
+
     <div class="card">
       <h3>Where the time actually goes</h3>
       <p>From 2,722 state rows over 11 days and 611 rounds:</p>
@@ -761,6 +766,97 @@ footer .furl:hover{color:var(--gold2)}
       </table></div>
       <p class="note" style="margin-top:12px">69% of every cycle is dead time. Making the fighting faster cannot win more than 29% of anything. The money is in the two waits.</p>
     </div>
+
+    <div class="card">
+      <h3>What it actually takes to kill someone</h3>
+      <p>Pulled out of 5,756 recorded fights &mdash; 183,306 sample rows and 22,376 moments where somebody's health went down.</p>
+      <div class="tablewrap"><table>
+        <tr><th>Question</th><th>Answer</th></tr>
+        <tr><td class="kk">What one hit is worth</td><td class="nn">29 diamond &middot; 32 onyx &middot; 25 gold &middot; 23 iron &middot; 18 bronze</td></tr>
+        <tr><td class="kk">Odd numbers like 24 or 27</td><td class="nn">armour, subtracted off the 29 or the 32</td></tr>
+        <tr><td class="kk">Hits to finish a full-health player</td><td class="nn">exactly four, in 427 of 621 kills</td></tr>
+        <tr><td class="kk">Gap between two landed hits</td><td class="nn">0.4 s is the mode, 5,830 times</td></tr>
+        <tr><td class="kk">100 health gone, everyone on the server</td><td class="nn">median 1.40 s</td></tr>
+        <tr><td class="kk">100 health gone, us</td><td class="nn">2.5 s</td></tr>
+      </table></div>
+      <p class="note" style="margin-top:12px">The gap is not damage, it is travel. Finding the next target and teleporting costs about 0.2 s and the dwell costs 0.4 s, so hit-and-move pays that toll four times per kill. The fix was to stop leaving &mdash; hold the target until they drop &mdash; not to swing faster.</p>
+    </div>
+
+    <div class="card">
+      <h3>The attack-speed ceiling, and three ways I failed to beat it</h3>
+      <p>Every landed hit gets a row of its own. From 842 of them:</p>
+      <div class="tablewrap"><table>
+        <tr><th>Gap between landed hits</th><th>Count</th></tr>
+        <tr><td class="kk">0.1 s</td><td class="nn">5</td></tr>
+        <tr><td class="kk">0.2 s</td><td class="nn">9</td></tr>
+        <tr><td class="kk">0.3 s</td><td class="nn">17</td></tr>
+        <tr><td class="kk">0.4 s</td><td class="nn">292</td></tr>
+        <tr><td class="kk">0.5 s</td><td class="nn">136</td></tr>
+        <tr><td class="kk">0.6 s and over</td><td class="nn">80</td></tr>
+      </table></div>
+      <p class="note" style="margin-top:12px">Median 0.435 s. 79% lands in the 0.4 and 0.5 buckets and only 3% gets inside 0.3 s. That shape is a server-side gate, not a limit of mine.</p>
+      <ul style="margin-top:14px">
+        <li><span class="k">Send more.</span> Dropped the send interval from 0.08 s to 0.05 s &mdash; about 60 attack packets a second against 2.3 accepted. The median did not move by one millisecond. Fire rate and result are completely uncorrelated.</li>
+        <li><span class="k">Send several in one frame.</span> Swings went from 232 to 939, damage rose 5 to 20%, and hits inside 0.3 s stayed at 3%. Same frame does not mean same instant; the server still processes and refuses them one at a time. Turned back off, because the extra traffic is pure exposure.</li>
+        <li><span class="k">Delay the packets on the wire.</span> Toggling a firewall rule to hold traffic back for a moment. Zero hits while blocked, the same 0.4 s after, plus a few one-second stalls &mdash; the reliable layer resends under the original sequence number, so the server treats it as a resend rather than a new action. Pure loss.</li>
+      </ul>
+      <p class="note" style="margin-top:12px">Melee is at the floor: four hits, three gaps, 0.4 s each is 1.3 s, and that matches the recorded hold times line for line. The only ways left are needing fewer hits, or opening a second damage line that has its own cooldown.</p>
+    </div>
+
+    <div class="card">
+      <h3>The best player was standing inside the map</h3>
+      <p>An honest question with no answer, so it became a detector: sample every player's torso each tick and ask the world whether anything solid overlaps it, excluding characters and shrinking the box to 60% so the floor underfoot does not count.</p>
+      <p>The top player came back <span class="k">inside dirt, stone and smooth stone for eight consecutive samples</span>, at heights from &minus;26 to &minus;44.6. Not standing on the island. Standing in it.</p>
+      <p>Reproducing it needed no special module: write the body into the centre of a block and rewrite that same coordinate every frame. Measured at <span class="k">six seconds held, 0.52 studs of drift, zero pushes out, full health, no kick</span>. The trick is rewriting the original coordinate rather than the one you get back &mdash; physics nudges you a little each frame, and reading it back walks you straight out of the wall.</p>
+      <p class="note">What it buys is not damage, it is not being interrupted. The server checks distance, not line of sight.</p>
+    </div>
+
+    <div class="card">
+      <h3>The bug that was killing the client three times a day</h3>
+      <p>The client kept dying &mdash; not crashing. No Windows error, no kick, no memory growth, and the farm's own log said it was fine seconds earlier.</p>
+      <p>Roblox refuses some property writes at run time <span class="k">without throwing</span>. It prints a warning, leaves the value alone, and the surrounding pcall reports success &mdash; so the loop happily writes it again for every object, every round, forever. One 22-minute log held <span class="k">20,863</span> copies of the same warning, arriving 550 to 620 at a time inside a single second.</p>
+      <p>That burst is a long frame, and a long frame during map load is exactly what the hang monitor kills. Three separate deaths had a byte-identical final sequence: the warning flood, a second graphics device opening, then the timeout.</p>
+      <p class="note">The fix is not deleting the line, it is a guard: write, read it back, and if it did not take, record the property name and never write it again this session. One warning instead of twenty thousand &mdash; and next time it names itself instead of hiding in a crash log.</p>
+    </div>
+
+    <div class="card">
+      <h3>Chests, counted rather than guessed</h3>
+      <p>From 97,921 rows of recorded chest contents and a survey of 26 different maps:</p>
+      <div class="tablewrap"><table>
+        <tr><th>Measured</th><th>Number</th></tr>
+        <tr><td class="kk">Blocks out of tier 1 chests</td><td class="nn">16,442</td></tr>
+        <tr><td class="kk">Blocks out of tier 2 / tier 3</td><td class="nn">5,643 / 1,835</td></tr>
+        <tr><td class="kk">Blocks out of tier 4 chests</td><td class="nn">zero</td></tr>
+        <tr><td class="kk">Tier 4 chests across 26 maps</td><td class="nn">434</td></tr>
+        <tr><td class="kk">Of those, within 30 studs of map centre</td><td class="nn">229, or 53%</td></tr>
+        <tr><td class="kk">Median distance from centre</td><td class="nn">22 studs</td></tr>
+      </table></div>
+      <p class="note" style="margin-top:12px">That last row settled an argument. With no sword yet, ties between equal chest clusters used to break on "nearest to me", and at the start of a round every cluster is equal &mdash; so the bot drifted. Breaking the tie on "nearest to the middle of the map" instead sends it where the good chests actually are.</p>
+    </div>
+
+    <div class="card">
+      <h3>Placing a block has a contract, and breaking it fails silently</h3>
+      <p>Nine block placements to cage someone takes <span class="k">228 ms</span>. Getting there meant reading the game's own placement path rather than guessing at it.</p>
+      <ul>
+        <li>The cell must be empty, and must touch a block that already exists &mdash; so a cage is built feet first, then head height, then the lid. Built from the top down, all nine are refused.</li>
+        <li>The name you hold and the definition you pass are two different things. The hotbar name carries a rewrite rule to a team-coloured variant, and only that variant owns the actual block reference. Pass the pretty name, or pass a nil definition, and it is refused without a word.</li>
+        <li>Do not ask the client what it is holding right after declaring it. The declaration is for the server; the local copy does not update in the same frame and will still answer with the sword.</li>
+        <li>Cells are multiples of 3 studs, range is 18 studs and spherical, and a player is 6.48 studs tall &mdash; which is why a cage needs two layers, not one.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>How the code gets checked now</h3>
+      <p>A hand-written checker only ever saw top-level declarations, so it could not see a variable declared inside one closure and used from another &mdash; which is exactly the shape of the worst bugs here. It got replaced with four layers behind one command.</p>
+      <ul>
+        <li>Own rules: byte-order marks, control bytes, block comments, raw tabs in strings, the 200-local ceiling, and use-before-declaration.</li>
+        <li>The real compiler, to answer whether it even builds.</li>
+        <li>A language server for shadowing, dead branches, deprecated calls and types.</li>
+        <li>A linter with a generated standard library, because the executor's own globals are not in anyone's default list.</li>
+      </ul>
+      <p class="note">First run found five things the old checker structurally could not: a helper declared inside a loop body and called from somewhere else, so auto-armour had <span class="k">never run once</span>; a log path declared 49 lines below the code that printed it, so the file meant to report a broken sync was itself broken; two same-named variables meaning different things; and two use-before-declaration bugs in the older EggWars scripts.</p>
+    </div>
+
     <div class="card">
       <h3>Open source: BOOST</h3>
       <p>Seven Roblox clients on one machine pin the CPU at 100%. This is the whole file that brings it back down. Measured: <span class="k">97.1% to 66.4%</span> of total CPU across seven clients.</p>
@@ -973,6 +1069,7 @@ return &quot;BOOST active, reading &quot; .. FPS_FILE
 </code>
       </div>
     </div>
+
     <div class="card">
       <h3>Open source: the group loader</h3>
       <p>One script per team. It loads the combat library first, then the boost, then the farm, and it reports a missing file <span class="k">by name</span> rather than skipping it in silence, because a farm that quietly did not load looks exactly like a farm that loaded and did nothing, and that is the failure that costs a whole night.</p>
@@ -1072,12 +1169,15 @@ return GROUP .. &quot; loader finished&quot;
 </code>
       </div>
     </div>
+
     <div class="card broken">
       <h3>What is still broken</h3>
       <ul>
+        <li>Opening chests directly is still losing to the fallback. Measured 0 of 18, 0 of 21 and 2 of 24 on the fast path, so the old grab-anything method is carrying it &mdash; and that one opens any chest it sees regardless of tier.</li>
         <li>The round recorder has opened 221 rounds and closed none of them.</li>
         <li>The time to break the first objective is never written to disk, and it is 66% of the only productive 15 seconds, so the highest-value number in the whole system is the one nobody can see.</li>
         <li>Every client has a saved graphics profile that has never once been applied.</li>
+        <li>Two use-before-declaration bugs in the older EggWars scripts are found and confirmed but not yet fixed, because that half is not currently running.</li>
       </ul>
     </div>
   </section>
