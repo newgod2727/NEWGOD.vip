@@ -215,10 +215,13 @@ local CFG = loadCfg({ on = false, back = 5, tpEvery = 2, jumpEvery = 3, settle =
               autoDeploy = true, doBots = true, doPlayers = true, oneShot = true,
               autoBuy = false, buyBasic = false, buySuper = false, buyGold = true,
               autoOpen = false, vapeList = {}, guiX = 24, guiY = 150 })
+if type(CFG.autoBuy) ~= "boolean" then CFG.autoBuy = false end
+if type(CFG.autoOpen) ~= "boolean" then CFG.autoOpen = false end
+if type(CFG.vapeList) ~= "table" then CFG.vapeList = {} end
 getgenv().TPFARM = CFG
 
 local list, idx, current, holdUntil = {}, 1, nil, 0
-local forceOn, wasFarming = true, false
+local forceOn, wasFarming = false, false
 local BOOST_STATE, BOOST_FPS = "starting", 0
 local RAM_MB, CPU_PCT = 0, 0
 local hintFrame, hintLabel, hintYes, hintNo
@@ -718,6 +721,10 @@ end
 local OpenCrate = CrateRemotes and CrateRemotes:FindFirstChild("RequestPurchaseCrate")
 local Unboxed = CrateRemotes and CrateRemotes:FindFirstChild("PlayerUnboxed")
 local opening, openState, openedTotal = false, "idle", 0
+local unboxSeen = 0
+if Unboxed and Unboxed:IsA("RemoteEvent") then
+    keep(Unboxed.OnClientEvent:Connect(function() unboxSeen = unboxSeen + 1 end))
+end
 
 local function ownedOf(kind, force)
     crateOwned(force)
@@ -732,22 +739,22 @@ local function openPass()
         for _, spec in ipairs(CRATE) do
             if not (STATE.alive() and forceOn and CFG.autoOpen) then break end
             if CFG[spec.flag] then
-                local left = ownedOf(spec.key)
+                local left = ownedOf(spec.key, true)
                 local t0, miss = os.clock(), 0
                 while STATE.alive() and forceOn and CFG.autoOpen and CFG[spec.flag]
                     and left > 0 and miss < 4 do
-                    local before = ownedOf(spec.key)
+                    unboxSeen = 0
                     OpenCrate:FireServer(spec.key)
                     local wait0 = os.clock()
                     local landed = false
                     while STATE.alive() and CFG.autoOpen and os.clock() - wait0 < 6 do
-                        task.wait(0.12)
-                        if ownedOf(spec.key, true) < before then landed = true break end
+                        task.wait(0.05)
+                        if unboxSeen > 0 then landed = true break end
                     end
                     if landed then
                         miss = 0
                         openedTotal = openedTotal + 1
-                        left = ownedOf(spec.key)
+                        left = left - 1
                         openState = string.format("%s opened %d, %d left", spec.label, openedTotal, left)
                     else
                         miss = miss + 1
@@ -786,10 +793,34 @@ local function vapeWanted()
     return VAPE_COMBAT
 end
 
-local vapeBusy = false
-local function vapeSet(on)
+local vapeBusy, vapeWaiter = false, false
+local vapeSet
+local function vapeWhenReady(on)
+    if vapeWaiter then return end
+    vapeWaiter = true
+    task.spawn(function()
+        for _ = 1, 120 do
+            if not STATE.alive() then break end
+            local vv = shared and shared.vape
+            if type(vv) == "table" and type(vv.Modules) == "table" then
+                vapeSet(on)
+                break
+            end
+            task.wait(0.5)
+        end
+        vapeWaiter = false
+    end)
+end
+
+function vapeSet(on)
     local v = shared and shared.vape
-    if not (type(v) == "table" and type(v.Modules) == "table") then return 0 end
+    if not (type(v) == "table" and type(v.Modules) == "table") then
+        if on then
+            vapeWhenReady(true)
+            buyState = "waiting for vape to finish loading"
+        end
+        return 0
+    end
     if vapeBusy then return 0 end
     vapeBusy = true
     local want
@@ -891,14 +922,17 @@ task.spawn(function()
     end
 end)
 
+local hintLastAt, hopDeclined = 0, false
 local function hideHint(why)
     hintFrame.Visible = false
     hintShownAt = 0
+    hintLastAt = os.clock()
     if why then BOOST_STATE = why end
 end
 
 local function doHop()
     lastHopAt = os.clock()
+    hopDeclined = false
     hideHint("hopping, ram was " .. math.floor(RAM_MB) .. " MB")
     task.spawn(function()
         local best, why = bestServer()
@@ -916,7 +950,8 @@ hintYes.MouseButton1Click:Connect(function()
     doHop()
 end)
 hintNo.MouseButton1Click:Connect(function()
-    hideHint("hop declined")
+    hopDeclined = true
+    hideHint("hop declined, will not ask again")
 end)
 
 task.spawn(function()
@@ -938,7 +973,7 @@ task.spawn(function()
         if heavy and os.clock() - lastHopAt > 120 then
             if autoHopOK then
                 doHop()
-            elseif not hintFrame.Visible and os.clock() - hintShownAt > 300 then
+            elseif not hintFrame.Visible and not hopDeclined and os.clock() - hintLastAt > 300 then
                 hintShownAt = os.clock()
                 hintLabel.Text = string.format("ram %d MB, cpu %d%%. hop server?", math.floor(RAM_MB), math.floor(CPU_PCT))
                 hintFrame.Visible = true
@@ -980,23 +1015,49 @@ autoOpenBtn.MouseButton1Click:Connect(function()
     autoOpenBtn.BackgroundColor3 = CFG.autoOpen and GOLD or GREY
     if not CFG.autoOpen then openState = "stopping" end
 end)
+local lobbyBusy = false
 lobbyBtn.MouseButton1Click:Connect(function()
+    if lobbyBusy then return end
+    lobbyBusy = true
     setFarm(false)
     buyState = "back to lobby, dying"
     task.spawn(function()
+        for _ = 1, 4 do
+            if not STATE.alive() then break end
+            local c = me.Character
+            local hum = c and c:FindFirstChildOfClass("Humanoid")
+            if not hum then break end
+            if hum.Health <= 0 then break end
+            pcall(function() hum.Health = 0 end)
+            pcall(function() hum.MaxHealth = 0 end)
+            task.wait(0.6)
+        end
+        task.wait(1)
+        local c2 = me.Character
+        local hum2 = c2 and c2:FindFirstChildOfClass("Humanoid")
+        if hum2 and hum2.Health > 0 then
+            buyState = "the server refused the kill, still in the round"
+        else
+            buyState = "back in the lobby"
+        end
+        lobbyBusy = false
+    end)
+end)
+
+task.spawn(function()
+    while STATE.alive() do
+        task.wait(2)
         local c = me.Character
         local hum = c and c:FindFirstChildOfClass("Humanoid")
         if hum and hum.Health > 0 then
-            pcall(function() hum.Health = 0 end)
-            task.wait(2)
-            if hum.Parent and hum.Health > 0 then
-                pcall(function() hum:ChangeState(Enum.HumanoidStateType.Dead) end)
+            local st
+            pcall(function() st = hum:GetState() end)
+            if st == Enum.HumanoidStateType.Dead then
+                pcall(function() hum.Health = 0 end)
+                buyState = "humanoid was stuck dead, forced a respawn"
             end
-            buyState = "back in the lobby"
-        else
-            buyState = "already out of the round"
         end
-    end)
+    end
 end)
 backDown.MouseButton1Click:Connect(function() CFG.back = math.max(0, CFG.back - 5); backLbl.Text = tostring(CFG.back) end)
 backUp.MouseButton1Click:Connect(function() CFG.back = math.min(150, CFG.back + 5); backLbl.Text = tostring(CFG.back) end)
@@ -1171,9 +1232,6 @@ plrBtn.Text = CFG.doPlayers and "PLAYERS ON" or "PLAYERS OFF"
 plrBtn.BackgroundColor3 = CFG.doPlayers and GOLD or GREY
 depBtn.Text = CFG.autoDeploy and "RESPAWN ON" or "RESPAWN OFF"
 depBtn.BackgroundColor3 = CFG.autoDeploy and GOLD or GREY
-if type(CFG.autoBuy) ~= "boolean" then CFG.autoBuy = false end
-if type(CFG.vapeList) ~= "table" then CFG.vapeList = {} end
-if type(CFG.autoOpen) ~= "boolean" then CFG.autoOpen = false end
 forceOn = CFG.on == true
 wasFarming = forceOn
 paintAll()
@@ -1270,17 +1328,31 @@ do
 
     task.spawn(function()
         task.wait(3)
+        local lastState = nil
         while STATE.alive() do
             if boostedJob ~= game.JobId then
                 boostedJob = game.JobId
-                sweep("new round")
+                sweep("joined server")
+            end
+            local rs = rstate()
+            if rs ~= lastState then
+                lastState = rs
+                if rs == "active" then sweep("round started") end
             end
             local f = fps()
             BOOST_FPS = f
             if f < 30 and os.clock() - lastSweep > 60 then
                 sweep(string.format("fps %.0f", f))
             end
-            task.wait(20)
+            for _ = 1, 8 do
+                if not STATE.alive() then break end
+                task.wait(2)
+                local rs2 = rstate()
+                if rs2 ~= lastState then
+                    lastState = rs2
+                    if rs2 == "active" and os.clock() - lastSweep > 15 then sweep("round started") end
+                end
+            end
         end
     end)
 end
