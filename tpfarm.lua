@@ -600,6 +600,10 @@ local function paintUlt()
     oneBtn.BackgroundColor3 = CFG.oneShot and GOLD or GREY
 end
 
+-- One killaura's reach in the skywars farm, kept as the same number here so the two scripts
+-- describe a pile the same way.
+local CLUSTER_R = 14
+
 local function rebuild()
     local out = {}
     if CFG.doPlayers then
@@ -634,6 +638,35 @@ local function rebuild()
             end
         end
     end
+    -- TP TOP HEAD, the other half, lifted from FARM_SKYWARS_ABCD's cluster picker.
+    -- There the point was the killaura: K.CLUSTER_R = 14 is roughly one swing's reach, so
+    -- standing on the man with the most neighbours means every swing lands on all of them,
+    -- and the list is sorted by that count rather than by who happens to be nearest.
+    --
+    -- The swing does not transfer to this game. Here a kill is Shoot fired against ONE hit
+    -- instance for 999, so nothing splashes and a pile is not a free multi-kill. What does
+    -- transfer is the travel: pick the head with the most bodies around it and the next
+    -- target after this one is already under your feet, so the camera barely moves between
+    -- kills instead of swinging across the map.
+    --
+    -- The skywars danger half does not transfer either. There a pile of more than
+    -- K.CLUSTER_MAX = 3 was a deathPile because standing inside the crowd is what killed
+    -- him: 46 of 264 deaths in the first three seconds, 38 of them taking a full 100. Here
+    -- he sits 15 studs over their heads and nothing has reached him at all.
+    for _, e in ipairs(out) do
+        local n = 0
+        for _, o in ipairs(out) do
+            if o ~= e and o.hrp and e.hrp
+                and (o.hrp.Position - e.hrp.Position).Magnitude <= CLUSTER_R then
+                n = n + 1
+            end
+        end
+        e.cluster = n
+    end
+    table.sort(out, function(a, b)
+        if a.cluster ~= b.cluster then return a.cluster > b.cluster end
+        return tostring(a.name) < tostring(b.name)
+    end)
     list = out
 end
 
@@ -1846,7 +1879,8 @@ task.spawn(function()
             rstate(), CFG.back, TP_UP,
             (retreating() and "  RETREAT" or (deathCount > 0 and ("  deaths " .. deathCount) or "")),
             CFG.tpEvery, CFG.jumpEvery,
-            current and current.name or "-",
+            current and (current.name .. (current.cluster and current.cluster > 0
+                and ("  +" .. current.cluster) or "")) or "-",
             current and tostring(math.floor(current.life.Health)) or "-",
             tostring(bl and bl:GetAttribute("_ammo")), acc,
             ultState, oneShotFires,
