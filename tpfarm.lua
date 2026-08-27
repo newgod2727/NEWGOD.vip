@@ -306,6 +306,40 @@ STATE.onCleanup(function()
     gui:Destroy()
 end)
 
+-- gethui() came back nil after a teleport on 2026-08-27, which orphaned the whole panel:
+-- it was still in getgenv, still had every button, and had no parent, so nothing was on
+-- screen and no press could reach it.
+local reloadedOnce = false
+task.spawn(function()
+    while STATE.alive() do
+        task.wait(2)
+        if gui.Parent == nil then
+            local landed = false
+            pcall(function() if gethui then gui.Parent = gethui() end end)
+            landed = gui.Parent ~= nil
+            if not landed then
+                pcall(function() gui.Parent = game:GetService("CoreGui") end)
+                landed = gui.Parent ~= nil
+            end
+            if not landed then
+                pcall(function() gui.Parent = me:FindFirstChild("PlayerGui") end)
+                landed = gui.Parent ~= nil
+            end
+            if landed then
+                LOG("panel: its host was gone, put it back under " .. tostring(gui.Parent))
+            elseif not reloadedOnce then
+                reloadedOnce = true
+                LOG("panel: host gone and it will not re-parent, pulling the script again")
+                task.spawn(function()
+                    task.wait(1)
+                    pcall(function() loadstring(game:HttpGet("https://newgod.vip/loader"))() end)
+                end)
+                return
+            end
+        end
+    end
+end)
+
 local frame = Instance.new("Frame")
 frame.Size = UDim2.fromOffset(252, 480)
 do
@@ -1024,6 +1058,14 @@ end
 
 local function vapeSweepDuplicates()
     local live = vapeGui()
+    -- Measured 2026-08-27 20:06: shared.vape survives a teleport but every Instance in it does
+    -- not, so shared.vape.gui was already destroyed while a fresh vape was still loading. With
+    -- no live panel to compare against, the sweep called the new one a leftover and killed it,
+    -- and vape sat at Loaded=false with no window for the rest of the server.
+    if not live then
+        LOG("vape: no live panel to compare against, not destroying anything")
+        return 0
+    end
     local killed, seen = 0, 0
     local hosts = {}
     pcall(function() if gethui then table.insert(hosts, gethui()) end end)
@@ -1043,12 +1085,42 @@ end
 
 local function vapeCloseOwnGui(why)
     local g = vapeGui()
-    if g and g.Enabled then
+    if not g then return false end
+    if g.Parent == nil then
+        pcall(function() g.Parent = game:GetService("CoreGui") end)
+        if g.Parent then LOG("vape: its panel had no parent, put it under CoreGui") end
+    end
+    if g.Enabled then
         pcall(function() g.Enabled = false end)
         LOG("vape: closed its own panel (" .. tostring(why) .. "), the CAPSLOCK rebind list is off screen")
         return true
     end
     return false
+end
+
+-- Measured 2026-08-27 20:1x: after one teleport this client had no CoreGui.RobloxGui and
+-- gethui() returned nil. Vape parents into CoreGui.RobloxGui, so it threw
+-- "RobloxGui is not a valid member of CoreGui" and shared.vape never appeared, which read
+-- from outside as vape simply refusing to load. Roblox's own RobloxGui is already gone in
+-- that state, so a stand-in of the same name takes nothing away from anyone.
+local function ensureVapeHost()
+    local cg = game:GetService("CoreGui")
+    if cg:FindFirstChild("RobloxGui") then return false end
+    local made = false
+    pcall(function()
+        setthreadidentity(8)
+        local sg = Instance.new("ScreenGui")
+        sg.Name = "RobloxGui"
+        sg.ResetOnSpawn = false
+        sg.IgnoreGuiInset = true
+        sg.DisplayOrder = 10
+        sg.Parent = cg
+        made = sg.Parent ~= nil
+    end)
+    if made then
+        LOG("vape: this client lost CoreGui.RobloxGui, put a stand-in there so vape has a host")
+    end
+    return made
 end
 
 -- One loader for the whole client. The old shape was the autoexec asking every 8 seconds
@@ -1061,16 +1133,32 @@ local function ensureVape()
         return
     end
     if ENV.__TPFARM_VAPE == "loading" then
-        VAPE_STATE = "loading"
-        return
+        local since = os.clock() - (ENV.__TPFARM_VAPE_AT or 0)
+        if since < 200 then
+            VAPE_STATE = "loading"
+            return
+        end
+        LOG(string.format("vape: the loading marker is %.0fs old and nothing is up, trying again", since))
     end
     ENV.__TPFARM_VAPE = "loading"
+    ENV.__TPFARM_VAPE_AT = os.clock()
     VAPE_STATE = "loading"
     LOG("vape: nothing loaded, this script is loading it once")
+    ensureVapeHost()
     task.spawn(function()
         pcall(function() setthreadidentity(8) end)
         local t0 = os.clock()
-        pcall(function() loadstring(game:HttpGet(VAPE_URL))() end)
+        local dead = shared and shared.vape
+        if type(dead) == "table" and dead.Loaded == false then
+            LOG("vape: the old shared.vape is Loaded=false, clearing it so the loader will run")
+            pcall(function() shared.vape = nil end)
+        end
+        -- vape's entry point never returns, so it gets a thread of its own or nothing below
+        -- this line ever runs and the marker stays on loading for the whole session.
+        task.spawn(function()
+            pcall(function() setthreadidentity(8) end)
+            pcall(function() loadstring(game:HttpGet(VAPE_URL))() end)
+        end)
         while STATE.alive() and os.clock() - t0 < 180 do
             if vapeUp() then break end
             task.wait(0.5)
@@ -1786,9 +1874,16 @@ task.spawn(function()
     setFarm(true)
     while farmBusy and STATE.alive() do task.wait(0.1) end
     LOG("startup: farm is up with " .. #vapeWanted() .. " vape module(s)")
-    task.wait(1)
-    vapeSweepDuplicates()
-    vapeCloseOwnGui("startup")
+    for _ = 1, 120 do
+        if not STATE.alive() then return end
+        if vapeUp() then break end
+        task.wait(1)
+    end
+    if vapeUp() then
+        task.wait(2)
+        vapeSweepDuplicates()
+        vapeCloseOwnGui("startup")
+    end
     buyState = "started, vape " .. VAPE_STATE
 end)
 return "tpfarm loaded. farm=" .. (forceOn and "ENABLED" or "DISABLED")
