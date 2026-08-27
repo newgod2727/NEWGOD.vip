@@ -229,7 +229,7 @@ local CFG = loadCfg({ on = false, back = 5, tpEvery = 2, jumpEvery = 3, settle =
               autoBuy = false, buyBasic = false, buySuper = false, buyGold = true,
               autoOpen = false, vapeList = {}, guiX = 24, guiY = 150 })
 if type(CFG.autoBuy) ~= "boolean" then CFG.autoBuy = false end
-if type(CFG.autoOpen) ~= "boolean" then CFG.autoOpen = false end
+CFG.autoOpen = false
 if type(CFG.vapeList) ~= "table" then CFG.vapeList = {} end
 getgenv().TPFARM = CFG
 
