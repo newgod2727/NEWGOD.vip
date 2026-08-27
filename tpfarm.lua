@@ -274,7 +274,8 @@ if not okDC then DataClient = nil end
 local CFG = loadCfg({ on = false, back = 5, tpEvery = 2, jumpEvery = 3, settle = 0.25,
               autoDeploy = true, doBots = true, doPlayers = true, oneShot = true,
               autoBuy = false, buyBasic = false, buySuper = false, buyGold = true,
-              autoOpen = false, lobbyHold = false, vapeList = {}, guiX = 24, guiY = 150 })
+              autoOpen = false, lobbyHold = false, vapeList = {}, guiX = 24, guiY = 150,
+              clickX = 0, clickY = 0, clickRate = 16 })
 if type(CFG.autoBuy) ~= "boolean" then CFG.autoBuy = false end
 CFG.autoOpen = false
 if type(CFG.vapeList) ~= "table" then CFG.vapeList = {} end
@@ -285,9 +286,10 @@ local forceOn, wasFarming = false, false
 local BOOST_STATE, BOOST_FPS = "starting", 0
 local RAM_MB, CPU_PCT = 0, 0
 local hintFrame, hintLabel, hintYes, hintNo
-local autoHopOK, hintShownAt, lastHopAt = false, 0, 0
+local hintShownAt, lastHopAt = 0, 0
 local frameN, lastDeploy = 0, 0
 local shots, landed, kills, reloads, oneShotFires = 0, 0, 0, 0, 0
+local clickCount, clickFlash = 0, 0
 local AIM = "tpfarm_aim"
 
 local gui = Instance.new("ScreenGui")
@@ -523,7 +525,6 @@ local function rstate()
     local rd = RoundClient.RoundData
     return rd and tostring(rd.state) or "?"
 end
-local myHrp0
 local function isDeployed(p)
     if not RoundClient then return false end
     local rd = RoundClient.RoundData
@@ -555,18 +556,11 @@ local function lobbySpawnPos()
     return LOBBY_FALLBACK
 end
 
-local function nearLobby()
-    local h = myHrp0 and myHrp0()
-    if not h then return false end
-    return (h.Position - lobbySpawnPos()).Magnitude < 90
-end
-
 local function inLobby()
     if not RoundClient then return false end
     return not isDeployed(me)
 end
 local function myHrp() local c = me.Character return c and c:FindFirstChild("HumanoidRootPart") end
-myHrp0 = myHrp
 local function myHum() local c = me.Character return c and c:FindFirstChildOfClass("Humanoid") end
 local function blaster() local c = me.Character return c and c:FindFirstChild("Blaster") end
 local function headOf(c) return c:FindFirstChild("HeadshotHitbox") or c:FindFirstChild("Head") end
@@ -766,10 +760,7 @@ end
 -- at 200/200 for the whole sample and deaths 0. This is the guard for when that stops being
 -- true. On a real drop he climbs out of reach and stops firing until it comes back, and
 -- every drop and every death is written down so a death is never a mystery afterwards.
-local RETREAT_UP = 70
-local RETREAT_LOW = 0.55
-local RETREAT_SAFE = 0.85
-local RETREAT_SECS = 6
+local RTR = { up = 70, low = 0.55, safe = 0.85, secs = 6 }
 local retreatUntil, retreatCount, deathCount = 0, 0, 0
 local function retreating() return os.clock() < retreatUntil end
 
@@ -777,7 +768,7 @@ local function headHopCF(mh, t)
     local hd = t.head
     if not (hd and hd.Parent) then return nil end
     local hp = hd.Position
-    local up = retreating() and (TP_UP + RETREAT_UP) or TP_UP
+    local up = retreating() and (TP_UP + RTR.up) or TP_UP
     local dest = hp + Vector3.new(0, up, 0)
     if CFG.back and CFG.back ~= 0 then
         local face = t.hrp and t.hrp.CFrame.LookVector or Vector3.new(0, 0, -1)
@@ -1281,26 +1272,9 @@ local function vapeRefLoad()
     return nil
 end
 
-local function vapeRefSave(why)
-    local v = shared and shared.vape
-    if not (v and type(v.Modules) == "table") then return false end
-    local ref = { placeId = game.PlaceId, at = os.date("%Y-%m-%d %H:%M:%S"), modules = {} }
-    local n = 0
-    for name, m in pairs(v.Modules) do
-        if type(m) == "table" and type(m.Toggle) == "function" then
-            ref.modules[tostring(name)] = { enabled = m.Enabled == true }
-            n = n + 1
-        end
-    end
-    local ok = pcall(function() writefile(VAPE_REF_FILE, HttpService:JSONEncode(ref)) end)
-    VLOG("reference " .. (ok and "saved" or "FAILED to save") .. " (" .. tostring(why) .. "), " .. n .. " modules")
-    return ok
-end
 
 -- Never walks the whole list switching things off: three at most in one pass, the rest wait
 -- for the next check. Switching every enabled module off at once takes the whole machine down.
-local VAPE_MAX_OFF_PER_PASS = 3
-
 local function vapeSmartFill(why)
     local ref = vapeRefLoad()
     if not ref then
@@ -1353,7 +1327,7 @@ local function vapeSmartFill(why)
     local offDone = 0
     for _, name in ipairs(toOff) do
         if not STATE.alive() then break end
-        if offDone >= VAPE_MAX_OFF_PER_PASS then
+        if offDone >= 3 then
             VLOG("  holding " .. (#toOff - offDone) .. " more off-switches for the next check")
             break
         end
@@ -1702,12 +1676,12 @@ task.spawn(function()
                 LOG(string.format("took %.0f damage: %.0f -> %.0f of %.0f, y=%.0f",
                     lastHP - hp, lastHP, hp, mx, (myHrp() and myHrp().Position.Y) or -1))
             end
-            if hp > 0 and hp / mx <= RETREAT_LOW and not retreating() then
+            if hp > 0 and hp / mx <= RTR.low and not retreating() then
                 retreatCount = retreatCount + 1
-                retreatUntil = os.clock() + RETREAT_SECS
+                retreatUntil = os.clock() + RTR.secs
                 LOG(string.format("RETREAT #%d: health %.0f of %.0f, climbing to %d studs and holding fire",
-                    retreatCount, hp, mx, TP_UP + RETREAT_UP))
-            elseif retreating() and hp / mx >= RETREAT_SAFE then
+                    retreatCount, hp, mx, TP_UP + RTR.up))
+            elseif retreating() and hp / mx >= RTR.safe then
                 retreatUntil = 0
                 LOG(string.format("back in: health %.0f of %.0f", hp, mx))
             end
@@ -1874,7 +1848,7 @@ task.spawn(function()
         local bl = blaster()
         local acc = shots > 0 and math.floor(landed / shots * 100) or 0
         status.Text = string.format(
-            "%s  round %s   back %d  head+%d%s   tp/%df  jump/%df\ntarget %s  hp %s\nammo %s   accuracy %d%%\nult: %s   fires %d\narena %d players + %d bots\nshots %d  landed %d  KILLS %d  reloads %d\ncash %d  vape %s   crate: %s\n%s   blocked %d",
+            "%s  round %s   back %d  head+%d%s   tp/%df  jump/%df\ntarget %s  hp %s\nammo %s   accuracy %d%%\nult: %s   fires %d\narena %d players + %d bots\nshots %d  landed %d  KILLS %d  reloads %d\ncash %d  vape %s   crate: %s\n%s   blocked %d   clicks %d",
             (inLobby() and (CFG.lobbyHold and "LOBBY HELD" or "LOBBY") or "ARENA"),
             rstate(), CFG.back, TP_UP,
             (retreating() and "  RETREAT" or (deathCount > 0 and ("  deaths " .. deathCount) or "")),
@@ -1889,7 +1863,8 @@ task.spawn(function()
             (forceOn and "FARM ENABLED" or "FARM DISABLED") .. "   crates " .. crateOwned()
                 .. string.format("   fps %.0f  lua %d MB   boost: %s",
                     BOOST_FPS, math.floor(RAM_MB), BOOST_STATE),
-            POPUPS_BLOCKED + ((getgenv().__TPFARM_PROMPT_BLOCKED) or 0))
+            POPUPS_BLOCKED + ((getgenv().__TPFARM_PROMPT_BLOCKED) or 0),
+            clickCount)
         task.wait(0.2)
     end
 end)
@@ -2035,6 +2010,131 @@ do
             end
         end
     end)
+end
+
+do
+    -- The clicking, done by the script instead of by a program running next to it.
+    --
+    -- Measured on his desktop 2026-08-27: 95 clicks in 6 seconds, about 16 a second, cursor
+    -- parked at 452,552 and not moving once. That is his auto clicker, and it is the reason the
+    -- farm cannot run on a phone: a phone has no auto clicker to run beside it. VirtualInputManager
+    -- takes the position as an argument and does not care whether a physical mouse exists, so the
+    -- same crazy clicking on the same spot can come from inside the script on any device.
+    local VIM = game:GetService("VirtualInputManager")
+    local clickDot, clickRing
+
+    local function clickPos()
+        local x, y = CFG.clickX, CFG.clickY
+        if type(x) ~= "number" or type(y) ~= "number" or (x == 0 and y == 0) then
+            local okm, m = pcall(function() return game:GetService("UserInputService"):GetMouseLocation() end)
+            if okm and m then
+                x, y = math.floor(m.X), math.floor(m.Y)
+                CFG.clickX, CFG.clickY = x, y
+                LOG(string.format("click spot taken from where his cursor was sitting: %d,%d", x, y))
+            else
+                local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize
+                x = math.floor((vp and vp.X or 1280) / 2)
+                y = math.floor((vp and vp.Y or 720) / 2)
+                CFG.clickX, CFG.clickY = x, y
+            end
+        end
+        return x, y
+    end
+
+    -- A stray click on his own panel would press whatever button is under it, so the spot is
+    -- refused while it sits over the panel rather than quietly toggling the farm off.
+    local function overPanel(x, y)
+        if not (frame and frame.Parent) then return false end
+        local p, s = frame.AbsolutePosition, frame.AbsoluteSize
+        return x >= p.X - 4 and x <= p.X + s.X + 4 and y >= p.Y - 4 and y <= p.Y + s.Y + 4
+    end
+
+    local function sendClick(x, y)
+        local ok = pcall(function()
+            VIM:SendMouseButtonEvent(x, y, 0, true, game, 1)
+            VIM:SendMouseButtonEvent(x, y, 0, false, game, 1)
+        end)
+        if not ok then
+            local mc = (getgenv and getgenv().mouse1click) or mouse1click
+            if type(mc) == "function" then ok = pcall(mc) end
+        end
+        return ok
+    end
+
+    do
+        clickDot = Instance.new("Frame")
+        clickDot.Size = UDim2.fromOffset(26, 26)
+        clickDot.BackgroundColor3 = GOLD
+        clickDot.BackgroundTransparency = 0.45
+        clickDot.BorderSizePixel = 0
+        clickDot.Visible = false
+        clickDot.ZIndex = 20
+        clickDot.Parent = gui
+        Instance.new("UICorner", clickDot).CornerRadius = UDim.new(1, 0)
+
+        clickRing = Instance.new("Frame")
+        clickRing.Size = UDim2.fromOffset(46, 46)
+        clickRing.BackgroundTransparency = 1
+        clickRing.BorderSizePixel = 0
+        clickRing.Visible = false
+        clickRing.ZIndex = 19
+        clickRing.Parent = gui
+        Instance.new("UICorner", clickRing).CornerRadius = UDim.new(1, 0)
+        local st = Instance.new("UIStroke")
+        st.Color = GOLD
+        st.Thickness = 2
+        st.Transparency = 0.3
+        st.Parent = clickRing
+    end
+
+    task.spawn(function()
+        while STATE.alive() do
+            if not CFG.autoOpen then
+                clickDot.Visible = false
+                clickRing.Visible = false
+                task.wait(0.25)
+            else
+                local x, y = clickPos()
+                if overPanel(x, y) then
+                    clickDot.Visible = false
+                    clickRing.Visible = false
+                    openState = "click spot is on the panel, moved nothing"
+                    task.wait(1)
+                else
+                    if sendClick(x, y) then
+                        clickCount = clickCount + 1
+                        clickFlash = os.clock()
+                    end
+                    local rate = tonumber(CFG.clickRate) or 16
+                    if rate < 1 then rate = 1 end
+                    if rate > 40 then rate = 40 end
+                    task.wait(1 / rate)
+                end
+            end
+        end
+    end)
+
+    -- The circle he asked for: it sits on the spot and pulses on every click, so the clicking is
+    -- something he can see happening rather than something he has to trust is happening.
+    keep(RunService.RenderStepped:Connect(function()
+        if not CFG.autoOpen then return end
+        local x, y = CFG.clickX, CFG.clickY
+        if type(x) ~= "number" or type(y) ~= "number" then return end
+        if overPanel(x, y) then return end
+        local since = os.clock() - clickFlash
+        local hit = since < 0.06
+        clickDot.Visible = true
+        clickRing.Visible = true
+        local d = hit and 34 or 26
+        clickDot.Size = UDim2.fromOffset(d, d)
+        clickDot.Position = UDim2.fromOffset(x - d / 2, y - d / 2)
+        clickDot.BackgroundTransparency = hit and 0.15 or 0.55
+        local r = 46 + math.min(since, 0.5) * 40
+        clickRing.Size = UDim2.fromOffset(r, r)
+        clickRing.Position = UDim2.fromOffset(x - r / 2, y - r / 2)
+        local stroke = clickRing:FindFirstChildOfClass("UIStroke")
+        if stroke then stroke.Transparency = math.clamp(0.15 + since * 1.6, 0.15, 1) end
+    end))
 end
 
 task.spawn(function()
