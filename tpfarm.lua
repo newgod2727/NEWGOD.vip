@@ -601,7 +601,7 @@ local function fireBuy(key) BuyCrate:FireServer(key) end
 
 local function settleCash(from)
     local mark, prev = os.clock(), from
-    while STATE.alive() and os.clock() - mark < 4 do
+    while STATE.alive() and CFG.autoBuy and os.clock() - mark < 4 do
         task.wait(0.1)
         local now = cashNow()
         if now ~= prev then prev = now mark = os.clock() end
@@ -612,7 +612,7 @@ end
 
 local function buyRun(spec)
     local start, t0, stall, sent = cashNow(), os.clock(), 0, 0
-    while STATE.alive() do
+    while STATE.alive() and forceOn and CFG.autoBuy and CFG[spec.flag] do
         local c = cashNow()
         local want = math.floor(c / spec.price)
         if want < 1 then break end
@@ -642,7 +642,7 @@ local function buyPass()
     muteCrateUI(true)
     local ok, err = pcall(function()
         for _, spec in ipairs(CRATE) do
-            if not STATE.alive() then break end
+            if not (STATE.alive() and forceOn and CFG.autoBuy) then break end
             if CFG[spec.flag] and cashNow() >= spec.price then
                 local got, secs = buyRun(spec)
                 buyState = string.format("%s x%d in %.1fs", spec.label, got, secs)
@@ -674,16 +674,17 @@ local function openPass()
     muteCrateUI(true)
     local ok, err = pcall(function()
         for _, spec in ipairs(CRATE) do
-            if not STATE.alive() then break end
+            if not (STATE.alive() and forceOn and CFG.autoOpen) then break end
             if CFG[spec.flag] then
                 local left = ownedOf(spec.key)
                 local t0, miss = os.clock(), 0
-                while STATE.alive() and left > 0 and miss < 4 do
+                while STATE.alive() and forceOn and CFG.autoOpen and CFG[spec.flag]
+                    and left > 0 and miss < 4 do
                     local before = ownedOf(spec.key)
                     OpenCrate:FireServer(spec.key)
                     local wait0 = os.clock()
                     local landed = false
-                    while STATE.alive() and os.clock() - wait0 < 6 do
+                    while STATE.alive() and CFG.autoOpen and os.clock() - wait0 < 6 do
                         task.wait(0.08)
                         if ownedOf(spec.key) < before then landed = true break end
                     end
@@ -698,6 +699,7 @@ local function openPass()
                     end
                     shutCrateScreen()
                     if os.clock() - t0 > 240 then break end
+                    if not CFG.autoOpen then openState = "stopped, auto open is off" break end
                 end
             end
         end
@@ -826,11 +828,13 @@ autoBuyBtn.MouseButton1Click:Connect(function()
     CFG.autoBuy = not CFG.autoBuy
     autoBuyBtn.Text = CFG.autoBuy and "AUTO BUY ON" or "AUTO BUY OFF"
     autoBuyBtn.BackgroundColor3 = CFG.autoBuy and GOLD or GREY
+    if not CFG.autoBuy then buyState = "stopping" end
 end)
 autoOpenBtn.MouseButton1Click:Connect(function()
     CFG.autoOpen = not CFG.autoOpen
     autoOpenBtn.Text = CFG.autoOpen and "AUTO OPEN ON" or "AUTO OPEN OFF"
     autoOpenBtn.BackgroundColor3 = CFG.autoOpen and GOLD or GREY
+    if not CFG.autoOpen then openState = "stopping" end
 end)
 lobbyBtn.MouseButton1Click:Connect(function()
     setFarm(false)
