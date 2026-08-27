@@ -824,7 +824,9 @@ local function vapeWhenReady(on)
     end)
 end
 
+local vapeDead = false
 function vapeApply(on)
+    if vapeDead then return 0 end
     local v = shared and shared.vape
     if not (type(v) == "table" and type(v.Modules) == "table") then
         if on then
@@ -833,13 +835,21 @@ function vapeApply(on)
         end
         return 0
     end
+    pcall(function() setthreadidentity(8) end)
     local n = 0
     for _, name in ipairs(VAPE_COMBAT) do
         if not STATE.alive() then break end
         local m = v.Modules[name]
         if type(m) == "table" and type(m.Toggle) == "function" then
             if (m.Enabled == true) ~= on then
-                if pcall(m.Toggle, m) then n = n + 1 end
+                local ok, err = pcall(m.Toggle, m)
+                if ok then
+                    n = n + 1
+                else
+                    vapeDead = true
+                    buyState = "vape " .. name .. " threw, not touching vape again: " .. tostring(err)
+                    return n
+                end
             end
         end
         task.wait(0.1)
@@ -879,8 +889,9 @@ local function setFarm(on)
     wasFarming = on
     paintAll()
     task.spawn(function()
+        pcall(function() setthreadidentity(8) end)
         local n = vapeApply(on)
-        buyState = (on and "vape on " or "vape off ") .. n
+        if not vapeDead then buyState = (on and "vape on " or "vape off ") .. n end
         local steps = {
             function() CFG.on = on if not on then current = nil end end,
             function() CFG.doBots = on end,
