@@ -255,6 +255,8 @@ do
     keep(frame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
             or input.UserInputType == Enum.UserInputType.Touch then
+            local dy = input.Position.Y - frame.AbsolutePosition.Y
+            if dy < 0 or dy > 26 then return end
             dragging = true
             dragStart = input.Position
             startPos = frame.Position
