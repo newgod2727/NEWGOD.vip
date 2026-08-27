@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>NEWGOD</title>
-<meta name="description" content="NEWGOD. Roblox scripts, measured not promised.">
+<meta name="description" content="NEWGOD. Roblox scripts, automation farms, and Windows tools. Measured, not promised.">
 <meta name="theme-color" content="#14110d">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%230B0B0E'/%3E%3CclipPath id='c'%3E%3Crect x='0' y='96' width='512' height='416'/%3E%3C/clipPath%3E%3Cg clip-path='url(%23c)'%3E%3Cpolyline points='104,372 104,96 200,372 272,96 344,372 416,96' fill='none' stroke='%23FCBC24' stroke-width='68' stroke-linejoin='miter' stroke-miterlimit='30' stroke-linecap='butt'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,8 +17,8 @@
   --gold:#e7b173; --gold2:#f3cf99; --gold3:#c98e4a;
   --mtl:#FCBC24; --mtl2:#FFF3C9; --mtl3:#E0A310;
   --ink:#efe4d6; --dim:rgba(164,148,129,.85); --sage:#9bbf95; --coral:#e09181;
-  --card1:rgba(28,23,16,.62); --card2:rgba(17,14,10,.66);
-  --r:18px;
+  --card1:rgba(28,23,16,.6); --card2:rgba(17,14,10,.64);
+  --r:20px;
 }
 *{box-sizing:border-box}
 html{scrollbar-width:thin;scrollbar-color:#c98e4a #16120d}
@@ -37,29 +37,27 @@ body{
 a{color:inherit}
 
 .bg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:radial-gradient(120% 90% at 50% -10%,#1b1610,#14110d 55%,#100d09)}
-.bg span{position:absolute;border-radius:50%;filter:blur(72px)}
-.bg .b1{width:48vw;height:48vw;left:-10vw;top:-12vw;background:radial-gradient(circle at 50% 50%,rgba(252,188,36,.20),transparent 65%);animation:drift1 26s ease-in-out infinite alternate}
-.bg .b2{width:42vw;height:42vw;right:-8vw;top:0;background:radial-gradient(circle at 50% 50%,rgba(231,177,115,.16),transparent 65%);animation:drift2 31s ease-in-out infinite alternate}
-.bg .b3{width:56vw;height:56vw;left:22vw;bottom:-30vw;background:radial-gradient(circle at 50% 50%,rgba(201,142,74,.14),transparent 65%);animation:drift3 36s ease-in-out infinite alternate}
-@keyframes drift1{from{transform:translate(0,0)}to{transform:translate(8vw,6vw)}}
-@keyframes drift2{from{transform:translate(0,0)}to{transform:translate(-7vw,5vw)}}
-@keyframes drift3{from{transform:translate(0,0)}to{transform:translate(5vw,-7vw)}}
+.bg span{position:absolute;border-radius:50%;filter:blur(80px)}
+.bg .b1{width:46vw;height:46vw;left:-12vw;top:-14vw;background:radial-gradient(circle at 50% 50%,rgba(252,188,36,.17),transparent 66%);animation:drift1 28s ease-in-out infinite alternate}
+.bg .b2{width:40vw;height:40vw;right:-10vw;top:-2vw;background:radial-gradient(circle at 50% 50%,rgba(231,177,115,.13),transparent 66%);animation:drift2 33s ease-in-out infinite alternate}
+.bg .b3{width:58vw;height:58vw;left:24vw;bottom:-34vw;background:radial-gradient(circle at 50% 50%,rgba(201,142,74,.11),transparent 66%);animation:drift3 38s ease-in-out infinite alternate}
+@keyframes drift1{from{transform:translate(0,0)}to{transform:translate(7vw,6vw)}}
+@keyframes drift2{from{transform:translate(0,0)}to{transform:translate(-6vw,5vw)}}
+@keyframes drift3{from{transform:translate(0,0)}to{transform:translate(5vw,-6vw)}}
 
 .topbar{
   position:sticky;top:0;z-index:20;width:100%;max-width:100vw;overflow:hidden;
   background:rgba(16,13,9,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   border-bottom:1px solid var(--line);padding:13px 16px 15px;
 }
-.brand{max-width:1040px;margin:0 auto 12px;display:flex;align-items:center;gap:13px;flex-wrap:wrap}
-.brand .bmark{width:34px;height:34px;flex:0 0 auto;filter:drop-shadow(0 0 10px rgba(252,188,36,.4))}
-.brand h1{
-  font-family:Fraunces,Georgia,serif;font-weight:800;letter-spacing:.05em;
-  font-size:1.7rem;margin:0;line-height:1;
-  background:linear-gradient(180deg,#FFF3C9,#FDD35E 30%,#FCBC24 60%,#E0A310);
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-}
-.brand span{color:var(--dim);font-size:.72rem;letter-spacing:.24em;text-transform:uppercase;margin-left:2px}
-nav{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;max-width:1040px;width:100%;margin:0 auto}
+.brand{max-width:1080px;margin:0 auto 12px;display:flex;align-items:center;gap:12px}
+.brand .bmark{width:32px;height:32px;flex:0 0 auto;filter:drop-shadow(0 0 10px rgba(252,188,36,.4))}
+.brand .bword{height:22px;width:auto;flex:0 0 auto;filter:drop-shadow(0 0 8px rgba(252,188,36,.25))}
+.brand .bspace{margin-left:auto}
+.brand .iconlink{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;border:1px solid var(--line);color:var(--gold);background:rgba(255,243,201,.03);transition:border-color .2s,color .2s,background .2s}
+.brand .iconlink:hover{border-color:var(--gold3);color:var(--gold2);background:rgba(231,177,115,.09)}
+.brand .iconlink svg{width:17px;height:17px;fill:currentColor}
+nav{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;max-width:1080px;width:100%;margin:0 auto}
 .tab{
   min-width:0;justify-content:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   display:flex;align-items:center;padding:11px 10px;border-radius:12px;cursor:pointer;
@@ -74,7 +72,7 @@ nav{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8p
   box-shadow:0 10px 26px -12px rgba(252,188,36,.55),inset 0 1px 0 rgba(255,255,255,.35);
 }
 
-main{max-width:1040px;margin:0 auto;padding:30px 16px 70px}
+main{max-width:1080px;margin:0 auto;padding:30px 16px 70px}
 .view{display:none}
 .view.active{display:block}
 .view.active>*{animation:rise .5s cubic-bezier(.2,.7,.2,1) backwards}
@@ -88,163 +86,190 @@ main{max-width:1040px;margin:0 auto;padding:30px 16px 70px}
 .view.active>*:nth-child(8){animation-delay:.37s}
 @keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 
-.hero{text-align:center;padding:30px 8px 34px}
-.hero .emblem{width:118px;height:118px;margin:0 auto 22px;filter:drop-shadow(0 0 26px rgba(252,188,36,.5));animation:pulse 4.2s ease-in-out infinite}
-@keyframes pulse{0%,100%{filter:drop-shadow(0 0 20px rgba(252,188,36,.38))}50%{filter:drop-shadow(0 0 34px rgba(252,188,36,.62))}}
-.hero .word{width:min(500px,84%);height:auto;margin:0 auto 20px;display:block;filter:drop-shadow(0 8px 34px rgba(252,188,36,.26))}
-.hero .tag{font-size:1.18rem;color:#d9c8af;margin:0 auto 24px;max-width:640px}
-.hero .tag b{color:var(--gold2);font-weight:600}
-.hchips{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:0 0 22px}
-.hchip{
-  min-width:150px;padding:16px 20px;border-radius:16px;border:1px solid transparent;
-  background:linear-gradient(180deg,var(--card1),var(--card2)) padding-box,
-    linear-gradient(135deg,rgba(255,243,201,.4),rgba(231,177,115,.12) 45%,rgba(255,243,201,.3)) border-box;
-  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+.eyebrow{font-family:"JetBrains Mono",monospace;font-size:.72rem;letter-spacing:.24em;text-transform:uppercase;color:var(--gold3);margin:0 0 14px}
+
+/* hero */
+.hero{text-align:center;padding:42px 8px 30px;position:relative}
+.hero .emblem{width:122px;height:122px;margin:0 auto 24px;filter:drop-shadow(0 0 28px rgba(252,188,36,.5));animation:pulse 4.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{filter:drop-shadow(0 0 20px rgba(252,188,36,.36))}50%{filter:drop-shadow(0 0 36px rgba(252,188,36,.64))}}
+.hero .word{width:min(520px,86%);height:auto;margin:0 auto 22px;display:block;filter:drop-shadow(0 8px 36px rgba(252,188,36,.24))}
+.hero .lead{font-size:1.22rem;color:#dbcbb2;margin:0 auto 30px;max-width:660px;line-height:1.6}
+.hero .lead b{color:var(--gold2);font-weight:600}
+.actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn{
+  display:inline-flex;align-items:center;gap:10px;cursor:pointer;text-decoration:none;
+  background:linear-gradient(180deg,#f3cf99,#e7b173 55%,#c98e4a);color:#1a1510;border:1px solid transparent;
+  border-radius:13px;padding:14px 26px;font-family:inherit;font-weight:700;font-size:.9rem;letter-spacing:.02em;
+  transition:filter .15s,transform .06s,box-shadow .2s;
+  box-shadow:0 12px 28px -14px rgba(252,188,36,.6),inset 0 1px 0 rgba(255,255,255,.35);
 }
-.hchip b{
-  display:block;font-family:"JetBrains Mono",monospace;font-weight:600;font-size:1.85rem;line-height:1;
-  background:linear-gradient(180deg,#FFF3C9,#FCBC24 60%,#E0A310);
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-}
-.hchip span{display:block;margin-top:8px;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
-.hero .sell{font-family:"JetBrains Mono",monospace;font-size:.78rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold3);margin:6px 0 0}
-.hero .scrollcue{
-  display:inline-flex;align-items:center;gap:8px;margin:26px auto 0;cursor:pointer;
-  background:transparent;border:1px solid var(--line);border-radius:999px;
-  color:var(--gold);font-family:inherit;font-size:.86rem;font-weight:600;letter-spacing:.04em;
-  padding:11px 22px;transition:border-color .2s,color .2s,transform .08s,background .2s;
-}
-.hero .scrollcue:hover{border-color:var(--gold3);background:rgba(231,177,115,.08);color:var(--gold2)}
-.hero .scrollcue:active{transform:translateY(1px)}
+.btn:hover{filter:brightness(1.08)}
+.btn:active{transform:translateY(1px)}
+.btn.ghost{background:rgba(255,243,201,.04);color:var(--gold2);border-color:var(--line);box-shadow:none}
+.btn.ghost:hover{border-color:var(--gold3);background:rgba(231,177,115,.09);filter:none}
+.btn svg{width:17px;height:17px;fill:currentColor}
+
+/* section blocks */
+.block{margin:0 0 46px}
+.block:last-child{margin-bottom:0}
+.block>h2{font-family:Fraunces,Georgia,serif;font-size:1.9rem;line-height:1.15;margin:0 0 18px;
+  background:linear-gradient(180deg,#FFF3C9,#f3cf99 45%,#c98e4a);-webkit-background-clip:text;background-clip:text;color:transparent}
 
 .vhead{margin-bottom:24px;padding-top:6px}
-.vhead h2{font-family:Fraunces,Georgia,serif;font-size:2.35rem;line-height:1.12;margin:0 0 8px;
-  background:linear-gradient(180deg,#FFF3C9,#f3cf99 45%,#c98e4a);
-  -webkit-background-clip:text;background-clip:text;color:transparent;}
+.vhead h2{font-family:Fraunces,Georgia,serif;font-size:2.3rem;line-height:1.12;margin:0 0 8px;
+  background:linear-gradient(180deg,#FFF3C9,#f3cf99 45%,#c98e4a);-webkit-background-clip:text;background-clip:text;color:transparent}
 .vhead p{margin:0;color:#cdbda7;font-size:1.02rem}
 
 .card{
   position:relative;border:1px solid transparent;border-radius:var(--r);
   background:linear-gradient(180deg,var(--card1),var(--card2)) padding-box,
-    linear-gradient(135deg,rgba(255,243,201,.26),rgba(231,177,115,.09) 42%,rgba(201,142,74,.05) 72%,rgba(255,243,201,.2)) border-box;
+    linear-gradient(135deg,rgba(255,243,201,.24),rgba(231,177,115,.08) 42%,rgba(201,142,74,.05) 72%,rgba(255,243,201,.18)) border-box;
   backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   box-shadow:0 26px 60px -42px rgba(0,0,0,.92),inset 0 1px 0 rgba(255,243,201,.05);
   padding:24px 24px 26px;margin:0 0 20px;
   transition:transform .25s ease,box-shadow .25s ease;
 }
-.card:hover{
-  transform:translateY(-3px);
-  box-shadow:0 34px 74px -36px rgba(0,0,0,.92),0 0 0 1px rgba(252,188,36,.16),0 0 42px -14px rgba(252,188,36,.22),inset 0 1px 0 rgba(255,243,201,.08);
-}
-.card h3{margin:0 0 12px;font-size:1.14rem;color:var(--gold);letter-spacing:.01em;display:flex;align-items:center;gap:10px}
+.card:hover{transform:translateY(-3px);box-shadow:0 34px 74px -36px rgba(0,0,0,.92),0 0 0 1px rgba(252,188,36,.15),0 0 42px -14px rgba(252,188,36,.2),inset 0 1px 0 rgba(255,243,201,.08)}
+.card h3{margin:0 0 12px;font-size:1.13rem;color:var(--gold);letter-spacing:.01em;display:flex;align-items:center;gap:10px}
 .card h3::before{content:"";width:9px;height:9px;border-radius:2px;background:linear-gradient(135deg,#FDD35E,#E0A310);box-shadow:0 0 10px rgba(252,188,36,.6);flex:0 0 auto}
 .card p{margin:0 0 10px}
 .card p:last-child{margin-bottom:0}
 
-.plat{display:flex;gap:9px;flex-wrap:wrap;margin:0 0 15px}
-.chip{
-  border:1px solid var(--line);border-radius:999px;padding:6px 15px;
-  font-family:"JetBrains Mono",monospace;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;
-  color:var(--gold);background:rgba(255,243,201,.04);
+/* about (editorial, wider first line) */
+.about{
+  border:1px solid transparent;border-radius:var(--r);
+  background:linear-gradient(180deg,var(--card1),var(--card2)) padding-box,
+    linear-gradient(135deg,rgba(255,243,201,.24),rgba(231,177,115,.08) 60%,rgba(255,243,201,.18)) border-box;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:30px 30px 32px;
 }
+.about p{margin:0 0 14px;font-size:1.08rem;color:#e2d4c2}
+.about p:first-of-type{font-size:1.25rem;line-height:1.5;color:#f0e2cf}
+.about p:last-child{margin-bottom:0}
+.about b{color:var(--gold2);font-weight:600}
 
-.term{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel);margin:0 0 14px;
-  box-shadow:0 22px 52px -42px rgba(0,0,0,.92),inset 0 1px 0 rgba(255,243,201,.04)}
-.term-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line);
-  background:linear-gradient(180deg,rgba(231,177,115,.06),rgba(231,177,115,.01))}
-.dots{display:inline-flex;gap:6px;flex:0 0 auto}
-.dots i{width:10px;height:10px;border-radius:50%}
-.dots i:nth-child(1){background:#c98e4a}.dots i:nth-child(2){background:#8a6a3f}.dots i:nth-child(3){background:#5a4630}
-.term-name{font-family:"JetBrains Mono",monospace;font-size:.7rem;letter-spacing:.05em;color:var(--gold3);margin-right:auto}
-code.block{display:block;background:transparent;border:0;padding:16px 18px;margin:0;overflow-x:auto;white-space:pre;
-  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:.8rem;color:var(--gold2);line-height:1.55}
+/* bento portfolio */
+.bento{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.bt{
+  text-align:left;cursor:pointer;border:1px solid transparent;border-radius:18px;padding:22px 22px 24px;
+  background:linear-gradient(180deg,var(--card1),var(--card2)) padding-box,
+    linear-gradient(135deg,rgba(255,243,201,.22),rgba(231,177,115,.07) 55%,rgba(255,243,201,.16)) border-box;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:var(--ink);font-family:inherit;
+  transition:transform .25s ease,box-shadow .25s ease;display:flex;flex-direction:column;gap:8px;
+}
+.bt.wide{grid-column:1 / -1}
+.bt:hover{transform:translateY(-3px);box-shadow:0 30px 66px -38px rgba(0,0,0,.9),0 0 0 1px rgba(252,188,36,.16),0 0 40px -16px rgba(252,188,36,.22)}
+.bt .num{font-family:"JetBrains Mono",monospace;font-size:.7rem;letter-spacing:.14em;color:var(--gold3)}
+.bt h3{margin:2px 0 2px;font-size:1.2rem;color:var(--gold);font-family:Fraunces,Georgia,serif;font-weight:600}
+.bt p{margin:0;color:#c9b9a5;font-size:.96rem;line-height:1.55}
+.bt .go{margin-top:auto;padding-top:10px;font-family:"JetBrains Mono",monospace;font-size:.72rem;letter-spacing:.06em;color:var(--gold2)}
+.bt .go::after{content:" \2192"}
+
+/* stat chips row */
+.chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+.chip3{
+  border:1px solid transparent;border-radius:16px;padding:18px 20px;
+  background:linear-gradient(180deg,var(--card1),var(--card2)) padding-box,
+    linear-gradient(135deg,rgba(255,243,201,.28),rgba(231,177,115,.09) 60%,rgba(255,243,201,.2)) border-box;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+}
+.chip3 b{display:block;font-family:"JetBrains Mono",monospace;font-weight:600;font-size:1.8rem;line-height:1;
+  background:linear-gradient(180deg,#FFF3C9,#FCBC24 60%,#E0A310);-webkit-background-clip:text;background-clip:text;color:transparent}
+.chip3 span{display:block;margin-top:8px;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+
+/* link cards */
+.links{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.linkcard{
+  display:flex;align-items:center;gap:14px;text-decoration:none;border:1px solid transparent;border-radius:16px;padding:18px 20px;
+  background:linear-gradient(180deg,var(--card1),var(--card2)) padding-box,
+    linear-gradient(135deg,rgba(255,243,201,.22),rgba(231,177,115,.07) 60%,rgba(255,243,201,.16)) border-box;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  transition:transform .2s ease,box-shadow .2s ease;
+}
+.linkcard:hover{transform:translateY(-2px);box-shadow:0 24px 54px -34px rgba(0,0,0,.9),0 0 0 1px rgba(252,188,36,.16)}
+.linkcard .ic{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;flex:0 0 auto;border-radius:12px;background:rgba(255,243,201,.05);border:1px solid var(--line);color:var(--gold)}
+.linkcard .ic svg{width:20px;height:20px;fill:currentColor}
+.linkcard .lt{display:block;font-weight:700;color:var(--gold2);font-size:.98rem}
+.linkcard .lh{display:block;font-family:"JetBrains Mono",monospace;font-size:.74rem;color:var(--dim);margin-top:2px}
+.linkcard .arr{margin-left:auto;color:var(--gold3);font-family:"JetBrains Mono",monospace}
+.linkcard .arr::after{content:"\2197"}
+
+.plat{display:flex;gap:9px;flex-wrap:wrap;margin:0 0 15px}
+.chip{border:1px solid var(--line);border-radius:999px;padding:6px 15px;font-family:"JetBrains Mono",monospace;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);background:rgba(255,243,201,.04)}
+
+/* clean code panel (no terminal dots) */
+.code{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel);margin:0 0 14px;box-shadow:0 22px 52px -42px rgba(0,0,0,.92),inset 0 1px 0 rgba(255,243,201,.04)}
+.code-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:11px 15px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,rgba(231,177,115,.05),rgba(231,177,115,.01))}
+.code-name{font-family:"JetBrains Mono",monospace;font-size:.72rem;letter-spacing:.05em;color:var(--gold3);margin-right:auto;display:flex;align-items:center;gap:9px}
+.code-name::before{content:"";width:7px;height:7px;border-radius:50%;background:linear-gradient(135deg,#FDD35E,#E0A310);box-shadow:0 0 8px rgba(252,188,36,.6)}
+code.block{display:block;background:transparent;border:0;padding:16px 18px;margin:0;overflow-x:auto;white-space:pre;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:.8rem;color:var(--gold2);line-height:1.55}
 code.block.tall{max-height:58vh;overflow-y:auto;font-size:.7rem;line-height:1.6;color:#d8cdbb}
 
 .copy{
   display:inline-flex;align-items:center;gap:9px;cursor:pointer;
   background:linear-gradient(180deg,#f3cf99,#e7b173 55%,#c98e4a);color:#1a1510;border:0;
-  border-radius:11px;padding:12px 22px;font-family:inherit;font-weight:700;font-size:.86rem;
-  letter-spacing:.02em;transition:filter .15s,transform .06s,box-shadow .2s;
-  box-shadow:0 10px 24px -14px rgba(252,188,36,.6),inset 0 1px 0 rgba(255,255,255,.35);
+  border-radius:11px;padding:12px 22px;font-family:inherit;font-weight:700;font-size:.86rem;letter-spacing:.02em;
+  transition:filter .15s,transform .06s,box-shadow .2s;box-shadow:0 10px 24px -14px rgba(252,188,36,.6),inset 0 1px 0 rgba(255,255,255,.35);
 }
 .copy:hover{filter:brightness(1.08)}
 .copy:active{transform:translateY(1px)}
 .copy.done{background:linear-gradient(180deg,#b6d6b0,#9bbf95 55%,#7fa87a);box-shadow:0 10px 24px -14px rgba(155,191,149,.6),inset 0 1px 0 rgba(255,255,255,.35)}
 .copy.sm{padding:8px 16px;font-size:.76rem;flex:0 0 auto}
-.link-btn{
-  display:inline-flex;align-items:center;gap:8px;text-decoration:none;cursor:pointer;
-  background:rgba(255,243,201,.04);color:var(--gold2);border:1px solid var(--line);
-  border-radius:11px;padding:11px 20px;font-family:inherit;font-weight:600;font-size:.84rem;letter-spacing:.02em;
-  transition:border-color .2s,background .2s,color .2s,transform .08s;margin:0 8px 12px 0;
-}
+.link-btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;cursor:pointer;background:rgba(255,243,201,.04);color:var(--gold2);border:1px solid var(--line);border-radius:11px;padding:11px 20px;font-family:inherit;font-weight:600;font-size:.84rem;letter-spacing:.02em;transition:border-color .2s,background .2s,color .2s,transform .08s;margin:0 8px 12px 0}
 .link-btn:hover{border-color:var(--gold3);background:rgba(231,177,115,.09);color:var(--gold2)}
 .link-btn:active{transform:translateY(1px)}
 .link-btn::after{content:"\2197";font-size:.9em;opacity:.8}
 .dl-btn::after{content:"\2193"}
 
 ol,ul{margin:0;padding-left:0;list-style:none}
-.card li,.vhead+*+* li{position:relative;padding-left:26px;margin:0 0 11px}
+.card li{position:relative;padding-left:26px;margin:0 0 11px}
 li:last-child{margin-bottom:0}
-.card ul>li::before{content:"";position:absolute;left:4px;top:.62em;width:8px;height:8px;border-radius:2px;
-  background:linear-gradient(135deg,#FDD35E,#E0A310);box-shadow:0 0 8px rgba(252,188,36,.5)}
+.card ul>li::before{content:"";position:absolute;left:4px;top:.62em;width:8px;height:8px;border-radius:2px;background:linear-gradient(135deg,#FDD35E,#E0A310);box-shadow:0 0 8px rgba(252,188,36,.5)}
 .card ol{counter-reset:st}
 .card ol>li{counter-increment:st}
-.card ol>li::before{content:counter(st);position:absolute;left:0;top:.05em;width:22px;height:22px;border-radius:7px;
-  display:flex;align-items:center;justify-content:center;font-family:"JetBrains Mono",monospace;font-size:.66rem;font-weight:600;
-  color:#1a1510;background:linear-gradient(135deg,#f3cf99,#c98e4a)}
+.card ol>li::before{content:counter(st);position:absolute;left:0;top:.05em;width:22px;height:22px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:"JetBrains Mono",monospace;font-size:.66rem;font-weight:600;color:#1a1510;background:linear-gradient(135deg,#f3cf99,#c98e4a)}
 .broken ul>li::before{background:linear-gradient(135deg,#e09181,#b85f52);box-shadow:0 0 8px rgba(224,145,129,.45)}
 .k{color:var(--gold2);font-weight:600}
 .note{color:#bda98f;font-size:.9rem}
 .card p a[href]{color:var(--gold2);text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(231,177,115,.5)}
 
 .stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:13px;margin:0 0 20px}
-.stt{
-  border:1px solid transparent;border-radius:15px;padding:17px 19px;
-  background:linear-gradient(180deg,var(--card1),var(--card2)) padding-box,
-    linear-gradient(135deg,rgba(255,243,201,.28),rgba(231,177,115,.08) 60%,rgba(255,243,201,.2)) border-box;
-  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-}
-.stt b{display:block;font-family:"JetBrains Mono",monospace;font-size:1.5rem;font-weight:600;line-height:1.15;
-  background:linear-gradient(180deg,#FFF3C9,#FCBC24 60%,#E0A310);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stt{border:1px solid transparent;border-radius:15px;padding:17px 19px;background:linear-gradient(180deg,var(--card1),var(--card2)) padding-box,linear-gradient(135deg,rgba(255,243,201,.28),rgba(231,177,115,.08) 60%,rgba(255,243,201,.2)) border-box;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.stt b{display:block;font-family:"JetBrains Mono",monospace;font-size:1.5rem;font-weight:600;line-height:1.15;background:linear-gradient(180deg,#FFF3C9,#FCBC24 60%,#E0A310);-webkit-background-clip:text;background-clip:text;color:transparent}
 .stt span{display:block;font-size:.7rem;color:#bda98f;margin-top:6px;line-height:1.5;letter-spacing:.02em}
 
 .tablewrap{overflow-x:auto;border-radius:12px;border:1px solid var(--line);margin:6px 0 0}
 table{width:100%;border-collapse:collapse;font-size:.84rem;min-width:min(560px,100%)}
 th,td{text-align:left;padding:11px 13px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere;word-break:break-word}
 tr:last-child td{border-bottom:0}
-tbody tr:hover td,table tr:hover td{background:rgba(231,177,115,.045)}
+table tr:hover td{background:rgba(231,177,115,.045)}
 th{font-family:"JetBrains Mono",monospace;font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gold3);background:rgba(255,243,201,.03)}
 td.kk{color:var(--gold2);font-weight:600}
 td.nn{font-family:"JetBrains Mono",monospace;color:var(--sage)}
 
-.pager{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:1040px;margin:20px auto 0;padding:0 16px}
-.pager button{
-  cursor:pointer;border:1px solid transparent;color:var(--ink);border-radius:14px;padding:17px 14px;
-  font-family:inherit;font-weight:700;font-size:.92rem;letter-spacing:.02em;
-  background:linear-gradient(180deg,var(--card1),var(--card2)) padding-box,
-    linear-gradient(135deg,rgba(255,243,201,.2),rgba(231,177,115,.06)) border-box;
-  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-  transition:color .2s,box-shadow .2s,transform .08s;
-}
+.pager{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:1080px;margin:20px auto 0;padding:0 16px}
+.pager button{cursor:pointer;border:1px solid transparent;color:var(--ink);border-radius:14px;padding:17px 14px;font-family:inherit;font-weight:700;font-size:.92rem;letter-spacing:.02em;background:linear-gradient(180deg,var(--card1),var(--card2)) padding-box,linear-gradient(135deg,rgba(255,243,201,.2),rgba(231,177,115,.06)) border-box;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:color .2s,box-shadow .2s,transform .08s}
 .pager button:hover:not(:disabled){color:var(--gold2);box-shadow:0 0 0 1px rgba(252,188,36,.2),0 0 30px -14px rgba(252,188,36,.5)}
 .pager button:active:not(:disabled){transform:translateY(1px)}
 .pager button:disabled{opacity:.3;cursor:default}
 
-footer{max-width:1040px;margin:0 auto;padding:44px 16px 60px;text-align:center}
-footer .fmark{width:30px;height:30px;margin:0 auto 12px;filter:drop-shadow(0 0 10px rgba(252,188,36,.4))}
+footer{max-width:1080px;margin:0 auto;padding:44px 16px 60px;text-align:center}
+footer .fmark{width:30px;height:30px;margin:0 auto 14px;filter:drop-shadow(0 0 10px rgba(252,188,36,.4))}
+footer .fsocial{display:flex;gap:12px;justify-content:center;margin:0 0 16px}
+footer .fsocial a{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:11px;border:1px solid var(--line);color:var(--gold);background:rgba(255,243,201,.03);transition:border-color .2s,color .2s,background .2s}
+footer .fsocial a:hover{border-color:var(--gold3);color:var(--gold2);background:rgba(231,177,115,.09)}
+footer .fsocial svg{width:18px;height:18px;fill:currentColor}
 footer .fname{font-family:Fraunces,Georgia,serif;font-weight:800;letter-spacing:.14em;color:var(--gold);font-size:1rem}
 footer .furl{display:block;margin-top:6px;color:var(--dim);font-family:"JetBrains Mono",monospace;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;text-decoration:none}
 footer .furl:hover{color:var(--gold2)}
 
+@media (max-width:680px){ .bento{grid-template-columns:1fr} }
 @media (max-width:520px){
   :root{font-size:19px}
-  .hero .emblem{width:96px;height:96px}
+  .hero .emblem{width:98px;height:98px}
   main{padding:24px 13px 60px}
-  .card{padding:20px 18px 22px}
+  .card,.about{padding:20px 18px 22px}
 }
-@media (prefers-reduced-motion:reduce){
-  *{animation:none !important;transition:none !important}
-}
+@media (prefers-reduced-motion:reduce){ *{animation:none !important;transition:none !important} }
 </style>
 </head>
 <body>
@@ -280,6 +305,9 @@ footer .furl:hover{color:var(--gold2)}
     </mask>
     <symbol id="ngmark" viewBox="0 0 512 512"><rect width="512" height="512" fill="url(#ngGrad)" mask="url(#ngMkMask)"/></symbol>
     <symbol id="ngword" viewBox="0 0 1188 508.203"><rect width="1188" height="508.203" fill="url(#ngGrad)" mask="url(#ngWdMask)"/></symbol>
+    <symbol id="icoX" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></symbol>
+    <symbol id="icoGh" viewBox="0 0 24 24"><path d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.69-3.88-1.54-3.88-1.54-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 2.9-.39c.98 0 1.97.13 2.9.39 2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.54-.01 2.79-.01 3.17 0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5z"/></symbol>
+    <symbol id="icoGlobe" viewBox="0 0 24 24"><path d="M12 1.5a10.5 10.5 0 100 21 10.5 10.5 0 000-21zm7.9 9.6h-3.2a15.6 15.6 0 00-1.2-5.2 8.5 8.5 0 014.4 5.2zM12 3.6c.9 1 1.8 3 2.1 6h-4.2c.3-3 1.2-5 2.1-6zM4.1 11.1a8.5 8.5 0 014.4-5.2 15.6 15.6 0 00-1.2 5.2zm0 1.8h3.2c.2 2 .6 3.8 1.2 5.2a8.5 8.5 0 01-4.4-5.2zM12 20.4c-.9-1-1.8-3-2.1-6h4.2c-.3 3-1.2 5-2.1 6zm3.5-1.3c.6-1.4 1-3.2 1.2-5.2h3.2a8.5 8.5 0 01-4.4 5.2z"/></symbol>
   </defs>
 </svg>
 
@@ -288,28 +316,94 @@ footer .furl:hover{color:var(--gold2)}
 <div class="topbar">
   <div class="brand">
     <svg class="bmark" viewBox="0 0 512 512"><use href="#ngmark"/></svg>
-    <h1>NEWGOD</h1>
-    <span>roblox scripts</span>
+    <svg class="bword" viewBox="0 0 1188 508.203" role="img" aria-label="NEWGOD"><use href="#ngword"/></svg>
+    <span class="bspace"></span>
+    <a class="iconlink" href="https://x.com/newgod_2626" target="_blank" rel="noopener" aria-label="X"><svg viewBox="0 0 24 24"><use href="#icoX"/></svg></a>
+    <a class="iconlink" href="https://github.com/newgod2727" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24"><use href="#icoGh"/></svg></a>
   </div>
   <nav id="nav"></nav>
 </div>
 
 <main>
 
-  <section class="view active" data-t="Games">
+  <section class="view active" data-t="NEWGOD">
     <div class="hero">
       <svg class="emblem" viewBox="0 0 512 512"><use href="#ngmark"/></svg>
       <svg class="word" viewBox="0 0 1188 508.203" role="img" aria-label="NEWGOD"><use href="#ngword"/></svg>
-      <p class="tag">Roblox scripts, <b>measured, not promised</b>. Open the game, paste one line, and it runs on PC and mobile the same way.</p>
-      <div class="hchips">
-        <div class="hchip"><b class="count" data-to="96" data-suffix="%">0</b><span>accuracy</span></div>
-        <div class="hchip"><b class="count" data-to="7">0</b><span>accounts &middot; 3 teams</span></div>
-        <div class="hchip"><b class="count" data-to="18239">0</b><span>lines measured</span></div>
+      <p class="lead">Roblox scripts, automation farms, and Windows tools &mdash; all built and run by one person. <b>Measured, not promised</b>, and made to feel smooth.</p>
+      <div class="actions">
+        <button class="btn" type="button" data-goto="Scripts">See the scripts</button>
+        <a class="btn ghost" href="https://github.com/newgod2727" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><use href="#icoGh"/></svg>GitHub</a>
+        <a class="btn ghost" href="https://x.com/newgod_2626" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><use href="#icoX"/></svg>X</a>
       </div>
-      <p class="sell">No key &middot; No checkpoint &middot; No ad link</p>
-      <button class="scrollcue" type="button" id="heroCue">See the scripts &darr;</button>
     </div>
 
+    <div class="block">
+      <p class="eyebrow">Who is NEWGOD</p>
+      <div class="about">
+        <p>NEWGOD is a name, not a claim. It started as a typo and stuck, and now it is the handle behind everything here.</p>
+        <p>Behind it is one builder working across a few different worlds: <b>Roblox scripts</b> that hit the numbers they say they will, <b>automation</b> that keeps seven game clients alive on a single desktop for days at a time, and <b>Windows tools</b> that quietly fix the small daily friction nobody else bothers with. The work leans into the exploit and hacking side of things &mdash; finding the seam, then opening it.</p>
+        <p>The rule behind all of it is the same one: <b>black and gold, and everything smooth</b>. Nothing on this site is a mock-up. Every number you read here was measured off a real machine, not written to sound good.</p>
+      </div>
+    </div>
+
+    <div class="block">
+      <p class="eyebrow">What I build</p>
+      <div class="bento">
+        <button class="bt wide" type="button" data-goto="Scripts">
+          <span class="num">01</span>
+          <h3>Roblox scripts</h3>
+          <p>One line, no key, no checkpoint, no ad link. Aimbot and farm scripts for SkyWars, Deagle Arena and more &mdash; the same line runs on PC and mobile.</p>
+          <span class="go">See the scripts</span>
+        </button>
+        <button class="bt" type="button" data-goto="SKYWARS">
+          <span class="num">02</span>
+          <h3>Automation farms</h3>
+          <p>Seven accounts, three teams, one machine, running unattended for days. Every layer of it was measured, not guessed.</p>
+          <span class="go">Open SKYWARS</span>
+        </button>
+        <button class="bt" type="button" data-goto="Tools">
+          <span class="num">03</span>
+          <h3>Windows tools</h3>
+          <p>PyToolbox and a set of utilities that run both my machines from one pinned sidebar. Open source.</p>
+          <span class="go">Open Tools</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="block">
+      <p class="eyebrow">By the numbers</p>
+      <div class="chips">
+        <div class="chip3"><b class="count" data-to="96" data-suffix="%">0</b><span>farm accuracy</span></div>
+        <div class="chip3"><b class="count" data-to="7">0</b><span>accounts &middot; 3 teams</span></div>
+        <div class="chip3"><b class="count" data-to="18239">0</b><span>lines of Lua</span></div>
+        <div class="chip3"><b class="count" data-to="1043">0</b><span>functions</span></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <p class="eyebrow">Find me</p>
+      <div class="links">
+        <a class="linkcard" href="https://x.com/newgod_2626" target="_blank" rel="noopener">
+          <span class="ic"><svg viewBox="0 0 24 24"><use href="#icoX"/></svg></span>
+          <span><span class="lt">X</span><span class="lh">@newgod_2626</span></span>
+          <span class="arr"></span>
+        </a>
+        <a class="linkcard" href="https://github.com/newgod2727" target="_blank" rel="noopener">
+          <span class="ic"><svg viewBox="0 0 24 24"><use href="#icoGh"/></svg></span>
+          <span><span class="lt">GitHub</span><span class="lh">newgod2727</span></span>
+          <span class="arr"></span>
+        </a>
+        <a class="linkcard" href="https://newgod.vip" target="_blank" rel="noopener">
+          <span class="ic"><svg viewBox="0 0 24 24"><use href="#icoGlobe"/></svg></span>
+          <span><span class="lt">Website</span><span class="lh">newgod.vip</span></span>
+          <span class="arr"></span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" data-t="Scripts">
     <div class="vhead">
       <h2>Pick the game</h2>
       <p>Open the game first, then paste the one line for it. Each script only works in its own game.</p>
@@ -320,21 +414,22 @@ footer .furl:hover{color:var(--gold2)}
       <p>Goes for tier four chests only, waits for a Diamond or an Onyx sword, then fights from below where nothing can reach back. Loads Vape for you.</p>
       <div class="plat"><span class="chip">Game ID 8542259458</span><span class="chip">PC</span><span class="chip">Mobile</span></div>
       <p><a class="link-btn" href="https://www.roblox.com/games/8542259458/SkyWars" target="_blank" rel="noopener">Open SkyWars on Roblox</a></p>
-      <div class="term">
-        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-name">skywars.lua</span><button class="copy sm" type="button" data-copy="src-skywars">Copy the SkyWars line</button></div>
+      <div class="code">
+        <div class="code-top"><span class="code-name">skywars.lua</span><button class="copy sm" type="button" data-copy="src-skywars">Copy the SkyWars line</button></div>
         <code class="block" id="src-skywars">loadstring(game:HttpGet("https://newgod.vip/skywars/loader"))()</code>
       </div>
     </div>
 
     <div class="card">
       <h3>AIMBOT</h3>
-      <p>The TP Farm line. Teleports onto a target, lands a headshot, moves to the next one.</p>
+      <p>The TP Farm line. Teleports onto a target, lands a headshot, moves to the next one. Same line on every device.</p>
       <div class="plat"><span class="chip">Game ID 80139795758532</span><span class="chip">PC</span><span class="chip">iOS</span><span class="chip">Android</span></div>
       <p><a class="link-btn" href="https://www.roblox.com/games/80139795758532/AIMBOT" target="_blank" rel="noopener">Open AIMBOT on Roblox</a></p>
-      <div class="term">
-        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-name">aimbot.lua</span><button class="copy sm" type="button" data-copy="src-aimbot">Copy the AIMBOT line</button></div>
+      <div class="code">
+        <div class="code-top"><span class="code-name">aimbot.lua</span><button class="copy sm" type="button" data-copy="src-aimbot">Copy the AIMBOT line</button></div>
         <code class="block" id="src-aimbot">loadstring(game:HttpGet("https://newgod.vip/loader"))()</code>
       </div>
+      <p class="note" style="margin-top:12px">30 seconds from a fresh load: <span class="k">30 kills, 32 shots, 96% accuracy</span>, and the ultimate fired itself twice. That is one kill per second on a normal arena.</p>
     </div>
 
     <div class="card">
@@ -342,8 +437,8 @@ footer .furl:hover{color:var(--gold2)}
       <p>Every switch is already on the moment it loads. It parks you high above the map where nothing reaches you, and shoots from up there &mdash; the server never checks the distance. One window, six tabs, and a RISK tab that caps how loud you are.</p>
       <div class="plat"><span class="chip">Main 84556640895285</span><span class="chip">Ranked 112087763192016</span><span class="chip">Event 94334870778766</span><span class="chip">PC</span><span class="chip">Mobile</span></div>
       <p><a class="link-btn" href="https://www.roblox.com/games/84556640895285/Deagle-Arena" target="_blank" rel="noopener">Open Deagle Arena on Roblox</a></p>
-      <div class="term">
-        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-name">deagle.lua</span><button class="copy sm" type="button" data-copy="src-deagle">Copy the NEWGOD DEAGLE line</button></div>
+      <div class="code">
+        <div class="code-top"><span class="code-name">deagle.lua</span><button class="copy sm" type="button" data-copy="src-deagle">Copy the NEWGOD DEAGLE line</button></div>
         <code class="block" id="src-deagle">loadstring(game:HttpGet("https://newgod.vip/deagle"))()</code>
       </div>
       <ul>
@@ -361,8 +456,8 @@ footer .furl:hover{color:var(--gold2)}
       <h3>HACKFORMAT &mdash; any game</h3>
       <p>Not a hack. It edits what is already on your screen: every menu another script drew gets repainted into the gold style, and it stands between the client and the things that close it. It draws nothing of its own &mdash; no window, no button, nothing to press.</p>
       <div class="plat"><span class="chip">Any game</span><span class="chip">PC</span><span class="chip">Mobile</span></div>
-      <div class="term">
-        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-name">format.lua</span><button class="copy sm" type="button" data-copy="src-format">Copy the HACKFORMAT line</button></div>
+      <div class="code">
+        <div class="code-top"><span class="code-name">format.lua</span><button class="copy sm" type="button" data-copy="src-format">Copy the HACKFORMAT line</button></div>
         <code class="block" id="src-format">loadstring(game:HttpGet("https://newgod.vip/format"))()</code>
       </div>
       <ul>
@@ -388,32 +483,13 @@ footer .furl:hover{color:var(--gold2)}
     </div>
   </section>
 
-  <section class="view" data-t="Script">
-    <div class="vhead">
-      <h2>TP Farm</h2>
-      <p>Teleports onto a target, lands a headshot, moves to the next one. Same line on every device.</p>
-    </div>
-
-    <div class="card">
-      <div class="plat"><span class="chip">PC</span><span class="chip">iOS</span><span class="chip">Android</span></div>
-      <div class="term">
-        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-name">tpfarm.lua</span><button class="copy sm" id="copyBtn" type="button">Copy the script</button></div>
-        <code class="block" id="line">loadstring(game:HttpGet("https://newgod.vip/loader"))()</code>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3>Measured, not promised</h3>
-      <p>30 seconds from a fresh load: <span class="k">30 kills, 32 shots, 96% accuracy</span>, and the ultimate fired itself twice. That is one kill per second on a normal arena.</p>
-    </div>
-  </section>
-
   <section class="view" data-t="How to use">
     <div class="vhead">
-      <h2>Three steps</h2>
-      <p>No key, no checkpoint, no ad link.</p>
+      <h2>How to use</h2>
+      <p>No key, no checkpoint, no ad link. Every control is a button. Drag it anywhere, mouse or finger.</p>
     </div>
     <div class="card">
+      <h3>Three steps</h3>
       <ol>
         <li>Join the game and get into an arena round, not the lobby.</li>
         <li>Open your executor and paste the line.</li>
@@ -425,14 +501,8 @@ footer .furl:hover{color:var(--gold2)}
       <p>Run it while a round is live. In the lobby the script tells you and stops instead of throwing a wall of red text.</p>
       <p class="note">Any executor with <span class="k">loadstring</span> and <span class="k">game:HttpGet</span> works. <span class="k">gethui</span>, <span class="k">readfile</span>, <span class="k">writefile</span> and <span class="k">hookfunction</span> are optional — without them it still runs, it just forgets where you dragged the panel.</p>
     </div>
-  </section>
-
-  <section class="view" data-t="Panel">
-    <div class="vhead">
-      <h2>What the panel does</h2>
-      <p>Every control is a button. Drag it anywhere, mouse or finger.</p>
-    </div>
     <div class="card">
+      <h3>What the panel does</h3>
       <ul>
         <li><span class="k">START FARM / STOP</span> — the whole loop.</li>
         <li><span class="k">BACK</span> — how far behind the target you stand. 0 works, so does 8.</li>
@@ -506,8 +576,8 @@ footer .furl:hover{color:var(--gold2)}
       <h3>Open source: BOOST</h3>
       <p>Seven Roblox clients on one machine pin the CPU at 100%. This is the whole file that brings it back down. Measured: <span class="k">97.1% to 66.4%</span> of total CPU across seven clients.</p>
       <p class="note">Frame rate is the one lever that cuts both sides at once. The picture is drawn per frame and the automation runs per frame, so halving the cap halves both.</p>
-      <div class="term">
-        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-name">BOOST.lua</span><button class="copy sm" type="button" data-copy="src-boost">Copy BOOST.lua</button></div>
+      <div class="code">
+        <div class="code-top"><span class="code-name">BOOST.lua</span><button class="copy sm" type="button" data-copy="src-boost">Copy BOOST.lua</button></div>
         <code class="block tall" id="src-boost">-- BOOST - one per client, cuts the work each Roblox client does per frame.
 --
 -- Measured on RAMST 2026-08-20 19:0x with seven clients up: the machine sat at
@@ -718,8 +788,8 @@ return &quot;BOOST active, reading &quot; .. FPS_FILE
       <h3>Open source: the group loader</h3>
       <p>One script per team. It loads the combat library first, then the boost, then the farm, and it reports a missing file <span class="k">by name</span> rather than skipping it in silence, because a farm that quietly did not load looks exactly like a farm that loaded and did nothing, and that is the failure that costs a whole night.</p>
       <p class="note">Account identifiers are replaced with placeholders here.</p>
-      <div class="term">
-        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-name">GROUP_ABCD_EGG.lua</span><button class="copy sm" type="button" data-copy="src-group">Copy the group loader</button></div>
+      <div class="code">
+        <div class="code-top"><span class="code-name">GROUP_ABCD_EGG.lua</span><button class="copy sm" type="button" data-copy="src-group">Copy the group loader</button></div>
         <code class="block tall" id="src-group">-- GROUP_ABCD_EGG - the four EggWars accounts
 --
 -- One script for the whole ABCD EGG group. His call on 2026-08-20:
@@ -823,7 +893,7 @@ return GROUP .. &quot; loader finished&quot;
     </div>
   </section>
 
-  <section class="view" data-t="Toolbox">
+  <section class="view" data-t="Tools">
     <div class="vhead">
       <h2>PyToolbox</h2>
       <p>The sidebar that runs both my machines. Not a Roblox script &mdash; a Windows panel that sits pinned to the left of the desktop, under every other window, and starts everything else.</p>
@@ -838,12 +908,12 @@ return GROUP .. &quot; loader finished&quot;
         <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/desktop-toolbox.py" download>desktop toolbox.py</a>
         <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/laptop-toolbox.py" download>laptop toolbox.py</a>
       </p>
-      <div class="term">
-        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-name">download</span><button class="copy sm" type="button" data-copy="src-tb-zip">Copy the PyToolbox.zip link</button></div>
+      <div class="code">
+        <div class="code-top"><span class="code-name">download</span><button class="copy sm" type="button" data-copy="src-tb-zip">Copy the PyToolbox.zip link</button></div>
         <code class="block" id="src-tb-zip">https://newgod.vip/toolbox/PyToolbox.zip</code>
       </div>
-      <div class="term">
-        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-name">run</span><button class="copy sm" type="button" data-copy="src-tb-run">Copy the line that starts toolbox.py</button></div>
+      <div class="code">
+        <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-tb-run">Copy the line that starts toolbox.py</button></div>
         <code class="block" id="src-tb-run">pythonw.exe toolbox.py</code>
       </div>
       <p class="note">Start it with <span class="k">pythonw.exe</span>, not <span class="k">python.exe</span>, or you get a console window sitting behind it. Source is at <a href="https://github.com/newgod2727/toolbox" target="_blank" rel="noopener">github.com/newgod2727/toolbox</a>.</p>
@@ -909,6 +979,10 @@ return GROUP .. &quot; loader finished&quot;
 
 <footer>
   <svg class="fmark" viewBox="0 0 512 512"><use href="#ngmark"/></svg>
+  <div class="fsocial">
+    <a href="https://x.com/newgod_2626" target="_blank" rel="noopener" aria-label="X"><svg viewBox="0 0 24 24"><use href="#icoX"/></svg></a>
+    <a href="https://github.com/newgod2727" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24"><use href="#icoGh"/></svg></a>
+  </div>
   <div class="fname">NEWGOD</div>
   <a class="furl" href="https://newgod.vip">newgod.vip</a>
 </footer>
@@ -973,6 +1047,12 @@ return GROUP .. &quot; loader finished&quot;
     runCounts(views[i]);
   }
 
+  function goByName(name){
+    for (var i = 0; i < views.length; i++){
+      if (views[i].getAttribute("data-t") === name){ go(i); return; }
+    }
+  }
+
   prev.addEventListener("click", function(){ go(cur - 1); });
   next.addEventListener("click", function(){ go(cur + 1); });
 
@@ -983,13 +1063,9 @@ return GROUP .. &quot; loader finished&quot;
     if (e.key === "ArrowRight") go(cur + 1);
   });
 
-  var cue = document.getElementById("heroCue");
-  if (cue){
-    cue.addEventListener("click", function(){
-      var card = document.querySelector(".view.active .card");
-      if (card) card.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
-    });
-  }
+  Array.prototype.forEach.call(document.querySelectorAll("[data-goto]"), function(el){
+    el.addEventListener("click", function(){ goByName(el.getAttribute("data-goto")); });
+  });
 
   function wireCopy(btn, src){
     if (!btn || !src) return;
@@ -1019,8 +1095,6 @@ return GROUP .. &quot; loader finished&quot;
       }
     });
   }
-
-  wireCopy(document.getElementById("copyBtn"), document.getElementById("line"));
 
   Array.prototype.forEach.call(document.querySelectorAll(".copy[data-copy]"), function(b){
     var src = document.getElementById(b.getAttribute("data-copy"));
