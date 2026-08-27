@@ -262,6 +262,94 @@ footer .fname{font-family:Fraunces,Georgia,serif;font-weight:800;letter-spacing:
 footer .furl{display:block;margin-top:6px;color:var(--dim);font-family:"JetBrains Mono",monospace;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;text-decoration:none}
 footer .furl:hover{color:var(--gold2)}
 
+.hero-badge{
+  display:inline-flex;align-items:center;gap:10px;margin:0 auto 24px;
+  border:1px solid var(--line);border-radius:999px;padding:8px 18px;
+  background:rgba(255,243,201,.04);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  font-family:"JetBrains Mono",monospace;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);
+}
+.hero-badge .dot{width:8px;height:8px;border-radius:50%;background:#9bbf95;box-shadow:0 0 0 0 rgba(155,191,149,.6);animation:beat 2.4s ease-out infinite}
+@keyframes beat{0%{box-shadow:0 0 0 0 rgba(155,191,149,.55)}70%{box-shadow:0 0 0 9px rgba(155,191,149,0)}100%{box-shadow:0 0 0 0 rgba(155,191,149,0)}}
+
+.ticker{overflow:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:12px 0 46px;padding:13px 0;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.ticker-row{display:flex;align-items:center;gap:22px;width:max-content;animation:slide 34s linear infinite}
+.ticker-row span{font-family:"JetBrains Mono",monospace;font-size:.72rem;letter-spacing:.22em;color:var(--gold3);white-space:nowrap}
+.ticker-row i{width:6px;height:6px;border-radius:2px;background:linear-gradient(135deg,#FDD35E,#E0A310);flex:0 0 auto;transform:rotate(45deg)}
+@keyframes slide{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+.split{display:grid;grid-template-columns:1.45fr 1fr;gap:18px;align-items:stretch}
+.glyphcard{
+  border:1px solid transparent;border-radius:var(--r);padding:26px 24px;
+  background:linear-gradient(180deg,var(--card1),var(--card2)) padding-box,
+    linear-gradient(135deg,rgba(255,243,201,.24),rgba(231,177,115,.08) 60%,rgba(255,243,201,.18)) border-box;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
+}
+.glyphcard .glyph{width:118px;height:118px;filter:drop-shadow(0 0 22px rgba(252,188,36,.4))}
+.glyphmeta{width:100%;display:flex;flex-direction:column;gap:9px}
+.glyphmeta div{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-top:1px solid var(--line);padding-top:9px}
+.glyphmeta span{font-family:"JetBrains Mono",monospace;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.glyphmeta b{font-family:"JetBrains Mono",monospace;font-size:.76rem;color:var(--gold2);font-weight:600}
+
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.rule{
+  border:1px solid transparent;border-radius:18px;padding:24px 22px;
+  background:linear-gradient(180deg,var(--card1),var(--card2)) padding-box,
+    linear-gradient(135deg,rgba(255,243,201,.2),rgba(231,177,115,.06) 60%,rgba(255,243,201,.15)) border-box;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+}
+.rule .ri{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:13px;margin-bottom:14px;
+  background:rgba(255,243,201,.05);border:1px solid var(--line);color:var(--gold)}
+.rule .ri svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.rule h4{margin:0 0 8px;font-size:1.04rem;color:var(--gold2);font-weight:700}
+.rule p{margin:0;color:#c9b9a5;font-size:.95rem;line-height:1.6}
+
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.plan{
+  position:relative;border:1px solid transparent;border-radius:18px;padding:24px 22px 26px;
+  background:linear-gradient(180deg,var(--card1),var(--card2)) padding-box,
+    linear-gradient(135deg,rgba(255,243,201,.22),rgba(231,177,115,.07) 60%,rgba(255,243,201,.16)) border-box;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+}
+.ptag{display:inline-block;margin:0 0 12px;border:1px solid var(--line);border-radius:999px;padding:4px 13px;
+  font-family:"JetBrains Mono",monospace;font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--gold3);background:rgba(255,243,201,.04)}
+.plan h3{margin:0 0 10px;font-family:Fraunces,Georgia,serif;font-weight:600;font-size:1.35rem;color:var(--gold)}
+.plan p{margin:0;color:#cdbda7;font-size:.98rem;line-height:1.62}
+
+.livecard{
+  border:1px solid transparent;border-radius:var(--r);overflow:hidden;
+  background:linear-gradient(180deg,var(--card1),var(--card2)) padding-box,
+    linear-gradient(135deg,rgba(255,243,201,.22),rgba(231,177,115,.07) 60%,rgba(255,243,201,.16)) border-box;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+}
+.livehead{display:flex;align-items:center;gap:11px;padding:15px 20px;border-bottom:1px solid var(--line)}
+.pulse{width:9px;height:9px;border-radius:50%;background:#9bbf95;flex:0 0 auto;animation:beat 2.4s ease-out infinite}
+.livelabel{font-family:"JetBrains Mono",monospace;font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--gold3);margin-right:auto}
+.liveall{font-family:"JetBrains Mono",monospace;font-size:.7rem;letter-spacing:.06em;color:var(--gold2);text-decoration:none}
+.liveall:hover{text-decoration:underline;text-underline-offset:3px}
+.liveall::after{content:" \2197"}
+.liverows{display:flex;flex-direction:column}
+.liverow{display:flex;align-items:baseline;gap:14px;padding:15px 20px;border-bottom:1px solid var(--line);text-decoration:none;transition:background .2s}
+.liverow:last-child{border-bottom:0}
+.liverow:hover{background:rgba(231,177,115,.05)}
+.liverow .rn{font-weight:700;color:var(--gold2);font-size:.98rem;flex:0 0 auto}
+.liverow .rd{color:#b9a894;font-size:.86rem;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.liverow .rt{font-family:"JetBrains Mono",monospace;font-size:.72rem;color:var(--gold3);flex:0 0 auto;white-space:nowrap}
+.liveempty{padding:20px;color:var(--dim);font-family:"JetBrains Mono",monospace;font-size:.76rem}
+
+.cta{
+  margin:52px 0 0;text-align:center;border:1px solid transparent;border-radius:24px;padding:46px 26px 48px;
+  background:radial-gradient(120% 140% at 50% 0%,rgba(252,188,36,.10),rgba(20,17,13,.6) 62%) padding-box,
+    linear-gradient(135deg,rgba(255,243,201,.34),rgba(231,177,115,.1) 50%,rgba(255,243,201,.26)) border-box;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+.cta h2{font-family:Fraunces,Georgia,serif;font-size:2.1rem;margin:0 0 10px;
+  background:linear-gradient(180deg,#FFF3C9,#f3cf99 45%,#c98e4a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.cta p{margin:0 auto 24px;max-width:520px;color:#cdbda7}
+
+@media (max-width:760px){ .split{grid-template-columns:1fr} }
+@media (prefers-reduced-motion:reduce){ .ticker-row{animation:none} }
 @media (max-width:680px){ .bento{grid-template-columns:1fr} }
 @media (max-width:520px){
   :root{font-size:19px}
@@ -271,6 +359,8 @@ footer .furl:hover{color:var(--gold2)}
 }
 @media (prefers-reduced-motion:reduce){ *{animation:none !important;transition:none !important} }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js" defer></script>
 </head>
 <body>
 
@@ -308,6 +398,10 @@ footer .furl:hover{color:var(--gold2)}
     <symbol id="icoX" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></symbol>
     <symbol id="icoGh" viewBox="0 0 24 24"><path d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.69-3.88-1.54-3.88-1.54-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 2.9-.39c.98 0 1.97.13 2.9.39 2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.54-.01 2.79-.01 3.17 0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5z"/></symbol>
     <symbol id="icoGlobe" viewBox="0 0 24 24"><path d="M12 1.5a10.5 10.5 0 100 21 10.5 10.5 0 000-21zm7.9 9.6h-3.2a15.6 15.6 0 00-1.2-5.2 8.5 8.5 0 014.4 5.2zM12 3.6c.9 1 1.8 3 2.1 6h-4.2c.3-3 1.2-5 2.1-6zM4.1 11.1a8.5 8.5 0 014.4-5.2 15.6 15.6 0 00-1.2 5.2zm0 1.8h3.2c.2 2 .6 3.8 1.2 5.2a8.5 8.5 0 01-4.4-5.2zM12 20.4c-.9-1-1.8-3-2.1-6h4.2c-.3 3-1.2 5-2.1 6zm3.5-1.3c.6-1.4 1-3.2 1.2-5.2h3.2a8.5 8.5 0 01-4.4 5.2z"/></symbol>
+    <symbol id="icoScript" viewBox="0 0 24 24"><path d="M7 3h10a2 2 0 0 1 2 2v12a3 3 0 0 0 3 3H7a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zm0 0a2 2 0 0 0-2 2v11"/><path d="M8.5 8.5h7M8.5 12h7M8.5 15.5h4"/></symbol>
+    <symbol id="icoRuler" viewBox="0 0 24 24"><path d="M3.8 14.6 14.6 3.8a1.2 1.2 0 0 1 1.7 0l3.9 3.9a1.2 1.2 0 0 1 0 1.7L9.4 20.2a1.2 1.2 0 0 1-1.7 0l-3.9-3.9a1.2 1.2 0 0 1 0-1.7z"/><path d="M8 10.4l1.8 1.8M11 7.4l1.8 1.8M14 4.4l1.8 1.8M5 13.4l1.8 1.8"/></symbol>
+    <symbol id="icoWrench" viewBox="0 0 24 24"><path d="M15.2 3.4a5.5 5.5 0 0 0-6.4 7.1L3.6 15.7a2 2 0 0 0 0 2.8l1.9 1.9a2 2 0 0 0 2.8 0l5.2-5.2a5.5 5.5 0 0 0 7.1-6.4l-3.1 3.1-3-.6-.6-3z"/></symbol>
+    <symbol id="icoWave" viewBox="0 0 24 24"><path d="M2.5 12c2.4-4.5 4.7-4.5 7.1 0s4.7 4.5 7.1 0 4.7-4.5 4.8-.6"/><path d="M2.5 17.5c2.4-3.4 4.7-3.4 7.1 0s4.7 3.4 7.1 0 4.7-3.4 4.8-.4" opacity=".45"/></symbol>
   </defs>
 </svg>
 
@@ -327,27 +421,47 @@ footer .furl:hover{color:var(--gold2)}
 <main>
 
   <section class="view active" data-t="NEWGOD">
+
     <div class="hero">
-      <svg class="emblem" viewBox="0 0 512 512"><use href="#ngmark"/></svg>
-      <svg class="word" viewBox="0 0 1188 508.203" role="img" aria-label="NEWGOD"><use href="#ngword"/></svg>
-      <p class="lead">Roblox scripts, automation farms, and Windows tools &mdash; all built and run by one person. <b>Measured, not promised</b>, and made to feel smooth.</p>
-      <div class="actions">
+      <div class="hero-badge" data-anim="badge"><span class="dot"></span>Live &middot; scripts updated from one link</div>
+      <svg class="emblem" data-anim="emblem" viewBox="0 0 512 512"><use href="#ngmark"/></svg>
+      <svg class="word" data-anim="word" viewBox="0 0 1188 508.203" role="img" aria-label="NEWGOD"><use href="#ngword"/></svg>
+      <p class="lead" data-anim="lead">Roblox scripts, automation farms, and Windows tools &mdash; all built and run by one person. <b>Measured, not promised</b>, and made to feel smooth.</p>
+      <div class="actions" data-anim="actions">
         <button class="btn" type="button" data-goto="Scripts">See the scripts</button>
-        <a class="btn ghost" href="https://github.com/newgod2727" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><use href="#icoGh"/></svg>GitHub</a>
         <a class="btn ghost" href="https://x.com/newgod_2626" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><use href="#icoX"/></svg>@newgod_2626</a>
+        <a class="btn ghost" href="https://rscripts.net/@newgod" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><use href="#icoScript"/></svg>rscripts</a>
+        <a class="btn ghost" href="https://github.com/newgod2727" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><use href="#icoGh"/></svg>GitHub</a>
       </div>
     </div>
 
-    <div class="block">
-      <p class="eyebrow">Who is NEWGOD</p>
-      <div class="about">
-        <p>NEWGOD is a name, not a claim. It started as a typo and stuck, and now it is the handle behind everything here.</p>
-        <p>Behind it is one builder working across a few different worlds: <b>Roblox scripts</b> that hit the numbers they say they will, <b>automation</b> that keeps seven game clients alive on a single desktop for days at a time, and <b>Windows tools</b> that quietly fix the small daily friction nobody else bothers with. The work leans into the exploit and hacking side of things &mdash; finding the seam, then opening it.</p>
-        <p>The rule behind all of it is the same one: <b>black and gold, and everything smooth</b>. Nothing on this site is a mock-up. Every number you read here was measured off a real machine, not written to sound good.</p>
+    <div class="ticker" aria-hidden="true">
+      <div class="ticker-row">
+        <span>ROBLOX SCRIPTS</span><i></i><span>AUTOMATION</span><i></i><span>WINDOWS TOOLS</span><i></i><span>EXPLOIT</span><i></i><span>OPEN SOURCE</span><i></i><span>BLACK AND GOLD</span><i></i>
+        <span>ROBLOX SCRIPTS</span><i></i><span>AUTOMATION</span><i></i><span>WINDOWS TOOLS</span><i></i><span>EXPLOIT</span><i></i><span>OPEN SOURCE</span><i></i><span>BLACK AND GOLD</span><i></i>
       </div>
     </div>
 
-    <div class="block">
+    <div class="block reveal">
+      <p class="eyebrow">The name</p>
+      <div class="split">
+        <div class="about">
+          <p>NEWGOD is a name, not a claim.</p>
+          <p>It came out of an old handle, <span class="k">new123_GOOD</span>. The <span class="k">123</span> went first because it was noise. Then a typo ate a letter, and what was left read <span class="k">NEWGOD</span>. I kept it, because it looked better broken than it did correct.</p>
+          <p>It is not two words about a god. It is the name I sign work with &mdash; on here, on GitHub, on rscripts, and in every game I have ever pulled apart.</p>
+        </div>
+        <div class="glyphcard">
+          <svg class="glyph" viewBox="0 0 512 512"><use href="#ngmark"/></svg>
+          <div class="glyphmeta">
+            <div><span>Mark</span><b>N + W, one stroke</b></div>
+            <div><span>Gold</span><b>#FCBC24</b></div>
+            <div><span>Black</span><b>#0B0B0E</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="block reveal">
       <p class="eyebrow">What I build</p>
       <div class="bento">
         <button class="bt wide" type="button" data-goto="Scripts">
@@ -371,7 +485,7 @@ footer .furl:hover{color:var(--gold2)}
       </div>
     </div>
 
-    <div class="block">
+    <div class="block reveal">
       <p class="eyebrow">By the numbers</p>
       <div class="chips">
         <div class="chip3"><b class="count" data-to="96" data-suffix="%">96%</b><span>farm accuracy</span></div>
@@ -379,14 +493,71 @@ footer .furl:hover{color:var(--gold2)}
         <div class="chip3"><b class="count" data-to="18239">18,239</b><span>lines of Lua</span></div>
         <div class="chip3"><b class="count" data-to="1043">1,043</b><span>functions</span></div>
       </div>
+      <p class="note" style="margin-top:14px">Every one of these was read off a running machine. Nothing here is an estimate.</p>
     </div>
 
-    <div class="block">
+    <div class="block reveal">
+      <p class="eyebrow">How I work</p>
+      <div class="rules">
+        <div class="rule">
+          <span class="ri"><svg viewBox="0 0 24 24"><use href="#icoRuler"/></svg></span>
+          <h4>Measure, do not guess</h4>
+          <p>A number that was not read off a real machine does not ship. Most things that look broken are just something nobody counted yet.</p>
+        </div>
+        <div class="rule">
+          <span class="ri"><svg viewBox="0 0 24 24"><use href="#icoWrench"/></svg></span>
+          <h4>Build it myself</h4>
+          <p>Leaning on someone else's tool means waiting on their bug. If it matters, I would rather own the whole thing and fix it at 3am.</p>
+        </div>
+        <div class="rule">
+          <span class="ri"><svg viewBox="0 0 24 24"><use href="#icoWave"/></svg></span>
+          <h4>Everything should be smooth</h4>
+          <p>Smooth is not the same as simple. What you take away is friction &mdash; never depth.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="block reveal">
+      <p class="eyebrow">What is next</p>
+      <div class="plans">
+        <div class="plan">
+          <span class="ptag">Planning</span>
+          <h3>Newease</h3>
+          <p>Making a game on Roblox is too hard unless you are already a pro. Newease is the version where you do not have to be &mdash; a 3D version of Scratch, built inside Roblox: snap blocks together, hit publish, and other people can play it.</p>
+        </div>
+        <div class="plan">
+          <span class="ptag">The long one</span>
+          <h3>My own AI</h3>
+          <p>Roblox is what this year is for. It is not the ceiling. The plan after it is to build my own AI instead of renting somebody else's, and point it at the same thing I point everything at: finding the seam, then opening it.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="block reveal">
+      <p class="eyebrow">Live from GitHub</p>
+      <div class="livecard">
+        <div class="livehead">
+          <span class="pulse"></span>
+          <span class="livelabel">Latest pushes</span>
+          <a class="liveall" href="https://github.com/newgod2727?tab=repositories" target="_blank" rel="noopener">All repos</a>
+        </div>
+        <div id="liveRepos" class="liverows">
+          <div class="liveempty">Loading live from github.com/newgod2727&hellip;</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="block reveal">
       <p class="eyebrow">Find me</p>
       <div class="links">
         <a class="linkcard" href="https://x.com/newgod_2626" target="_blank" rel="noopener">
           <span class="ic"><svg viewBox="0 0 24 24"><use href="#icoX"/></svg></span>
           <span><span class="lt">X</span><span class="lh">@newgod_2626</span></span>
+          <span class="arr"></span>
+        </a>
+        <a class="linkcard" href="https://rscripts.net/@newgod" target="_blank" rel="noopener">
+          <span class="ic"><svg viewBox="0 0 24 24"><use href="#icoScript"/></svg></span>
+          <span><span class="lt">rscripts</span><span class="lh">@newgod</span></span>
           <span class="arr"></span>
         </a>
         <a class="linkcard" href="https://github.com/newgod2727" target="_blank" rel="noopener">
@@ -401,6 +572,16 @@ footer .furl:hover{color:var(--gold2)}
         </a>
       </div>
     </div>
+
+    <div class="cta reveal">
+      <h2>Take a script</h2>
+      <p>One line. No key, no checkpoint, no ad link. Paste it once and the link keeps giving you the newest build.</p>
+      <div class="actions">
+        <button class="btn" type="button" data-goto="Scripts">See the scripts</button>
+        <button class="btn ghost" type="button" data-goto="How to use">How to use</button>
+      </div>
+    </div>
+
   </section>
 
   <section class="view" data-t="Scripts">
@@ -1103,6 +1284,116 @@ return GROUP .. &quot; loader finished&quot;
   });
 
   go(0);
+})();
+</script>
+
+<script defer>
+(function(){
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function relTime(iso){
+    var then = new Date(iso).getTime();
+    if (!then) return "";
+    var s = Math.max(0, Math.floor((Date.now() - then) / 1000));
+    if (s < 60) return s + "s ago";
+    var m = Math.floor(s / 60);
+    if (m < 60) return m + "m ago";
+    var h = Math.floor(m / 60);
+    if (h < 24) return h + "h ago";
+    var d = Math.floor(h / 24);
+    if (d < 30) return d + "d ago";
+    var mo = Math.floor(d / 30);
+    if (mo < 12) return mo + "mo ago";
+    return Math.floor(mo / 12) + "y ago";
+  }
+
+  function esc(t){
+    return String(t == null ? "" : t)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  var box = document.getElementById("liveRepos");
+  if (box) {
+    fetch("https://api.github.com/users/newgod2727/repos?sort=pushed&per_page=5")
+      .then(function(r){ if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function(list){
+        if (!Array.isArray(list) || !list.length) throw new Error("empty");
+        box.innerHTML = list.map(function(r){
+          return '<a class="liverow" href="' + esc(r.html_url) + '" target="_blank" rel="noopener">'
+            + '<span class="rn">' + esc(r.name) + '</span>'
+            + '<span class="rd">' + esc(r.description || "") + '</span>'
+            + '<span class="rt">' + esc(relTime(r.pushed_at)) + '</span></a>';
+        }).join("");
+        if (window.ScrollTrigger) ScrollTrigger.refresh();
+      })
+      .catch(function(){
+        box.innerHTML = '<a class="liverow" href="https://github.com/newgod2727?tab=repositories" target="_blank" rel="noopener">'
+          + '<span class="rn">github.com/newgod2727</span>'
+          + '<span class="rd">Live feed unavailable right now &mdash; open the repos directly</span>'
+          + '<span class="rt">open</span></a>';
+      });
+  }
+
+  if (!window.gsap || reduce) return;
+  if (window.ScrollTrigger) gsap.registerPlugin(ScrollTrigger);
+
+  var mm = gsap.matchMedia();
+  mm.add("(prefers-reduced-motion: no-preference)", function(){
+
+    var tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+    tl.from('[data-anim="badge"]', { autoAlpha: 0, y: 14, duration: .5 })
+      .from('[data-anim="emblem"]', { autoAlpha: 0, y: 24, scale: .82, duration: .8 }, "-=.25")
+      .from('[data-anim="word"]',   { autoAlpha: 0, y: 26, scale: .95, duration: .8 }, "-=.55")
+      .from('[data-anim="lead"]',   { autoAlpha: 0, y: 18, duration: .6 }, "-=.5")
+      .from('[data-anim="actions"] > *', { autoAlpha: 0, y: 16, duration: .5, stagger: .07 }, "-=.4");
+
+    if (!window.ScrollTrigger) return;
+
+    ScrollTrigger.batch(".reveal", {
+      start: "top 88%",
+      once: true,
+      onEnter: function(batch){
+        gsap.from(batch, { autoAlpha: 0, y: 28, duration: .7, stagger: .12, ease: "power3.out", overwrite: true });
+      }
+    });
+
+    gsap.utils.toArray(".bt, .rule, .plan, .chip3, .linkcard").forEach(function(el){
+      gsap.from(el, {
+        autoAlpha: 0, y: 20, duration: .6, ease: "power3.out",
+        scrollTrigger: { trigger: el, start: "top 92%", once: true }
+      });
+    });
+
+    gsap.utils.toArray(".count").forEach(function(el){
+      var to  = parseFloat(el.getAttribute("data-to")) || 0;
+      var dec = parseInt(el.getAttribute("data-dec") || "0", 10);
+      var suf = el.getAttribute("data-suffix") || "";
+      var obj = { v: 0 };
+      gsap.to(obj, {
+        v: to, duration: 1.3, ease: "power2.out",
+        scrollTrigger: { trigger: el, start: "top 92%", once: true },
+        onUpdate: function(){
+          var s = dec > 0 ? obj.v.toFixed(dec) : String(Math.round(obj.v));
+          var p = s.split(".");
+          p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+          el.textContent = p.join(".") + suf;
+        }
+      });
+    });
+
+    gsap.to(".bg .b1", { xPercent: 8, yPercent: 12, ease: "none",
+      scrollTrigger: { trigger: document.body, start: "top top", end: "bottom bottom", scrub: 1 } });
+    gsap.to(".bg .b3", { xPercent: -6, yPercent: -10, ease: "none",
+      scrollTrigger: { trigger: document.body, start: "top top", end: "bottom bottom", scrub: 1 } });
+
+    return function(){};
+  });
+
+  window.__ngReveal = function(){
+    if (!window.gsap || reduce || !window.ScrollTrigger) return;
+    ScrollTrigger.refresh();
+  };
 })();
 </script>
 
