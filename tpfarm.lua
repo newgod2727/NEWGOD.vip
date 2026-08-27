@@ -232,7 +232,7 @@ do
     end)
 end
 
-LOG("vape is loaded by 29_keepalive.lua in the autoexec, this script never loads it")
+LOG("vape is loaded by this script and by nothing else, one copy, with a lock")
 
 pcall(function() (getgenv and getgenv() or _G).__TPFARM_WRONGPLACE = nil end)
 local Shoot = grab(RS, "Blaster", "Remotes", "Shoot")
@@ -878,7 +878,9 @@ local function buyRun(spec)
         local after = settleCash(c)
         shutCrateScreen()
         local landedNow = math.floor((c - after) / spec.price)
-        LOG(string.format("  buy burst %s: fired %d, packets out %d, cash %d -> %d, that is %d crate(s)",
+        -- packets out is usually 0 for a same-frame burst: roblox batches the remote calls
+        -- into the next outgoing packet, so this number is a window count, not a per-fire one.
+        LOG(string.format("  buy burst %s: fired %d, packets out in that frame %d, cash %d -> %d, that is %d crate(s)",
             spec.label, n, wire, c, after, landedNow))
         if after >= c then
             stall = stall + 1
