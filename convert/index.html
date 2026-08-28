@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NEWGOD Convert — Support</title>
+<meta name="description" content="Support page for the NEWGOD Convert Chrome extension. How to report a problem, what it can do, and what it cannot see.">
+<meta name="theme-color" content="#14110d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%230B0B0E'/%3E%3CclipPath id='c'%3E%3Crect x='0' y='96' width='512' height='416'/%3E%3C/clipPath%3E%3Cg clip-path='url(%23c)'%3E%3Cpolyline points='104,372 104,96 200,372 272,96 344,372 416,96' fill='none' stroke='%23FCBC24' stroke-width='68' stroke-linejoin='miter' stroke-miterlimit='30' stroke-linecap='butt'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Spline+Sans:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  font-size:21px;
+  --bg:#14110d; --line:#2c241a; --line2:#3a3024;
+  --gold:#e7b173; --gold2:#f3cf99; --gold3:#c98e4a; --mtl:#FCBC24;
+  --ink:#efe4d6; --dim:rgba(164,148,129,.9); --sage:#9bbf95;
+  --r:20px;
+}
+*{box-sizing:border-box}
+html{scrollbar-width:thin;scrollbar-color:#c98e4a #16120d}
+::-webkit-scrollbar{width:14px;height:14px}
+::-webkit-scrollbar-track{background:#16120d;border-radius:999px}
+::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#e7b173,#c98e4a);border-radius:999px;border:3px solid #16120d}
+::-webkit-scrollbar-thumb:hover{background:#f3cf99}
+::-webkit-scrollbar-button{display:none;width:0;height:0}
+::-webkit-scrollbar-corner{background:#16120d}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Spline Sans",-apple-system,sans-serif;
+  font-size:1.05rem;line-height:1.72;overflow-x:hidden;
+}
+.bg{position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(120% 90% at 50% -10%,#1b1610,#14110d 55%,#100d09)}
+.wrap{max-width:880px;margin:0 auto;padding:56px 22px 96px}
+.mark{display:flex;align-items:center;gap:14px;margin-bottom:34px}
+.mark svg{width:38px;height:38px;filter:drop-shadow(0 0 10px rgba(252,188,36,.4))}
+.mark span{font-family:"Fraunces",serif;font-weight:800;font-size:1.1rem;letter-spacing:.06em;color:var(--gold2)}
+h1{font-family:"Fraunces",serif;font-weight:800;font-size:2.3rem;line-height:1.2;margin:0 0 12px;color:var(--gold2)}
+.sub{color:var(--dim);margin:0 0 36px}
+h2{font-family:"Fraunces",serif;font-weight:600;font-size:1.4rem;line-height:1.3;margin:0 0 14px;color:var(--gold)}
+p{margin:0 0 18px}
+ul{margin:0 0 18px;padding-left:1.2em}
+li{margin:0 0 9px}
+a{color:var(--gold2)}
+code{font-family:"JetBrains Mono",monospace;font-size:.86em;color:var(--gold2);background:rgba(231,177,115,.09);border:1px solid var(--line);border-radius:7px;padding:2px 7px}
+.card{border:1px solid var(--line2);background:rgba(28,23,16,.55);border-radius:var(--r);padding:26px 28px;margin:0 0 20px}
+.card p:last-child,.card ul:last-child{margin-bottom:0}
+.chips{display:flex;flex-wrap:wrap;gap:9px;margin:0 0 22px}
+.chip{font-family:"JetBrains Mono",monospace;font-size:.74rem;letter-spacing:.05em;padding:6px 13px;border-radius:999px;border:1px solid var(--line2);color:var(--gold2);background:rgba(255,243,201,.03)}
+.mailbtn{display:inline-block;margin-top:6px;padding:14px 26px;border-radius:14px;font-weight:700;text-decoration:none;background:linear-gradient(180deg,#FCD241,#F6A30A);border:1px solid #F6A30A;color:#0B0905}
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+td{padding:11px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+td.k{color:var(--dim);width:38%;font-family:"JetBrains Mono",monospace;font-size:.82rem}
+tr:last-child td{border-bottom:none}
+footer{margin-top:56px;padding-top:26px;border-top:1px solid var(--line);color:var(--dim);font-size:.88rem}
+@media(max-width:700px){:root{font-size:19px}h1{font-size:1.9rem}.wrap{padding:38px 18px 72px}td.k{width:46%}}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="wrap">
+
+<div class="mark">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="96" fill="#0B0B0E"/><clipPath id="c"><rect x="0" y="96" width="512" height="416"/></clipPath><g clip-path="url(#c)"><polyline points="104,372 104,96 200,372 272,96 344,372 416,96" fill="none" stroke="#FCBC24" stroke-width="68" stroke-linejoin="miter" stroke-miterlimit="30"/></g></svg>
+<span>NEWGOD</span>
+</div>
+
+<h1>NEWGOD Convert — Support</h1>
+<p class="sub">Everything about the extension, and the one address that reaches a person.</p>
+
+<div class="chips">
+<span class="chip">Chrome</span><span class="chip">Manifest V3</span><span class="chip">Zero permissions</span><span class="chip">No network requests</span><span class="chip">Free</span>
+</div>
+
+<div class="card">
+<h2>Get help</h2>
+<p>Something broken, something missing, or a format you want added next — write to the address below and say what file you dropped in and what happened. There is no ticket system and no bot in the way.</p>
+<a class="mailbtn" href="mailto:newgod@manus.bot">newgod@manus.bot</a>
+</div>
+
+<div class="card">
+<h2>What it does</h2>
+<p>Drop a file into the panel. The extension reads the header to work out what the file really is, shows you what it can become, and does the work inside the tab you already have open. There is no upload step, no queue, and no account.</p>
+<ul>
+<li>Any file becomes a PNG that carries every byte, and that PNG turns back into the original file under its original name.</li>
+<li>PNG, JPG, WebP and BMP in every direction.</li>
+<li>JSON to pretty, to minified, or to CSV. CSV back to JSON.</li>
+<li>Any text to Base64 or to hexadecimal.</li>
+<li>777 extensions across 26 families are recognised by their magic bytes, so a wrong file extension does not fool it.</li>
+</ul>
+</div>
+
+<div class="card">
+<h2>The pixel carrier</h2>
+<p>A file is a list of bytes and a byte is a number from 0 to 255. A colour channel is also a number from 0 to 255, so one RGB pixel holds exactly three bytes.</p>
+<p>The first pixels carry a small header with the original filename and the original length, which is why restoring gives back the right name and not one byte more. Nothing is compressed and nothing is guessed, so the round trip is identical byte for byte. A 300,000 byte file becomes a 317 by 316 image and comes back the same.</p>
+</div>
+
+<div class="card">
+<h2>The animation editor</h2>
+<table>
+<tr><td class="k">Board</td><td>8 by 8 up to 4080 by 4080</td></tr>
+<tr><td class="k">Export</td><td>PNG up to 16384 by 16384</td></tr>
+<tr><td class="k">Tools</td><td>pen, eraser, flood fill, brush 1 to 49 pixels</td></tr>
+<tr><td class="k">Frames</td><td>unlimited, with onion skin of the previous frame</td></tr>
+<tr><td class="k">Playback</td><td>1 to 24 frames per second</td></tr>
+<tr><td class="k">Or skip it</td><td>load your own GIF, APNG, WebP, SVG, MP4 or WebM</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h2>What it cannot see</h2>
+<p>The manifest declares no <code>permissions</code>, no <code>host_permissions</code> and no <code>content_scripts</code>. It cannot read the pages you visit, cannot see your history, cannot touch your cookies, and cannot make a request on your behalf. There is no analytics and no telemetry.</p>
+<p>Your files never leave your machine, because there is nowhere for them to go. The full policy is at <a href="https://newgod.vip/privacy">newgod.vip/privacy</a>.</p>
+</div>
+
+<div class="card">
+<h2>Known limits</h2>
+<ul>
+<li>Your own machine is the ceiling. Files are read one megabyte at a time so a large file never sits in memory whole, but a browser tab still has a limit and a very large board plus a very large file will find it.</li>
+<li>A PNG made by the carrier only restores through this extension. It is a real PNG and it will open in any viewer, but the bytes it carries mean nothing to anything else.</li>
+<li>Editing a carrier PNG in an image editor destroys it. Re-saving changes pixels, and a changed pixel is a changed byte.</li>
+<li>The animation and the editor settings live in your own browser storage. Clearing your browsing data clears them, and they do not follow you to another computer.</li>
+</ul>
+</div>
+
+<footer>NEWGOD Convert is a Chrome extension published by NEWGOD. More at <a href="https://newgod.vip">newgod.vip</a>.</footer>
+
+</div>
+</body>
+</html>
