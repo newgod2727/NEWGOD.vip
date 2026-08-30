@@ -656,15 +656,16 @@ footer .furl:hover{color:var(--gold2)}
   <section class="view" data-t="Console">
     <div class="vhead">
       <h2>Console scripts</h2>
-      <p>Small JavaScript tools you paste straight into the browser console. Nothing is installed and nothing is uploaded &mdash; the page you are already looking at does the work and hands you a file.</p>
+      <p>Small JavaScript tools you paste straight into the browser console. Nothing is installed and nothing is uploaded &mdash; the page you are already looking at does the work and hands you a file. Every one has a Copy button on this tab, so you grab it here without opening anything.</p>
     </div>
 
     <div class="card">
       <h3>Copy website page into md</h3>
       <p>Turns whatever page you are on into a Markdown file and downloads it. Tables come out as real Markdown tables, links keep their address, and hidden elements are dropped. It walks into same-origin frames as well, up to four levels deep, so old frameset sites come out whole instead of empty.</p>
       <div class="plat"><span class="chip">Chrome</span><span class="chip">Edge</span><span class="chip">no install</span></div>
+      <p style="margin:2px 0 4px"><button class="copy" type="button" data-copy="src-page2md">Copy page2md.js</button></p>
       <div class="code">
-        <div class="code-top"><span class="code-name">page2md.js</span><button class="copy sm" type="button" data-copy="src-page2md">Copy page2md.js</button></div>
+        <div class="code-top"><span class="code-name">page2md.js</span><button class="copy sm" type="button" data-copy="src-page2md">Copy again</button></div>
         <code class="block tall" id="src-page2md">(function(){
 function conv(doc){
   var win = doc.defaultView || window;
@@ -765,7 +766,7 @@ return text.length;
 
     <div class="card">
       <h3>More coming</h3>
-      <p>This tab is the shelf. Every console tool gets its own card here with its own copy button, so there is one place to come back to instead of digging through old chats.</p>
+      <p>This tab is the shelf. Every console tool gets its own card here with its own Copy button, so you copy it straight from this tab instead of digging through old chats.</p>
     </div>
   </section>
 
@@ -773,6 +774,14 @@ return text.length;
     <div class="vhead">
       <h2>Updates</h2>
       <p>The link never changes. Paste it once, you always get the newest build.</p>
+    </div>
+    <div class="card">
+      <h3>Site changelog</h3>
+      <p>Every change to this site lands here first, newest on top.</p>
+      <ul>
+        <li><span class="k">31 Aug 2026</span> &mdash; Every tool moved onto its own page: NEWGOD CANVA, PyToolbox and NEWGOD Convert under <span class="k">/info</span>, and the four scripts split out too &mdash; SkyWars Solo, EggWars, Deagle Arena and AIMBOT, each at its own <span class="k">/info</span> address. The Tools tab and the Scripts tab are now just buttons; SKYWARS and How-to-use came off the top bar and live inside those pages. Added a one-click Copy on the Console tab.</li>
+        <li><span class="k">31 Aug 2026</span> &mdash; NEWGOD CANVA published at <span class="k">/canva</span>: a poster and backdrop editor that is one HTML file, runs entirely in the browser, and can be downloaded and used offline.</li>
+      </ul>
     </div>
     <div class="card">
       <h3>Now</h3>
