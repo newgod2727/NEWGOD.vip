@@ -18,9 +18,10 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--
 #top{height:66px;display:flex;align-items:center;gap:10px;padding:0 14px;
   background:var(--panel);border-bottom:2px solid var(--gold);overflow-x:auto}
 #top b{font-family:'Poppins',sans-serif;font-size:19px;color:var(--gold);white-space:nowrap}
-button,label.btn{font-family:inherit;font-size:17px;font-weight:700;padding:9px 16px;border:0;
-  border-radius:999px;background:var(--gold);color:#0b0905;cursor:pointer;white-space:nowrap}
-button.g,label.btn.g{background:transparent;color:var(--gold);border:2px solid var(--gold)}
+button,label.btn,a.btn{font-family:inherit;font-size:17px;font-weight:700;padding:9px 16px;border:0;
+  border-radius:999px;background:var(--gold);color:#0b0905;cursor:pointer;white-space:nowrap;
+  text-decoration:none;display:inline-block}
+button.g,label.btn.g,a.btn.g{background:transparent;color:var(--gold);border:2px solid var(--gold)}
 button:disabled{opacity:.45;cursor:default}
 #bar{position:relative;flex:1;min-width:190px;height:36px;border:2px solid var(--gold);
   border-radius:999px;overflow:hidden;background:#14110d}
@@ -116,7 +117,7 @@ input[type=file]{display:none}
         </select>
       </div>
     </div>
-    <p class="hint">全部喺你部機行，冇任何嘢送去伺服器。方向鍵微調，按住 Shift 大步。</p>
+    <p class="hint">全部在你的機器上執行，沒有任何東西送去伺服器。方向鍵微調，按住 Shift 大步。</p>
   </div>
 </div>
 
@@ -343,7 +344,7 @@ async function exportOut(kind){
     say(88,"打包");
     var mime=kind==="png"?"image/png":"image/jpeg";
     cv.toBlob(function(bl){
-      if(!bl){ say(0,"出唔到，試細啲 dpi"); return; }
+      if(!bl){ say(0,"出不到圖，把 dpi 調小一點"); return; }
       var a=document.createElement("a");
       a.href=URL.createObjectURL(bl);
       a.download="newgod-"+o2.w+"x"+o2.h+"."+(kind==="png"?"png":"jpg");
