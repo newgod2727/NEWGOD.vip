@@ -482,16 +482,16 @@ footer .furl:hover{color:var(--gold2)}
         </button>
         <button class="bt" type="button" data-goto="Tools">
           <span class="num">03</span>
-          <h3>Windows tools</h3>
-          <p>PyToolbox and a set of utilities that run both my machines from one pinned sidebar. Open source.</p>
+          <h3>Three tools</h3>
+          <p>A poster editor that is one HTML file, the pinned sidebar that runs both my machines, and a Chrome extension that converts a file inside your own tab.</p>
           <span class="go">Open Tools</span>
         </button>
-        <button class="bt wide" type="button" data-goto="Convert">
+        <a class="bt wide" style="text-decoration:none" href="https://newgod.vip/info/convert">
           <span class="num">04</span>
           <h3>A Chrome extension</h3>
           <p>NEWGOD Convert turns any file into another file inside your own browser. Zero permissions, no server, nothing uploads &mdash; and the loading animation is one you draw yourself, on a board that goes up to 4080 by 4080.</p>
           <span class="go">Open Convert</span>
-        </button>
+        </a>
       </div>
     </div>
 
@@ -1224,7 +1224,7 @@ return GROUP .. &quot; loader finished&quot;
   <section class="view" data-t="Tools">
     <div class="vhead">
       <h2>Tools</h2>
-      <p>Two of them. Pick one.</p>
+      <p>Three of them. Pick one.</p>
     </div>
 
     <div class="bento">
@@ -1240,64 +1240,12 @@ return GROUP .. &quot; loader finished&quot;
         <p>The pinned Windows sidebar that runs both machines. Two builds in one file.</p>
         <span class="go">newgod.vip/info/pytoolbox</span>
       </a>
-    </div>
-  </section>
-
-  <section class="view" data-t="Convert">
-    <div class="vhead">
-      <h2>NEWGOD Convert</h2>
-      <p>A Chrome extension that turns a file into another file without a server. It opens as a panel over whatever tab you are already on, reads your file into your own machine's memory, and hands the result back. Nothing is uploaded, because there is nowhere to upload to.</p>
-    </div>
-
-    <div class="card">
-      <h3>What it does</h3>
-      <p>Drop a file in. It reads the header to work out what the file really is, shows you what it can become, and does the work in the tab you already have open &mdash; no upload bar, no queue, no waiting on somebody else's machine.</p>
-      <div class="plat"><span class="chip">Chrome</span><span class="chip">Manifest V3</span><span class="chip">Zero permissions</span><span class="chip">No network requests</span></div>
-      <ul>
-        <li>Any file becomes a PNG that carries every byte, and that PNG turns back into the original file under its original name.</li>
-        <li>PNG, JPG, WebP and BMP in every direction.</li>
-        <li>JSON to pretty, to minified, or to CSV. CSV back to JSON.</li>
-        <li>Any text to Base64 or to hexadecimal.</li>
-        <li>777 extensions across 26 families are recognised by their magic bytes, so a wrong file extension does not fool it.</li>
-      </ul>
-    </div>
-
-    <div class="card">
-      <h3>The part that should not work</h3>
-      <p>A file is a list of bytes and a byte is a number from 0 to 255. A colour channel is also a number from 0 to 255, so one RGB pixel holds exactly three bytes. That is the whole trick.</p>
-      <ul>
-        <li>The first pixels carry a small header with the original filename and the original length, which is why the round trip gives back the right name and not one byte more.</li>
-        <li>Nothing is compressed and nothing is guessed, so the file that comes back is identical byte for byte.</li>
-        <li>Measured: a 300,000 byte file becomes a 317 by 316 image and comes back the same.</li>
-        <li>Files are read one megabyte at a time, so a large one never has to sit in memory whole. There is no size cap from us &mdash; we pay for no bandwidth and no CPU, so your own machine is the only ceiling.</li>
-      </ul>
-    </div>
-
-    <div class="card">
-      <h3>You draw the loading animation</h3>
-      <p>Waiting is boring, so the progress animation is yours to make rather than mine to pick.</p>
-      <div class="tablewrap"><table>
-        <tr><th>&nbsp;</th><th>what you get</th></tr>
-        <tr><td class="kk">Board</td><td class="nn">8 by 8 up to 4080 by 4080</td></tr>
-        <tr><td class="kk">Export</td><td class="nn">PNG up to 16384 by 16384</td></tr>
-        <tr><td class="kk">Tools</td><td class="nn">pen, eraser, flood fill, brush 1 to 49</td></tr>
-        <tr><td class="kk">Frames</td><td class="nn">unlimited, onion skin of the previous one</td></tr>
-        <tr><td class="kk">Playback</td><td class="nn">1 to 24 frames per second</td></tr>
-        <tr><td class="kk">Or skip it</td><td class="nn">load your own GIF, APNG, WebP, SVG, MP4 or WebM</td></tr>
-      </table></div>
-      <p class="note">Measured on the largest board: a flood fill across 4080 by 4080 colours all 16,646,400 cells in 382 ms. That is the case everything else was built around.</p>
-    </div>
-
-    <div class="card">
-      <h3>What it cannot see</h3>
-      <p>The manifest declares no permissions, no host permissions and no content scripts. It therefore cannot read the pages you visit, cannot see your history, cannot touch your cookies, and cannot make a request on your behalf. There is no analytics and no telemetry.</p>
-      <p class="note">A search of the whole source for eval, new Function, fetch, XMLHttpRequest and any external address returns zero matches on every one. Full policy at <a href="https://newgod.vip/privacy">newgod.vip/privacy</a>.</p>
-    </div>
-
-    <div class="card">
-      <h3>Where it is</h3>
-      <p>Submitted to the Chrome Web Store and waiting on review. The link lands on this page the day it clears &mdash; there is no early download, because an extension sideloaded from a zip is exactly the thing this one is built not to be.</p>
-      <p>Anything broken, anything missing, or a format you want next: <a href="mailto:newgod@manus.bot">newgod@manus.bot</a>.</p>
+      <a class="bt wide" style="text-decoration:none" href="https://newgod.vip/info/convert">
+        <span class="num">03</span>
+        <h3 style="font-size:1.2rem">NEWGOD Convert</h3>
+        <p>A Chrome extension that turns a file into another file inside your own tab. Zero permissions.</p>
+        <span class="go">newgod.vip/info/convert</span>
+      </a>
     </div>
   </section>
 
