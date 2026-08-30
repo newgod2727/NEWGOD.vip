@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NEWGOD CANVA — BACKDROP STUDIO</title>
+<meta name="description" content="A local poster and backdrop editor. Upload your own background and images, place text, export at full print size. Nothing leaves your browser.">
+<meta name="theme-color" content="#14110d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%230B0B0E'/%3E%3Cpolyline points='104,372 104,96 200,372 272,96 344,372 416,96' fill='none' stroke='%23FCBC24' stroke-width='68'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+TC:wght@500;700;900&family=Poppins:wght@600;800&display=swap" rel="stylesheet">
+<style>
+:root{--gold:#e7b173;--gold2:#f3cf99;--bg:#14110d;--panel:#0b0905;--line:#2c241a;--ink:#efe4d6}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+  font-family:'Noto Sans TC',system-ui,sans-serif;font-size:18px}
+#top{height:66px;display:flex;align-items:center;gap:10px;padding:0 14px;
+  background:var(--panel);border-bottom:2px solid var(--gold);overflow-x:auto}
+#top b{font-family:'Poppins',sans-serif;font-size:19px;color:var(--gold);white-space:nowrap}
+button,label.btn{font-family:inherit;font-size:17px;font-weight:700;padding:9px 16px;border:0;
+  border-radius:999px;background:var(--gold);color:#0b0905;cursor:pointer;white-space:nowrap}
+button.g,label.btn.g{background:transparent;color:var(--gold);border:2px solid var(--gold)}
+button:disabled{opacity:.45;cursor:default}
+#bar{position:relative;flex:1;min-width:190px;height:36px;border:2px solid var(--gold);
+  border-radius:999px;overflow:hidden;background:#14110d}
+#fill{position:absolute;inset:0 auto 0 0;width:0;background:var(--gold);transition:width .2s}
+#msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:700;mix-blend-mode:difference;white-space:nowrap;padding:0 8px}
+#body{display:flex;height:calc(100% - 66px)}
+#wrap{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:16px}
+#stage{position:relative;background:#0f2f36;box-shadow:0 0 0 2px var(--gold);overflow:hidden}
+#stage img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:fill}
+.lay{position:absolute;cursor:move;user-select:none}
+.lay.txt{white-space:pre;line-height:1;transform:translateX(-50%);text-align:center}
+.lay.sel{outline:2px solid rgba(231,177,115,.9);outline-offset:6px}
+.gold{background:linear-gradient(178deg,#fffcf4 0%,#fae4b6 28%,#dbab50 60%,#fae2b2 83%,#c68d38 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 .05em 0 #6a4c1c) drop-shadow(0 .09em .09em rgba(0,0,0,.75))}
+.flat{text-shadow:0 0 .10em rgba(0,0,0,.9),0 .04em .09em rgba(0,0,0,.85)}
+#side{width:330px;flex:0 0 330px;background:var(--panel);border-left:2px solid var(--gold);
+  padding:14px;overflow:auto}
+#side h4{margin:0 0 8px;font-size:18px;color:var(--gold)}
+.row{margin:11px 0}
+.row label{display:block;font-size:15px;color:#c98e4a;margin-bottom:4px}
+input[type=text],input[type=number],select{width:100%;font-family:inherit;font-size:17px;
+  padding:8px 9px;border-radius:8px;border:2px solid var(--gold);background:#14110d;color:var(--ink)}
+input[type=color]{width:100%;height:36px;border:0;background:none;padding:0}
+.two{display:flex;gap:8px}.two>div{flex:1}
+#chips{display:flex;flex-wrap:wrap;gap:6px}
+#chips button{font-size:14px;padding:5px 10px}
+.hint{font-size:14px;color:#a49481;line-height:1.5}
+input[type=file]{display:none}
+</style>
+</head>
+<body>
+
+<div id="top">
+  <b>NEWGOD CANVA</b>
+  <label class="btn g">上載背景<input type="file" id="fbg" accept="image/*"></label>
+  <label class="btn g">上載圖片<input type="file" id="fim" accept="image/*" multiple></label>
+  <button onclick="addText()">＋ 加字</button>
+  <button class="g" onclick="delSel()">刪</button>
+  <button onclick="exportOut('png')">匯出 PNG</button>
+  <button class="g" onclick="exportOut('jpeg')">匯出 JPG</button>
+  <div id="bar"><i id="fill"></i><span id="msg">上載一張背景就可以開始</span></div>
+  <a class="btn g" style="text-decoration:none;line-height:1.4" href="index.html" download="newgod-canva.html">下載這個工具</a>
+</div>
+
+<div id="body">
+  <div id="wrap"><div id="stage"></div></div>
+  <div id="side">
+    <h4>畫布</h4>
+    <div class="row two">
+      <div><label>闊 (cm)</label><input type="number" id="cw" step="1" value="300"></div>
+      <div><label>高 (cm)</label><input type="number" id="ch" step="1" value="250"></div>
+    </div>
+    <div class="row two">
+      <div><label>出圖 dpi</label><input type="number" id="cd" step="10" value="200"></div>
+      <div><label>出圖尺寸</label><input type="text" id="cpx" disabled></div>
+    </div>
+    <div class="row"><label>常用</label>
+      <div id="chips">
+        <button class="g" onclick="setSize(300,250)">背景板 300x250</button>
+        <button class="g" onclick="setSize(29.7,42)">A3 直</button>
+        <button class="g" onclick="setSize(21,29.7)">A4 直</button>
+        <button class="g" onclick="fitToBg()">跟背景圖</button>
+      </div>
+    </div>
+    <h4 style="margin-top:18px">圖層</h4>
+    <div class="row"><div id="layers" class="two" style="flex-wrap:wrap;gap:6px"></div></div>
+    <div id="edit">
+      <div class="row" id="rtxt"><label>文字內容</label><input type="text" id="txt"></div>
+      <div class="row two">
+        <div><label>左右 X (cm)</label><input type="number" id="nx" step="0.5"></div>
+        <div><label>大細 (cm)</label><input type="number" id="ns" step="0.5"></div>
+      </div>
+      <div class="row two">
+        <div><label>頂邊離底 (cm)</label><input type="number" id="ny" step="0.5"></div>
+        <div><label>底邊離底 (cm)</label><input type="number" id="nb" disabled></div>
+      </div>
+      <div class="row" id="rstyle">
+        <label>款式</label>
+        <div class="two">
+          <div><button class="g" style="width:100%" onclick="setStyle('gold')">金色立體</button></div>
+          <div><button class="g" style="width:100%" onclick="setStyle('flat')">純色</button></div>
+        </div>
+      </div>
+      <div class="row" id="rcol"><label>純色</label><input type="color" id="col" value="#ffffff"></div>
+      <div class="row" id="rfont"><label>字體</label>
+        <select id="font">
+          <option value="auto">自動（中文用黑體，英文用 Cinzel）</option>
+          <option value="cinzel">Cinzel</option>
+          <option value="tc">Noto Sans TC</option>
+          <option value="poppins">Poppins</option>
+        </select>
+      </div>
+    </div>
+    <p class="hint">全部喺你部機行，冇任何嘢送去伺服器。方向鍵微調，按住 Shift 大步。</p>
+  </div>
+</div>
+
+<script>
+var S={w:300,h:250,dpi:200,bg:null,items:[],sel:null,nid:1};
+var px=1;
+var FF={cinzel:"'Cinzel',serif",tc:"'Noto Sans TC',sans-serif",poppins:"'Poppins',sans-serif"};
+function isCJK(s){return /[㐀-鿿＀-￯]/.test(s||"");}
+function fontOf(o){var f=o.font||"auto";
+  if(f==="auto")return isCJK(o.text)?FF.tc:FF.cinzel; return FF[f]||FF.tc;}
+function stage(){return document.getElementById("stage");}
+function cur(){return S.items.filter(function(o){return o.id===S.sel;})[0];}
+
+function outPx(){
+  var w=Math.round(S.w/2.54*S.dpi), h=Math.round(S.h/2.54*S.dpi);
+  var MAXS=16000, MAXA=240000000, k=1;
+  if(w>MAXS||h>MAXS) k=Math.min(MAXS/w,MAXS/h);
+  if(w*k*h*k>MAXA) k=Math.min(k,Math.sqrt(MAXA/(w*h)));
+  return {w:Math.max(1,Math.round(w*k)),h:Math.max(1,Math.round(h*k)),clamp:k<0.999};
+}
+function layout(){
+  var wr=document.getElementById("wrap");
+  px=Math.min((wr.clientWidth-32)/S.w,(wr.clientHeight-32)/S.h);
+  var st=stage();
+  st.style.width=(S.w*px)+"px"; st.style.height=(S.h*px)+"px";
+  var keep={};
+  S.items.forEach(function(o){keep["L"+o.id]=1;});
+  Array.prototype.slice.call(st.children).forEach(function(n){
+    if(n.className==="bg")return;
+    if(!keep[n.id]) n.remove();
+  });
+  S.items.forEach(function(o){
+    var e=document.getElementById("L"+o.id);
+    if(!e){ e=document.createElement(o.kind==="text"?"div":"img");
+      e.id="L"+o.id; st.appendChild(e); grab(e,o.id); }
+    if(o.kind==="text"){
+      e.className="lay txt "+(o.style==="gold"?"gold":"flat")+(o.id===S.sel?" sel":"");
+      e.textContent=o.text;
+      e.style.fontFamily=fontOf(o); e.style.fontWeight=900;
+      e.style.fontSize=(o.size*px)+"px";
+      e.style.color=o.style==="gold"?"":o.color;
+      e.style.left=(o.x*px)+"px"; e.style.top=(o.y*px)+"px";
+    }else{
+      e.className="lay img"+(o.id===S.sel?" sel":"");
+      if(e.src!==o.src) e.src=o.src;
+      e.style.width=(o.size*px)+"px"; e.style.height="auto";
+      e.style.left=(o.x*px)+"px"; e.style.top=(o.y*px)+"px";
+      e.style.transform="translateX(-50%)";
+    }
+  });
+  var bg=st.querySelector("img.bg");
+  if(S.bg && !bg){ bg=document.createElement("img"); bg.className="bg"; st.insertBefore(bg,st.firstChild); }
+  if(bg) bg.src=S.bg;
+  var o2=outPx();
+  document.getElementById("cpx").value=o2.w+" x "+o2.h+(o2.clamp?"（已封頂）":"");
+  chips(); fill();
+}
+function chips(){
+  var L=document.getElementById("layers"); L.innerHTML="";
+  S.items.forEach(function(o){
+    var b=document.createElement("button"); b.className="g";
+    b.textContent=o.kind==="text"?(o.text||"字").slice(0,7):"圖";
+    b.onclick=function(){S.sel=o.id;layout();};
+    L.appendChild(b);
+  });
+}
+function bbox(id){
+  var e=document.getElementById("L"+id); if(!e)return null;
+  var r=e.getBoundingClientRect(), s=stage().getBoundingClientRect();
+  return {t:(r.top-s.top)/px,b:(r.bottom-s.top)/px,l:(r.left-s.left)/px,r:(r.right-s.left)/px};
+}
+function fill(){
+  var c=cur(), isT=c&&c.kind==="text";
+  ["rtxt","rstyle","rcol","rfont"].forEach(function(k){
+    document.getElementById(k).style.display=isT?"":"none";});
+  document.getElementById("edit").style.display=c?"":"none";
+  if(!c)return;
+  var set=function(id,v){var e=document.getElementById(id);
+    if(document.activeElement!==e) e.value=(+v).toFixed(1);};
+  var t=document.getElementById("txt");
+  if(isT && document.activeElement!==t) t.value=c.text;
+  set("nx",c.x); set("ns",c.size); set("ny",S.h-c.y);
+  var b=bbox(c.id);
+  document.getElementById("nb").value=b?(S.h-b.b).toFixed(1):"";
+  if(isT) document.getElementById("col").value=c.color;
+  if(isT) document.getElementById("font").value=c.font||"auto";
+}
+var drag=null;
+function grab(e,id){
+  e.addEventListener("pointerdown",function(ev){
+    S.sel=id; var o=cur();
+    drag={id:id,sx:ev.clientX,sy:ev.clientY,ox:o.x,oy:o.y};
+    e.setPointerCapture(ev.pointerId); layout(); ev.preventDefault();
+  });
+  e.addEventListener("pointermove",function(ev){
+    if(!drag||drag.id!==id)return;
+    var o=S.items.filter(function(z){return z.id===id;})[0];
+    o.x=drag.ox+(ev.clientX-drag.sx)/px; o.y=drag.oy+(ev.clientY-drag.sy)/px;
+    layout();
+  });
+  e.addEventListener("pointerup",function(){drag=null;});
+}
+function addText(){
+  var o={id:S.nid++,kind:"text",text:"新文字",x:S.w/2,y:S.h*0.1,size:Math.max(2,S.h*0.08),
+         style:"gold",color:"#ffffff",font:"auto"};
+  S.items.push(o); S.sel=o.id; layout();
+  var t=document.getElementById("txt"); t.focus(); t.select();
+}
+function delSel(){
+  S.items=S.items.filter(function(o){return o.id!==S.sel;});
+  S.sel=S.items.length?S.items[0].id:null;
+  var st=stage(); Array.prototype.slice.call(st.children).forEach(function(n){
+    if(n.className!=="bg"&&!S.items.filter(function(o){return "L"+o.id===n.id;}).length) n.remove();});
+  layout();
+}
+function setStyle(s){var c=cur(); if(c&&c.kind==="text"){c.style=s;layout();}}
+function setSize(w,h){S.w=w;S.h=h;
+  document.getElementById("cw").value=w; document.getElementById("ch").value=h; layout();}
+function fitToBg(){
+  if(!S.bgW)return;
+  var r=S.bgW/S.bgH; S.h=S.w/r;
+  document.getElementById("ch").value=S.h.toFixed(1); layout();
+}
+document.getElementById("fbg").addEventListener("change",function(ev){
+  var f=ev.target.files[0]; if(!f)return;
+  var rd=new FileReader();
+  rd.onload=function(){ var im=new Image();
+    im.onload=function(){S.bgW=im.width;S.bgH=im.height;S.bg=rd.result;
+      say(0,"背景 "+im.width+"x"+im.height); layout();};
+    im.src=rd.result; };
+  rd.readAsDataURL(f);
+});
+document.getElementById("fim").addEventListener("change",function(ev){
+  Array.prototype.forEach.call(ev.target.files,function(f){
+    var rd=new FileReader();
+    rd.onload=function(){ var im=new Image();
+      im.onload=function(){
+        var o={id:S.nid++,kind:"img",src:rd.result,x:S.w/2,y:S.h*0.4,
+               size:S.w*0.3,ar:im.width/im.height};
+        S.items.push(o); S.sel=o.id; layout(); };
+      im.src=rd.result; };
+    rd.readAsDataURL(f);
+  });
+});
+function bindNum(id,fn){var e=document.getElementById(id);
+  e.addEventListener("input",function(){var v=parseFloat(e.value);
+    if(!isNaN(v)){fn(v);layout();}});}
+bindNum("nx",function(v){var c=cur();if(c)c.x=v;});
+bindNum("ns",function(v){var c=cur();if(c)c.size=v;});
+bindNum("ny",function(v){var c=cur();if(c)c.y=S.h-v;});
+bindNum("cw",function(v){S.w=v;});
+bindNum("ch",function(v){S.h=v;});
+bindNum("cd",function(v){S.dpi=v;});
+document.getElementById("txt").addEventListener("input",function(e){
+  var c=cur(); if(c&&c.kind==="text"){c.text=e.target.value;layout();}});
+document.getElementById("col").addEventListener("input",function(e){
+  var c=cur(); if(c&&c.kind==="text"){c.color=e.target.value;c.style="flat";layout();}});
+document.getElementById("font").addEventListener("change",function(e){
+  var c=cur(); if(c&&c.kind==="text"){c.font=e.target.value;layout();}});
+addEventListener("keydown",function(ev){
+  if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
+  var c=cur(); if(!c)return;
+  var d=ev.shiftKey?2:0.2;
+  if(ev.key==="ArrowLeft")c.x-=d; else if(ev.key==="ArrowRight")c.x+=d;
+  else if(ev.key==="ArrowUp")c.y-=d; else if(ev.key==="ArrowDown")c.y+=d; else return;
+  ev.preventDefault(); layout();
+});
+function say(p,t){document.getElementById("fill").style.width=Math.max(0,Math.min(100,p))+"%";
+  document.getElementById("msg").textContent=t;}
+
+function drawText(ctx,o,k){
+  var size=o.size*k;
+  ctx.font="900 "+size+"px "+fontOf(o);
+  ctx.textAlign="center"; ctx.textBaseline="top";
+  var x=o.x*k, y=o.y*k;
+  if(o.style==="gold"){
+    var ex=Math.max(1,size*0.055);
+    ctx.save();
+    ctx.shadowColor="rgba(0,0,0,.75)"; ctx.shadowBlur=size*0.16;
+    ctx.shadowOffsetY=size*0.07; ctx.fillStyle="#3a2810";
+    ctx.fillText(o.text,x,y+ex); ctx.restore();
+    for(var i=ex;i>0;i--){
+      var t=i/ex;
+      ctx.fillStyle="rgb("+Math.round(40+62*(1-t))+","+Math.round(28+46*(1-t))+","+
+        Math.round(10+19*(1-t))+")";
+      ctx.fillText(o.text,x,y+i);
+    }
+    var g=ctx.createLinearGradient(0,y,0,y+size);
+    g.addColorStop(0,"#fffcf4"); g.addColorStop(.28,"#fae4b6");
+    g.addColorStop(.60,"#dbab50"); g.addColorStop(.83,"#fae2b2"); g.addColorStop(1,"#c68d38");
+    ctx.fillStyle=g; ctx.fillText(o.text,x,y);
+  }else{
+    ctx.save();
+    ctx.lineJoin="round"; ctx.strokeStyle="rgba(0,0,0,.92)";
+    ctx.lineWidth=Math.max(1,size*0.12); ctx.strokeText(o.text,x,y);
+    ctx.shadowColor="rgba(0,0,0,.85)"; ctx.shadowBlur=size*0.14;
+    ctx.strokeText(o.text,x,y); ctx.restore();
+    ctx.fillStyle=o.color; ctx.fillText(o.text,x,y);
+  }
+}
+function loadImg(src){return new Promise(function(res,rej){
+  var im=new Image(); im.onload=function(){res(im);}; im.onerror=rej; im.src=src;});}
+
+async function exportOut(kind){
+  try{
+    var o2=outPx();
+    say(4,"準備 "+o2.w+"x"+o2.h);
+    await document.fonts.ready;
+    var cv=document.createElement("canvas"); cv.width=o2.w; cv.height=o2.h;
+    var ctx=cv.getContext("2d");
+    ctx.fillStyle="#0f2f36"; ctx.fillRect(0,0,o2.w,o2.h);
+    var k=o2.w/S.w;
+    if(S.bg){ say(15,"畫背景"); var b=await loadImg(S.bg);
+      ctx.drawImage(b,0,0,o2.w,o2.h); }
+    for(var i=0;i<S.items.length;i++){
+      var o=S.items[i];
+      say(25+Math.round(55*i/Math.max(1,S.items.length)),"畫第 "+(i+1)+" 層");
+      await new Promise(function(r){setTimeout(r,0);});
+      if(o.kind==="text") drawText(ctx,o,k);
+      else { var im=await loadImg(o.src);
+        var w=o.size*k, h=w/(o.ar||(im.width/im.height));
+        ctx.drawImage(im,o.x*k-w/2,o.y*k,w,h); }
+    }
+    say(88,"打包");
+    var mime=kind==="png"?"image/png":"image/jpeg";
+    cv.toBlob(function(bl){
+      if(!bl){ say(0,"出唔到，試細啲 dpi"); return; }
+      var a=document.createElement("a");
+      a.href=URL.createObjectURL(bl);
+      a.download="newgod-"+o2.w+"x"+o2.h+"."+(kind==="png"?"png":"jpg");
+      a.click();
+      setTimeout(function(){URL.revokeObjectURL(a.href);},4000);
+      say(100,"完成 "+o2.w+"x"+o2.h+"  "+(bl.size/1048576).toFixed(1)+" MB");
+    },mime,kind==="png"?undefined:0.94);
+  }catch(e){ say(0,"出錯 "+(e&&e.message?e.message:e)); }
+}
+addEventListener("resize",layout);
+document.fonts.ready.then(layout);
+layout();
+</script>
+</body>
+</html>
