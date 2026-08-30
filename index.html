@@ -1359,6 +1359,122 @@ return GROUP .. &quot; loader finished&quot;
     </div>
   </section>
 
+  <section class="view" data-t="Console">
+    <div class="vhead">
+      <h2>Console scripts</h2>
+      <p>Small JavaScript tools you paste straight into the browser console. Nothing is installed and nothing is uploaded &mdash; the page you are already looking at does the work and hands you a file.</p>
+    </div>
+
+    <div class="card">
+      <h3>Copy website page into md</h3>
+      <p>Turns whatever page you are on into a Markdown file and downloads it. Tables come out as real Markdown tables, links keep their address, and hidden elements are dropped. It walks into same-origin frames as well, up to four levels deep, so old frameset sites come out whole instead of empty.</p>
+      <div class="plat"><span class="chip">Chrome</span><span class="chip">Edge</span><span class="chip">no install</span></div>
+      <div class="code">
+        <div class="code-top"><span class="code-name">page2md.js</span><button class="copy sm" type="button" data-copy="src-page2md">Copy page2md.js</button></div>
+        <code class="block tall" id="src-page2md">(function(){
+function conv(doc){
+  var win = doc.defaultView || window;
+  function txt(n){ return (n.innerText || n.textContent || '').replace(/\s+/g,' ').trim(); }
+  function cell(c){ return txt(c).replace(/\|/g,'\\|') || ' '; }
+  function table(t){
+    var rows = [];
+    for (var i=0;i&lt;t.rows.length;i++){
+      var r = [];
+      for (var j=0;j&lt;t.rows[i].cells.length;j++) r.push(cell(t.rows[i].cells[j]));
+      if (r.join('').trim()) rows.push(r);
+    }
+    if (!rows.length) return '';
+    var w = 0;
+    rows.forEach(function(r){ if (r.length &gt; w) w = r.length; });
+    rows.forEach(function(r){ while (r.length &lt; w) r.push(' '); });
+    var out = ['| ' + rows[0].join(' | ') + ' |', '|' + new Array(w+1).join('---|')];
+    for (var k=1;k&lt;rows.length;k++) out.push('| ' + rows[k].join(' | ') + ' |');
+    return out.join('\n');
+  }
+  function walk(n){
+    if (n.nodeType === 3){ var s = n.nodeValue.replace(/\s+/g,' '); return s.trim() ? s : ''; }
+    if (n.nodeType !== 1) return '';
+    var tag = n.tagName.toLowerCase();
+    if (/^(script|style|noscript|svg|head|meta|link|title|iframe|frame)$/.test(tag)) return '';
+    try {
+      var st = win.getComputedStyle(n);
+      if (st &amp;&amp; (st.display === 'none' || st.visibility === 'hidden')) return '';
+    } catch(e){}
+    if (tag === 'table') return '\n\n' + table(n) + '\n\n';
+    if (/^h[1-6]$/.test(tag)){ var h = txt(n); return h ? '\n\n## ' + h + '\n\n' : ''; }
+    if (tag === 'br') return '\n';
+    if (tag === 'hr') return '\n\n---\n\n';
+    if (tag === 'img'){ return '![' + (n.getAttribute('alt') || 'image') + '](' + n.src + ')'; }
+    if (tag === 'a'){
+      var at = txt(n), href = n.getAttribute('href') || '';
+      if (!at) return '';
+      if (!href || href.charAt(0) === '#' || /^javascript:/i.test(href)) return at;
+      return '[' + at + '](' + n.href + ')';
+    }
+    if (tag === 'option') return '';
+    if (tag === 'select'){ var o = n.options[n.selectedIndex]; return o ? txt(o) + ' ' : ''; }
+    if (tag === 'textarea') return n.value || '';
+    if (tag === 'input'){
+      var ty = (n.type || '').toLowerCase();
+      if (ty === 'hidden' || ty === 'password') return '';
+      if (ty === 'checkbox' || ty === 'radio') return n.checked ? '[x] ' : '[ ] ';
+      return n.value ? n.value + ' ' : '';
+    }
+    var inner = '';
+    for (var i=0;i&lt;n.childNodes.length;i++) inner += walk(n.childNodes[i]);
+    if (tag === 'li') return '\n- ' + inner.replace(/\s+/g,' ').trim();
+    if (/^(p|div|section|article|tr|ul|ol|form|header|footer|main|nav|blockquote|dl|dt|dd|fieldset|td|th|span)$/.test(tag)){
+      return /^(td|th|span)$/.test(tag) ? inner : '\n\n' + inner + '\n\n';
+    }
+    return inner;
+  }
+  return walk(doc.body || doc.documentElement);
+}
+function grab(win, label, depth, acc){
+  if (depth &gt; 4) return;
+  var d;
+  try { d = win.document; } catch(e){ return; }
+  if (!d) return;
+  var body = conv(d);
+  if (body.replace(/\s/g,'').length &gt; 2) acc.push((label ? '\n\n## ' + label + '\n\n' : '') + body);
+  for (var i=0;i&lt;win.frames.length;i++){
+    try {
+      var f = win.frames[i], el = f.frameElement;
+      grab(f, (el &amp;&amp; (el.name || el.id)) || ('frame ' + i), depth + 1, acc);
+    } catch(e){}
+  }
+}
+var acc = [];
+grab(window, '', 0, acc);
+var body = acc.join('\n\n').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+var head = '## ' + (document.title || 'page') + '\n\n## ' + location.href + '\n\n## ' + new Date().toString() + '\n\n---\n';
+var text = head + '\n' + body + '\n';
+var name = (document.title || 'page').replace(/[\\\/:*?"&lt;&gt;|]+/g,'-').replace(/\s+/g,' ').trim().slice(0,60) + '.md';
+try {
+  var b = new Blob([text], {type:'text/markdown;charset=utf-8'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(b);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 3000);
+  console.log('saved: ' + name + '  (' + text.length + ' chars, ' + acc.length + ' frames)');
+} catch(e){
+  console.log('download blocked, copy from here:');
+  console.log(text);
+}
+return text.length;
+})();</code>
+      </div>
+      <p class="note">Open the console with <span class="k">F12</span>. The first time you paste into Chrome it refuses and asks you to type <span class="k">allow pasting</span> first &mdash; type that, press Enter, then paste. The file is named after the page title. If a site blocks blob downloads the whole Markdown is printed in the console instead, so nothing is lost.</p>
+    </div>
+
+    <div class="card">
+      <h3>More coming</h3>
+      <p>This tab is the shelf. Every console tool gets its own card here with its own copy button, so there is one place to come back to instead of digging through old chats.</p>
+    </div>
+  </section>
+
   <section class="view" data-t="Updates">
     <div class="vhead">
       <h2>Updates</h2>
