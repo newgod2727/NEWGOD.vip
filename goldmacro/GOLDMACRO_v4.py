@@ -2695,9 +2695,10 @@ class Editor:
 
     W, H = 720, 592
 
-    def __init__(self, app, root):
+    def __init__(self, app, root, console=None):
         self.app = app
         self.root = root
+        self.console = console
         self.win = None
         self.index = 0
         self.sel = 0
@@ -2723,8 +2724,20 @@ class Editor:
             sw, sh = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
         except Exception:
             sw, sh = 1920, 1080
-        self.shell = Shell(self.root, w, h, max(20, (sw - w) // 2),
-                           max(20, (sh - h) // 4))
+        at = None
+        con = getattr(self, "console", None)
+        if con is not None:
+            try:
+                cw = con.win
+                cw.update_idletasks()
+                at = place_beside((cw.winfo_x(), cw.winfo_y(),
+                                   cw.winfo_width(), cw.winfo_height()),
+                                  w, h, sw, sh)
+            except Exception:
+                at = None
+        if at is None:
+            at = (max(20, (sw - w) // 2), max(20, (sh - h) // 4))
+        self.shell = Shell(self.root, w, h, at[0], at[1])
         self.win = self.shell.win
         cv = self.body = self.shell.canvas
         self.win.title(APP_NAME + " DETAILS")
@@ -2772,19 +2785,26 @@ class Editor:
             lab.place(x=RX + S(14), y=yy + S(4), width=S(96), height=S(14))
             self.labels[key] = lab
             ent = tk.Entry(cv, bg=T.CHIP, fg=T.VAL, bd=0, relief="flat",
-                           insertbackground=T.VAL,
+                           insertbackground=T.VAL, highlightthickness=1,
+                           highlightbackground=T.GOLD_DEEP,
+                           highlightcolor=T.PILL,
                            font=(T.MONO, max(7, S(9))))
             ent.place(x=RX + S(112), y=yy, width=S(124), height=S(20))
             self.fields[key] = ent
 
         self.unit_lbl = tk.Label(cv, text="sec", bg=T.CHIP, fg=T.VAL,
                                  font=(T.MONO, max(7, S(9)), "bold"),
+                                 highlightthickness=1,
+                                 highlightbackground=T.GOLD_DEEP,
                                  cursor="hand2")
         self.unit_lbl.place(x=RX + S(112), y=S(232), width=S(124), height=S(20))
         self.unit_lbl.bind("<Button-1>", lambda _e: self.cycle_unit())
-        tk.Label(cv, text="unit (click to change)", bg=T.CARD, fg=T.DIM,
+        tk.Label(cv, text="unit", bg=T.CARD, fg=T.DIM,
                  anchor="w", font=(T.UI, max(6, S(8)))
                  ).place(x=RX + S(14), y=S(236), width=S(96), height=S(14))
+        tk.Label(cv, text="click the box to change it", bg=T.CARD,
+                 fg=T.FAINT_C, anchor="w", font=(T.MONO, max(6, S(7)))
+                 ).place(x=RX + S(14), y=S(254), width=S(222), height=S(12))
 
         card(cv, RX, S(262), S(250), S(216))
         tk.Label(cv, text="MACRO", bg=T.CARD, fg=T.H1,
@@ -3335,7 +3355,7 @@ class Console:
         """The 3-dots view he asked for: everything a slot is made of, one line
         per step, editable in place."""
         if self.app.editor is None:
-            self.app.editor = Editor(self.app, self.root)
+            self.app.editor = Editor(self.app, self.root, self)
         self.app.editor.open(self.app.sel)
 
     def paint_chips(self):
