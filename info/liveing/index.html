@@ -434,12 +434,27 @@ footer .furl:hover{color:var(--gold2)}
 
     <div class="card">
       <h3>Download</h3>
-      <p>Three files in a zip: the tool, the window frame it draws itself with, and a readme that lists every trap on one page. Nothing else is bundled and nothing phones home.</p>
+      <p>The zip holds the tool, the window frame it draws itself with, and a readme that puts every trap on one page. If you only want one file, take newgodlive.py and keep goldbar.py beside it.</p>
       <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">ffmpeg</span><span class="chip">pytchat</span></div>
       <p>
         <a class="link-btn dl-btn" href="https://newgod.vip/live/NEWGODLIVE.zip" download>Download NEWGODLIVE.zip</a>
+        <a class="link-btn dl-btn" href="https://newgod.vip/live/newgodlive.py" download>newgodlive.py</a>
+        <a class="link-btn dl-btn" href="https://newgod.vip/live/goldbar.py" download>goldbar.py</a>
+        <a class="link-btn dl-btn" href="https://newgod.vip/live/README.txt" download>README.txt</a>
       </p>
-      <p class="note">Unzip anywhere, <code>pip install pytchat requests psutil</code>, then <code>pythonw newgodlive.py</code>. Everything it writes stays in that same folder.</p>
+      <div class="code">
+        <div class="code-top"><span class="code-name">download</span><button class="copy sm" type="button" data-copy="src-nl-zip">Copy the NEWGODLIVE.zip link</button></div>
+        <code class="block" id="src-nl-zip">https://newgod.vip/live/NEWGODLIVE.zip</code>
+      </div>
+      <div class="code">
+        <div class="code-top"><span class="code-name">install</span><button class="copy sm" type="button" data-copy="src-nl-pip">Copy the line that installs what it needs</button></div>
+        <code class="block" id="src-nl-pip">pip install pytchat requests psutil</code>
+      </div>
+      <div class="code">
+        <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-nl-run">Copy the line that starts newgodlive.py</button></div>
+        <code class="block" id="src-nl-run">pythonw.exe newgodlive.py</code>
+      </div>
+      <p class="note">Start it with <span class="k">pythonw.exe</span>, not <span class="k">python.exe</span>, or a console window sits behind it. You also need <span class="k">ffmpeg</span> on PATH, or drop ffmpeg.exe next to the script. Everything the tool writes stays in that same folder.</p>
     </div>
 
     <div class="card">
