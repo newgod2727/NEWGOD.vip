@@ -75,8 +75,10 @@ class MiningHolder:
             release_left_up()
 
     def mining_loop(self):
+        released = True
         while True:
             if self.running:
+                released = False
                 # We send the "Down" signal repeatedly.
                 # In Minecraft, this ensures that if you lag or the focus slips, 
                 # it immediately re-applies the "Hold" status.
@@ -84,8 +86,12 @@ class MiningHolder:
                 time.sleep(0.05) # Small sleep to prevent freezing CPU
             else:
                 # If we are not running, ensure the mouse is UP.
-                # We loop this slowly just to be safe.
-                release_left_up()
+                # Released once on the way into paused, not ten times a second
+                # forever - that was injecting a global LEFTUP into every other
+                # click the machine made while this sat idle.
+                if not released:
+                    release_left_up()
+                    released = True
                 time.sleep(0.1)
 
 if __name__ == "__main__":
