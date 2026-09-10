@@ -352,6 +352,35 @@ footer .furl:hover{color:var(--gold2)}
 .brand .btag{font-family:"JetBrains Mono",monospace;font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);white-space:nowrap}
 @media (max-width:560px){ .brand .btag{display:none} }
 
+.fpick{display:grid;grid-template-columns:repeat(auto-fit,minmax(196px,1fr));gap:12px;margin:0 0 22px}
+.fbtn{
+  cursor:pointer;text-align:left;font-family:inherit;color:var(--ink);min-width:0;
+  display:flex;flex-direction:column;gap:4px;
+  border:1px solid transparent;border-radius:15px;padding:14px 16px 15px;
+  background:linear-gradient(180deg,var(--card1),var(--card2)) padding-box,
+    linear-gradient(135deg,rgba(255,243,201,.24),rgba(231,177,115,.08) 55%,rgba(201,142,74,.05) 78%,rgba(255,243,201,.18)) border-box;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  box-shadow:0 18px 44px -34px rgba(0,0,0,.92),inset 0 1px 0 rgba(255,243,201,.06);
+  transition:transform .2s ease,box-shadow .25s ease,color .2s;
+}
+.fbtn:hover{transform:translateY(-2px);box-shadow:0 26px 56px -34px rgba(0,0,0,.92),0 0 0 1px rgba(252,188,36,.16),0 0 34px -16px rgba(252,188,36,.22),inset 0 1px 0 rgba(255,243,201,.09)}
+.fbtn:active{transform:translateY(1px)}
+.fbtn .fn{font-family:"JetBrains Mono",monospace;font-size:.66rem;letter-spacing:.16em;color:var(--gold3)}
+.fbtn .fl{font-size:1rem;font-weight:700;line-height:1.3;color:var(--gold2)}
+.fbtn .ff{font-family:"JetBrains Mono",monospace;font-size:.68rem;color:var(--dim);overflow-wrap:anywhere}
+.fbtn.on{
+  color:#1a1510;
+  background:linear-gradient(180deg,#f3cf99,#e7b173 52%,#c98e4a) padding-box,
+    linear-gradient(135deg,#FFF3C9,#e7b173 46%,#a9722f) border-box;
+  box-shadow:0 14px 32px -14px rgba(252,188,36,.6),inset 0 1px 0 rgba(255,255,255,.4),inset 0 -1px 0 rgba(90,60,18,.35);
+}
+.fbtn.on .fn{color:#6b4a17}
+.fbtn.on .fl{color:#17120c}
+.fbtn.on .ff{color:#553a11}
+.fwrap{position:relative}
+.fd{display:none}
+.fd.on{display:block;animation:rise .4s cubic-bezier(.2,.7,.2,1) backwards}
+.fd h3 .fq{font-family:"JetBrains Mono",monospace;font-size:.72rem;letter-spacing:.14em;color:var(--gold3);font-weight:400}
 @media (max-width:760px){ .split{grid-template-columns:1fr} }
 @media (prefers-reduced-motion:reduce){ .ticker-row{animation:none} }
 @media (max-width:680px){ .bento{grid-template-columns:1fr} }
@@ -450,6 +479,212 @@ footer .furl:hover{color:var(--gold2)}
         <code class="block" id="src-tb-run">pythonw.exe toolbox.py</code>
       </div>
       <p class="note">Start it with <span class="k">pythonw.exe</span>, not <span class="k">python.exe</span>, or you get a console window sitting behind it. Source is at <a href="https://github.com/newgod2727/toolbox" target="_blank" rel="noopener">github.com/newgod2727/toolbox</a>.</p>
+      <p>Page 1 of the panel starts eleven separate tools, and every one of them has its own download &mdash; one feature, one file, one button &mdash; on the <a href="#features" data-goto="Features">Features</a> tab.</p>
+    </div>
+
+    <div class="card">
+      <h3>First run &mdash; press START.cmd, not the .py</h3>
+      <p>Downloading this and getting nothing is the normal outcome, and none of the reasons announce themselves. So the zip now carries <span class="k">START.cmd</span>, and that is the thing to press. It finds a Python, installs <span class="k">psutil</span> if it is missing, refuses to run out of a zip preview folder, starts the panel with <span class="k">pythonw.exe</span>, and then goes and finds the panel&rsquo;s own window to prove it is up. Whatever happens, it writes it in plain English into <span class="k">FIRST-RUN.txt</span> next to itself.</p>
+      <p>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/START.cmd" download>START.cmd</a>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/bootstrap.py" download>bootstrap.py</a>
+      </p>
+      <h3>The four ways a download does nothing</h3>
+      <ul>
+        <li><b>psutil is missing.</b> This is the silent one. <span class="k">import psutil</span> is on line 32 and the log file is not opened until line 37, so the panel dies before it can write a single line &mdash; no window, no log, no error, exit code 1. Measured. Fix: <span class="k">pip install psutil</span>, or just let START.cmd do it.</li>
+        <li><b>There is no Python, but it looks like there is.</b> On a clean Windows, <span class="k">python.exe</span> exists as a 0-byte Microsoft Store alias, so <span class="k">where python</span> finds it and running it opens the Store instead. There is no <span class="k">pythonw.exe</span> alias at all. START.cmd skips anything 0 bytes and tells you what to install.</li>
+        <li><b>It was run from inside the zip window.</b> Windows extracts to a temp folder, the panel really does start, and then the whole folder disappears the moment the zip window closes &mdash; taking the log and the settings with it. Extract properly first; START.cmd refuses to run from there.</li>
+        <li><b>It started and you cannot see it.</b> It is under everything, by design. Sweep the pointer into the left edge of the screen &mdash; see <a href="#easy-to-get-wrong" data-goto="Easy to get wrong">Easy to get wrong</a>.</li>
+      </ul>
+      <p class="note">One more that is not a failure: run a second copy and it exits quietly after about eight seconds, because a single-instance mutex already belongs to the first one. The log says so in words.</p>
+    </div>
+  </section>
+
+  <section class="view" data-t="Features">
+    <div class="vhead">
+      <h2>Every feature on page 1</h2>
+      <p>Page 1 of the panel is a launcher, and every row on it starts a separate tool that lives in its own file. Pick a row and take that one file on its own.</p>
+    </div>
+
+    <div class="card">
+      <h3>Read this once, then never again</h3>
+      <ul>
+        <li>Every <span class="k">.py</span> below wants <span class="k">Python 3.12</span> and <span class="k">psutil</span>. The one <span class="k">.exe</span> wants nothing at all &mdash; no Python, no install.</li>
+        <li>The downloaded file has to sit in the <span class="k">same folder as toolbox.py</span>. A panel row starts its tool by filename out of its own folder, so a file left in Downloads is a row that does nothing when you press it.</li>
+        <li>Start a <span class="k">.py</span> with <span class="k">pythonw.exe</span>, never <span class="k">python.exe</span>. python.exe leaves a black console window sitting on the screen for as long as the tool runs.</li>
+      </ul>
+      <div class="code">
+        <div class="code-top"><span class="code-name">where every file goes</span><button class="copy sm" type="button" data-copy="src-f-folder">Copy the folder path</button></div>
+        <code class="block" id="src-f-folder">C:\Users\&lt;you&gt;\Documents\PyToolbox\</code>
+      </div>
+      <p class="note">Eleven rows, eleven entries below. Ten of them are a file you can take; the eleventh is a window inside toolbox.py, and it is named here rather than quietly left out.</p>
+    </div>
+
+    <div class="fpick">
+      <button class="fbtn on" type="button" data-f="f01"><span class="fn">01</span><span class="fl">&#x5DE6;&#x9375;&#x9023;&#x9EDE;</span><span class="ff">autoclicker21.py</span></button>
+      <button class="fbtn" type="button" data-f="f02"><span class="fn">02</span><span class="fl">&#x53F3;&#x9375;&#x9023;&#x9EDE;</span><span class="ff">minecraft_rightclicker.py</span></button>
+      <button class="fbtn" type="button" data-f="f03"><span class="fn">03</span><span class="fl">&#x6309;&#x4F4F;&#x5DE6;&#x9375;</span><span class="ff">minecraft_mining_holder.py</span></button>
+      <button class="fbtn" type="button" data-f="f04"><span class="fn">04</span><span class="fl">&#x53F3;&#x9375;&#x52A0;&#x5E8F;&#x5217;</span><span class="ff">minecraft_sequence_clicker.py</span></button>
+      <button class="fbtn" type="button" data-f="f05"><span class="fn">05</span><span class="fl">&#x5B9A;&#x9EDE;&#x9023;&#x9EDE;</span><span class="ff">clcik with chosing.py</span></button>
+      <button class="fbtn" type="button" data-f="f06"><span class="fn">06</span><span class="fl">&#x5FAA;&#x74B0;&#x6253;&#x5B57;</span><span class="ff">pc_autotyper.py</span></button>
+      <button class="fbtn" type="button" data-f="f07"><span class="fn">07</span><span class="fl">&#x53F3;&#x9375;&#x89F8;&#x767C;&#x6253;&#x5B57;</span><span class="ff">typewordinf.py</span></button>
+      <button class="fbtn" type="button" data-f="f08"><span class="fn">08</span><span class="fl">GOLDMACRO v4</span><span class="ff">GOLDMACRO_v4.py</span></button>
+      <button class="fbtn" type="button" data-f="f09"><span class="fn">09</span><span class="fl">GOLD &#x81EA;&#x52D5;&#x9EDE;&#x64CA;</span><span class="ff">GOLDAUTOCLICKER.exe</span></button>
+      <button class="fbtn" type="button" data-f="f10"><span class="fn">10</span><span class="fl">BOT &#x770B;&#x9580;&#x72D7;</span><span class="ff">farm_watch.py</span></button>
+      <button class="fbtn" type="button" data-f="f11"><span class="fn">11</span><span class="fl">&#x7522;&#x751F;&#x73FE;&#x6CC1;&#x5831;&#x544A;</span><span class="ff">built into toolbox.py</span></button>
+    </div>
+
+    <div class="fwrap">
+
+      <div class="card fd on" data-f="f01">
+        <h3><span class="fq">01</span>&#x5DE6;&#x9375;&#x9023;&#x9EDE;</h3>
+        <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span></div>
+        <p>Repeats a left click on its own timer for as long as it is switched on. The plainest of the seven small clickers &mdash; one button, one interval.</p>
+        <p><a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/autoclicker21.py" download>Download autoclicker21.py</a></p>
+        <div class="code">
+          <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-f01">Copy the line that starts autoclicker21.py</button></div>
+          <code class="block" id="src-f01">pythonw.exe autoclicker21.py</code>
+        </div>
+        <p class="note">Save it beside <span class="k">toolbox.py</span>, or the &#x5DE6;&#x9375;&#x9023;&#x9EDE; row has nothing to start.</p>
+      </div>
+
+      <div class="card fd" data-f="f02">
+        <h3><span class="fq">02</span>&#x53F3;&#x9375;&#x9023;&#x9EDE;</h3>
+        <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span></div>
+        <p>The same repeat on the right button instead of the left. The filename says where it came from; the panel row is a right-click repeater and nothing more.</p>
+        <p><a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/minecraft_rightclicker.py" download>Download minecraft_rightclicker.py</a></p>
+        <div class="code">
+          <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-f02">Copy the line that starts minecraft_rightclicker.py</button></div>
+          <code class="block" id="src-f02">pythonw.exe minecraft_rightclicker.py</code>
+        </div>
+        <p class="note">Save it beside <span class="k">toolbox.py</span>, or the &#x53F3;&#x9375;&#x9023;&#x9EDE; row has nothing to start.</p>
+      </div>
+
+      <div class="card fd" data-f="f03">
+        <h3><span class="fq">03</span>&#x6309;&#x4F4F;&#x5DE6;&#x9375;</h3>
+        <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span></div>
+        <p>Holds the left button down and keeps it down, rather than pressing and releasing over and over. For anything that reacts to a held button instead of to a click count.</p>
+        <p><a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/minecraft_mining_holder.py" download>Download minecraft_mining_holder.py</a></p>
+        <div class="code">
+          <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-f03">Copy the line that starts minecraft_mining_holder.py</button></div>
+          <code class="block" id="src-f03">pythonw.exe minecraft_mining_holder.py</code>
+        </div>
+        <p class="note">Save it beside <span class="k">toolbox.py</span>, or the &#x6309;&#x4F4F;&#x5DE6;&#x9375; row has nothing to start.</p>
+      </div>
+
+      <div class="card fd" data-f="f04">
+        <h3><span class="fq">04</span>&#x53F3;&#x9375;&#x52A0;&#x5E8F;&#x5217;</h3>
+        <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span></div>
+        <p>Right clicks in a set sequence instead of at one flat interval, so the gaps between clicks are not all the same length.</p>
+        <p><a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/minecraft_sequence_clicker.py" download>Download minecraft_sequence_clicker.py</a></p>
+        <div class="code">
+          <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-f04">Copy the line that starts minecraft_sequence_clicker.py</button></div>
+          <code class="block" id="src-f04">pythonw.exe minecraft_sequence_clicker.py</code>
+        </div>
+        <p class="note">Save it beside <span class="k">toolbox.py</span>, or the &#x53F3;&#x9375;&#x52A0;&#x5E8F;&#x5217; row has nothing to start.</p>
+      </div>
+
+      <div class="card fd" data-f="f05">
+        <h3><span class="fq">05</span>&#x5B9A;&#x9EDE;&#x9023;&#x9EDE;</h3>
+        <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span><span class="chip">rename it back</span></div>
+        <p>Clicks at a point you pick rather than wherever the cursor happens to be, so the mouse stays free while it runs.</p>
+        <p><a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/clcik-with-chosing.py" download>Download clcik-with-chosing.py</a></p>
+        <p class="note">This is the one trap on the page. The real file is named <span class="k">clcik with chosing.py</span> &mdash; with spaces, and the misspelling is in the actual name. A URL cannot carry the spaces, so the download arrives hyphenated. The panel row launches the spaced name, so rename it back after downloading or that row does nothing and looks broken.</p>
+        <div class="code">
+          <div class="code-top"><span class="code-name">rename it to this</span><button class="copy sm" type="button" data-copy="src-f05n">Copy the real filename</button></div>
+          <code class="block" id="src-f05n">clcik with chosing.py</code>
+        </div>
+        <div class="code">
+          <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-f05">Copy the line that starts it</button></div>
+          <code class="block" id="src-f05">pythonw.exe "clcik with chosing.py"</code>
+        </div>
+        <p class="note">Quotes on the command for the same reason. Then save it beside <span class="k">toolbox.py</span>.</p>
+      </div>
+
+      <div class="card fd" data-f="f06">
+        <h3><span class="fq">06</span>&#x5FAA;&#x74B0;&#x6253;&#x5B57;</h3>
+        <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span></div>
+        <p>Types a line of text over and over on a timer, the way the clickers repeat a click.</p>
+        <p><a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/pc_autotyper.py" download>Download pc_autotyper.py</a></p>
+        <div class="code">
+          <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-f06">Copy the line that starts pc_autotyper.py</button></div>
+          <code class="block" id="src-f06">pythonw.exe pc_autotyper.py</code>
+        </div>
+        <p class="note">Save it beside <span class="k">toolbox.py</span>, or the &#x5FAA;&#x74B0;&#x6253;&#x5B57; row has nothing to start.</p>
+      </div>
+
+      <div class="card fd" data-f="f07">
+        <h3><span class="fq">07</span>&#x53F3;&#x9375;&#x89F8;&#x767C;&#x6253;&#x5B57;</h3>
+        <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span></div>
+        <p>Types on the right button rather than on a timer &mdash; the click is the trigger, so nothing happens until you press.</p>
+        <p><a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/typewordinf.py" download>Download typewordinf.py</a></p>
+        <div class="code">
+          <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-f07">Copy the line that starts typewordinf.py</button></div>
+          <code class="block" id="src-f07">pythonw.exe typewordinf.py</code>
+        </div>
+        <p class="note">Save it beside <span class="k">toolbox.py</span>, or the &#x53F3;&#x9375;&#x89F8;&#x767C;&#x6253;&#x5B57; row has nothing to start.</p>
+      </div>
+
+      <div class="card fd" data-f="f08">
+        <h3><span class="fq">08</span>GOLDMACRO v4</h3>
+        <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span><span class="chip">181 KB</span></div>
+        <p>The macro recorder. It records what you do, saves each run on its own so closing it does not lose the recording, and lets you open the recorded steps and edit them one at a time afterwards.</p>
+        <p>Not one of the small clickers &mdash; a full tool with its own panel, and it has a page of its own.</p>
+        <p>
+          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/GOLDMACRO_v4.py" download>Download GOLDMACRO_v4.py</a>
+          <a class="link-btn" href="https://newgod.vip/info/marccliking">The full GOLDMACRO page</a>
+        </p>
+        <div class="code">
+          <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-f08">Copy the line that starts GOLDMACRO_v4.py</button></div>
+          <code class="block" id="src-f08">pythonw.exe GOLDMACRO_v4.py</code>
+        </div>
+        <p class="note">Save it beside <span class="k">toolbox.py</span>, or the GOLDMACRO v4 row has nothing to start.</p>
+      </div>
+
+      <div class="card fd" data-f="f09">
+        <h3><span class="fq">09</span>GOLD &#x81EA;&#x52D5;&#x9EDE;&#x64CA;</h3>
+        <div class="plat"><span class="chip">Windows</span><span class="chip">.exe</span><span class="chip">7.75 MB</span><span class="chip">no Python</span></div>
+        <p>GOLDAUTOCLICKER. This is the autoclicker actually in use &mdash; the seven small <span class="k">.py</span> clickers above still work, but this is the one that gets opened.</p>
+        <p>It is a packaged Windows program, not a script: nothing to install, no Python, no psutil, no start command. Double-click it.</p>
+        <p>
+          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/GOLDAUTOCLICKER.exe" download>Download GOLDAUTOCLICKER.exe</a>
+          <a class="link-btn" href="https://newgod.vip/info/pyautoclicker">The full GOLDAUTOCLICKER page</a>
+        </p>
+        <div class="code">
+          <div class="code-top"><span class="code-name">download</span><button class="copy sm" type="button" data-copy="src-f09">Copy the GOLDAUTOCLICKER.exe link</button></div>
+          <code class="block" id="src-f09">https://newgod.vip/toolbox/tools/GOLDAUTOCLICKER.exe</code>
+        </div>
+        <p class="note">The folder rule still holds: the GOLD &#x81EA;&#x52D5;&#x9EDE;&#x64CA; row starts it out of the folder <span class="k">toolbox.py</span> lives in. Being an <span class="k">.exe</span> it also opens on its own from anywhere &mdash; but then that row will not find it.</p>
+      </div>
+
+      <div class="card fd" data-f="f10">
+        <h3><span class="fq">10</span>BOT &#x770B;&#x9580;&#x72D7;</h3>
+        <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span></div>
+        <p>Watches the client processes and says so on the panel when one of them has stopped, instead of leaving you to notice it later.</p>
+        <p><a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/farm_watch.py" download>Download farm_watch.py</a></p>
+        <div class="code">
+          <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-f10">Copy the line that starts farm_watch.py</button></div>
+          <code class="block" id="src-f10">pythonw.exe farm_watch.py</code>
+        </div>
+        <p class="note">Save it beside <span class="k">toolbox.py</span>, or the BOT &#x770B;&#x9580;&#x72D7; row has nothing to start.</p>
+      </div>
+
+      <div class="card fd" data-f="f11">
+        <h3><span class="fq">11</span>&#x7522;&#x751F;&#x73FE;&#x6CC1;&#x5831;&#x544A;</h3>
+        <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span><span class="chip">no separate file</span></div>
+        <p>Opens a window that writes out where the machine stands right now. It is the one row on page 1 with no file behind it &mdash; the whole thing is built into <span class="k">toolbox.py</span> itself.</p>
+        <p>So there is nothing extra to download here. Taking <span class="k">toolbox.py</span> is taking this feature. It is listed anyway rather than dropped, because a row on the panel with no entry on this page reads like a missing download.</p>
+        <p>
+          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/desktop-toolbox.py" download>desktop toolbox.py</a>
+          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/laptop-toolbox.py" download>laptop toolbox.py</a>
+        </p>
+        <div class="code">
+          <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-f11">Copy the line that starts toolbox.py</button></div>
+          <code class="block" id="src-f11">pythonw.exe toolbox.py</code>
+        </div>
+        <p class="note">Rename whichever build you took to <span class="k">toolbox.py</span>. Every other file on this page then goes in the folder beside it.</p>
+      </div>
+
     </div>
   </section>
 
@@ -498,7 +733,7 @@ footer .furl:hover{color:var(--gold2)}
     <div class="card">
       <h3>The four</h3>
       <ul>
-        <li>The panel pushes itself to the bottom of the window order every three seconds. &ldquo;It did not open&rdquo; is usually &ldquo;it opened and it is buried&rdquo; &mdash; look for a <span class="k">pythonw</span> process before you believe it failed.</li>
+        <li>The panel lives under every other window on purpose, and it comes up when you reach for it: put the pointer into the first three columns of pixels at the left edge of the screen. Nobody guesses that. &ldquo;It did not open&rdquo; is almost always &ldquo;it opened, it is underneath, and I did not know the gesture&rdquo; &mdash; sweep the left edge, then look for a <span class="k">pythonw</span> process, before you believe it failed. While a game is running the reveal is suppressed on purpose, because a topmost window over a fullscreen game costs frames.</li>
         <li>Every failure is printed on the panel itself. Nothing here reports success into a console you are not watching.</li>
         <li>The priority sweep runs on a worker thread. One pass across 383 processes costs 19 ms, and a panel that spends that on its own UI thread every second is a panel that causes the lag it was added to remove.</li>
         <li>A single-instance mutex means a second copy exits rather than drawing a second panel.</li>
@@ -685,6 +920,26 @@ footer .furl:hover{color:var(--gold2)}
   window.addEventListener("hashchange", function(){ fromHash(false); });
 
   if (!fromHash(true)) go(0, true);
+})();
+</script>
+
+<script>
+(function(){
+  var picks = Array.prototype.slice.call(document.querySelectorAll(".fbtn[data-f]"));
+  var docks = Array.prototype.slice.call(document.querySelectorAll(".fd[data-f]"));
+  if (!picks.length || !docks.length) return;
+
+  function show(key){
+    picks.forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-f") === key); });
+    docks.forEach(function(d){ d.classList.toggle("on", d.getAttribute("data-f") === key); });
+    if (window.__ngReveal) window.__ngReveal();
+  }
+
+  picks.forEach(function(b){
+    b.addEventListener("click", function(){ show(b.getAttribute("data-f")); });
+  });
+
+  show(picks[0].getAttribute("data-f"));
 })();
 </script>
 

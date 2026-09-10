@@ -50,6 +50,60 @@ EYE_WARM = {
 EYE_LEVELS = ((100, 1.00), (85, 1.20), (70, 1.45), (55, 1.75), (40, 2.10))
 
 
+DIM_STATE = os.path.join(HERE, "dim.json")
+DIM_CLEAR_FLAG = os.path.join(HERE, "dim_clear.flag")
+SCREEN_CMD_FLAG = os.path.join(HERE, "screen_cmd.flag")
+DIM_PEER_KEY = r"C:\Users\user\.ssh\desktop_ed25519"
+DIM_PEER_HOST = "desktop@192.168.1.51"
+DIM_GAMMA_SPAN = 40
+
+
+def dim_load():
+    return 0
+
+
+def dim_save(level):
+    try:
+        with open(DIM_STATE, "w", encoding="utf-8") as fh:
+            json.dump({"level": int(level)}, fh)
+        return True
+    except OSError:
+        return False
+
+
+def dim_gamma_for(level):
+    t = min(level, 60) / 60.0
+    return 1.0 + 1.55 * t, 1.0 - 0.36 * t
+
+
+def dim_shade_alpha(level):
+    if level <= 35:
+        return 0
+    t = (level - 35) / 65.0
+    return int(round(250 * t))
+
+
+def dim_ramp(gamma, scale):
+    arr = (ctypes.c_ushort * 768)()
+    for i in range(256):
+        base = 65535.0 * ((i / 255.0) ** gamma) * scale
+        v = max(0, min(65535, int(base)))
+        arr[i] = v
+        arr[256 + i] = v
+        arr[512 + i] = v
+    return arr
+
+
+def dim_gamma_write(level):
+    gamma, scale = dim_gamma_for(level)
+    hdc = ctypes.windll.user32.GetDC(0)
+    try:
+        return bool(ctypes.windll.gdi32.SetDeviceGammaRamp(
+            hdc, ctypes.byref(dim_ramp(gamma, scale))))
+    finally:
+        ctypes.windll.user32.ReleaseDC(0, hdc)
+
+
 def eye_ramp(warm, gamma):
     """One 3x256 gamma table.
 
@@ -317,7 +371,7 @@ TOOLS = [
     ("clcik with chosing.py", "定點連點"),
     ("pc_autotyper.py", "循環打字"),
     ("typewordinf.py", "右鍵觸發打字"),
-    ("GOLDMACRO_v3.py", "GOLDMACRO v3"),
+    ("GOLDMACRO_v4.py", "GOLDMACRO v4"),
     (os.path.join(os.path.expanduser("~"), "Documents", "GOLDAUTOCLICKER",
                   "GOLDAUTOCLICKER.exe"), "GOLD 自動點擊"),
     ("farm_watch.py", "BOT 看門狗"),
@@ -332,7 +386,8 @@ TOOLS = [
 # take Realtek's audio service with it.
 END_TASKS = [
     ("[Claude]", ("claude", "anthropicclaude", "claude code")),
-    ("[REAL.EXE]", ("real", "real-mcp")),
+    ("[REAL]", ("real", "real-mcp")),
+    ("[VOLT]", ("volt", "tauri-app")),
     ("[ROBLOX]", ("robloxplayerbeta", "robloxcrashhandler",
                   "robloxplayerlauncher", "roblox", "fishstrap")),
     ("[WhatsApp]", ("whatsapp", "whatsapp.root")),
@@ -368,7 +423,8 @@ CLAUDE_AUMID = "Claude_pzs8sxrjxfjjc!Claude"
 
 OPEN_APPS = [
     ("[Claude]", "store", CLAUDE_AUMID, "", "", "claude", r"\WindowsApps\Claude_"),
-    ("[REAL.EXE]", "squirrel", r"%LOCALAPPDATA%\Real", "real-*", "Real.exe", "real", ""),
+    ("[REAL]", "squirrel", r"%LOCALAPPDATA%\Real", "real-*", "Real.exe", "real", ""),
+    ("[VOLT]", "plain", r"%LOCALAPPDATA%\Volt", "", "tauri-app.exe", "tauri-app", "Volt"),
     ("[Discord]", "squirrel", r"%LOCALAPPDATA%\Discord", "app-*", "Discord.exe", "discord", ""),
     ("[WhatsApp]", "store", "5319275A.WhatsAppDesktop_cv1g1gvanyjgm!App", "", "", "whatsapp", ""),
     ("[Spotify]", "store", "SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify", "", "", "spotify", ""),
@@ -576,6 +632,7 @@ class Toolbox:
         self.page5 = tk.Frame(self.pages, bg=BG)
         self.page6 = tk.Frame(self.pages, bg=BG)
         self.page7 = tk.Frame(self.pages, bg=BG)
+        self.page8 = tk.Frame(self.pages, bg=BG)
 
         for filename, name in TOOLS:
             self.rows[filename] = self._row(self.page1, filename, name)
@@ -634,22 +691,33 @@ class Toolbox:
         # the same error hit Spotify, PC Manager, myHP and Xbox in the same
         # update round. Closing every claude process and re-registering the
         # package is exactly what that Repair button does, minus the digging.
-        tk.Label(self.page4, text="修復", bg=BG, fg=ACCENT, anchor="w",
+        tk.Label(self.page4, text="NEWGOD DUNGEON", bg=BG, fg=ACCENT, anchor="w",
                  font=("Segoe UI", 12, "bold")).pack(fill="x", padx=10, pady=(6, 2))
-        tk.Label(self.page4, text="Claude 開不到、叫你去「進階選項 → 修復」的時候按這個",
-                 bg=BG, fg=DIM, anchor="w", font=("Segoe UI", 9),
-                 wraplength=WIDTH - 24, justify="left").pack(fill="x", padx=10, pady=(0, 6))
+        self.dgnote = tk.Label(self.page4, text="", bg=BG, fg=DIM, anchor="w",
+                               font=("Segoe UI", 9), wraplength=WIDTH - 24,
+                               justify="left")
+        self.dgnote.pack(fill="x", padx=10, pady=(0, 6))
+        self.dgopen = tk.Button(self.page4, text="OPEN",
+                                bg="#4a3a1e", fg=ACCENT, activebackground="#5c4826",
+                                activeforeground=ACCENT, font=("Segoe UI", 12, "bold"),
+                                relief="flat", height=2, command=self._dungeon_open)
+        self.dgopen.pack(fill="x", padx=10, pady=2)
+        self.dgclose = tk.Button(self.page4, text="CLOSE", bg=PANEL, fg=TEXT,
+                                 activebackground="#22222c", activeforeground=TEXT,
+                                 font=("Segoe UI", 12, "bold"), relief="flat",
+                                 height=2, command=self._dungeon_close)
+        self.dgclose.pack(fill="x", padx=10, pady=2)
+        tk.Label(self.page4,
+                 text="OPEN 把面板同六個工人開返,繼續建落去。\n"
+                      "CLOSE 寫 disable 檔、停晒工人,全部 api key 回復正常。\n"
+                      "關掉不會刪任何檔,開返就接住上次。",
+                 bg=PANEL, fg=TEXT, anchor="w", justify="left",
+                 font=("Segoe UI", 9), padx=8, pady=6).pack(fill="x", padx=10, pady=(4, 2))
         self.fixbtn = tk.Button(self.page4, text="修復 CLAUDE 並重開",
                                 bg="#4a3a1e", fg=ACCENT, activebackground="#5c4826",
                                 activeforeground=ACCENT, font=("Segoe UI", 12, "bold"),
                                 relief="flat", height=2, command=self._fix_claude)
-        self.fixbtn.pack(fill="x", padx=10, pady=2)
-        tk.Label(self.page4,
-                 text="會關掉全部 Claude 程序(包括 Claude Code),\n"
-                      "重新註冊套件,再重新開啟 Claude。\n"
-                      "對話同設定不會刪。",
-                 bg=PANEL, fg=TEXT, anchor="w", justify="left",
-                 font=("Segoe UI", 9), padx=8, pady=6).pack(fill="x", padx=10, pady=(4, 2))
+        self._dungeon_refresh()
 
         # Page 5. Press a button, it copies, and the button itself says so for a
         # moment - on a panel with no console that confirmation is the only way
@@ -732,7 +800,7 @@ class Toolbox:
         self._pick_save("A")
 
         # The arrows sit directly under the last row of whichever page is up,
-        # which on page 1 is GOLDMACRO v3.
+        # which on page 1 is GOLDMACRO v4.
         nav = tk.Frame(self.body, bg=BG)
         nav.pack(fill="x", padx=10, pady=(6, 0))
         tk.Button(nav, text="<", bg=PANEL, fg=TEXT, activebackground="#22222c",
@@ -770,9 +838,10 @@ class Toolbox:
         except Exception:
             pass
         self._build_eye()
+        self._build_mirror()
         slot = 0
         for p in (self.page1, self.page2, self.page3, self.page4, self.page5,
-                  self.page6, self.page7):
+                  self.page6, self.page7, self.page8):
             p.pack(fill="x")
             self.root.update_idletasks()
             slot = max(slot, p.winfo_reqheight())
@@ -812,19 +881,20 @@ class Toolbox:
                   font=("Segoe UI", 13, "bold"), relief="flat", height=2,
                   command=self._roblox).pack(side="bottom", fill="x", padx=10)
 
+        if IS_DESKTOP:
+            self.nvbtn = tk.Button(self.body, text="NVIDIA", bg="#4a3a1e",
+                                   fg=ACCENT, activebackground="#5c4826",
+                                   activeforeground=ACCENT,
+                                   font=("Segoe UI", 11, "bold"), relief="flat",
+                                   height=2, command=self._nvidia_launch)
+            self.nvbtn.pack(side="bottom", fill="x", padx=10, pady=(4, 0))
+
         # Desktop only, and not out of tidiness. Real lives on the desktop by his
         # standing rule - no real .exe on the laptop, everything mirrored across
         # and the laptop copy deleted by hand. The laptop still had
         # AppData\Local\Real\real-1.9.0\Real.exe sitting there on 2026-08-14, but
         # it is on its way out, so a button pointing at it would be a button
         # pointing at nothing.
-        if IS_DESKTOP:
-            self.realbtn = tk.Button(self.body, text="RELAUNCH", bg="#7a1f1f",
-                                     fg="white", activebackground="#a02828",
-                                     activeforeground="white", relief="flat",
-                                     height=2, font=("Segoe UI", 11, "bold"),
-                                     command=self._real_refresh)
-            self.realbtn.pack(side="bottom", fill="x", padx=10, pady=(0, 6))
 
         if not IS_DESKTOP:
             self.gmbtn = tk.Button(self.body, text="GAME MODE  OFF", fg="white",
@@ -1745,6 +1815,48 @@ class Toolbox:
                   font=("Segoe UI", 10, "bold"), relief="flat", height=1, pady=4,
                   command=self._eye_reset).pack(fill="x", padx=10, pady=(6, 2))
 
+        tk.Label(self.page7, text="\u8abf\u6697", bg=BG, fg=DIM, anchor="w",
+                 font=("Segoe UI", 10)).pack(fill="x", padx=10, pady=(8, 0))
+        dimrow = tk.Frame(self.page7, bg=BG)
+        dimrow.pack(fill="x", padx=10)
+        self.dim_level = dim_load()
+        self.dimval = tk.Label(dimrow, text="%d%%" % self.dim_level, bg=BG,
+                               fg=ACCENT, width=5, anchor="e",
+                               font=("Segoe UI", 9, "bold"))
+        self.dimval.pack(side="right")
+        self.dimscale = tk.Scale(dimrow, from_=0, to=100, orient="horizontal",
+                                 bg=BG, fg=TEXT, troughcolor=PANEL,
+                                 highlightthickness=0, sliderrelief="flat",
+                                 showvalue=0, bd=0, activebackground=ACCENT,
+                                 command=self._dim_set)
+        self.dimscale.set(self.dim_level)
+        self.dimscale.pack(side="left", fill="x", expand=True)
+        tk.Button(self.page7, text="\u8abf\u6697\u9084\u539f", bg=PANEL,
+                  fg=DIM, activebackground="#22222c", activeforeground=ACCENT,
+                  font=("Segoe UI", 9, "bold"), relief="flat", pady=3,
+                  command=self._dim_reset).pack(fill="x", padx=10, pady=(2, 0))
+        self.dimnote = tk.Label(self.page7, text="", bg=BG, fg=DIM, anchor="w",
+                                font=("Segoe UI", 9))
+        self.dimnote.pack(fill="x", padx=10)
+        dim_save(0)
+        tk.Button(self.page7, text="\u9084\u539f\u684c\u9762", bg="#2f6b3a",
+                  fg="white", activebackground="#3f8b4a", activeforeground="white",
+                  font=("Segoe UI", 10, "bold"), relief="flat", pady=4,
+                  command=self._dim_panic_all).pack(fill="x", padx=10, pady=(4, 2))
+        self.hotkey_on = True
+        self.shadewin = None
+        self.hkbtn = tk.Button(self.page7, text="", bg=PANEL, fg=DIM,
+                               activebackground="#22222c", activeforeground=ACCENT,
+                               font=("Segoe UI", 9, "bold"), relief="flat", pady=3,
+                               command=self._hotkey_toggle)
+        self.hkbtn.pack(fill="x", padx=10, pady=(0, 6))
+        self._hotkey_paint()
+        self._dim_flag_seen = 0
+        self._dim_watch_flag()
+        self._screen_cmd_watch()
+        threading.Thread(target=self._dim_hotkey_thread, daemon=True).start()
+        self._dim_panic()
+
         self.eyenote = tk.Label(self.page7, text="", bg=BG, fg=DIM, anchor="w",
                                 font=("Segoe UI", 9), wraplength=WIDTH - 24,
                                 justify="left")
@@ -1752,6 +1864,218 @@ class Toolbox:
         self._eye_paint()
         if self.eye_night or self.eye_truetone or self.eye_level != 100:
             self._eye_apply(say=False)
+
+    def _dim_shade(self, alpha):
+        u = ctypes.windll.user32
+        if alpha <= 0:
+            if getattr(self, "shadewin", None) is not None:
+                try:
+                    self.shadewin.destroy()
+                except Exception:
+                    pass
+                self.shadewin = None
+            return True
+        try:
+            if getattr(self, "shadewin", None) is None:
+                w = tk.Toplevel(self.root)
+                w.overrideredirect(True)
+                w.configure(bg="#000000")
+                w.geometry("%dx%d+0+0" % (w.winfo_screenwidth(),
+                                          w.winfo_screenheight()))
+                w.attributes("-topmost", True)
+                w.update_idletasks()
+                u.GetWindowLongW.restype = ctypes.c_long
+                u.SetWindowLongW.restype = ctypes.c_long
+                h = u.GetParent(w.winfo_id()) or w.winfo_id()
+                ex = u.GetWindowLongW(h, -20)
+                u.SetWindowLongW(h, -20, ex | 0x00080000 | 0x00000020
+                                 | 0x00000080 | 0x08000000)
+                self.shadewin = w
+                self.shadehwnd = h
+            u.SetLayeredWindowAttributes(self.shadehwnd, 0, int(alpha), 2)
+            self.shadewin.update_idletasks()
+            return True
+        except Exception:
+            self.shadewin = None
+            return False
+
+    def _dim_apply(self, level, say=True):
+        ok_g = dim_gamma_write(level)
+        self._dim_shade(dim_shade_alpha(level))
+        dim_save(level)
+        if not ok_g:
+            self._fail("\u986f\u793a\u5361\u62d2\u7d55\u8abf\u6697\u8868")
+        if say and hasattr(self, "dimnote"):
+            self.dimnote.config(text="\u8abf\u6697 %d%%" % level, fg=DIM)
+        return ok_g
+
+    def _dim_panic(self):
+        flat = (ctypes.c_ushort * 768)()
+        for k in range(256):
+            v = int(65535.0 * (k / 255.0))
+            flat[k] = v
+            flat[256 + k] = v
+            flat[512 + k] = v
+        hdc = ctypes.windll.user32.GetDC(0)
+        try:
+            ctypes.windll.gdi32.SetDeviceGammaRamp(hdc, ctypes.byref(flat))
+        finally:
+            ctypes.windll.user32.ReleaseDC(0, hdc)
+        dim_save(0)
+        try:
+            self._dim_shade(0)
+        except Exception:
+            pass
+        try:
+            self.dim_level = 0
+            if hasattr(self, "dimscale"):
+                self.dimscale.set(0)
+            if hasattr(self, "dimval"):
+                self.dimval.config(text="0%")
+            if hasattr(self, "dimnote"):
+                self.dimnote.config(text="\u5df2\u9084\u539f", fg=ACCENT)
+        except Exception:
+            pass
+        return True
+
+    def _dim_hotkey_thread(self):
+        u = ctypes.windll.user32
+        tries = ((209, 0x0008 | 0x0004, 0x44, "Win+Shift+D"),
+                 (210, 0x0002 | 0x0001, 0x44, "Ctrl+Alt+D"),
+                 (211, 0x0002 | 0x0001, 0x4B, "Ctrl+Alt+K"))
+        got = None
+        for ident, mods, vk, name in tries:
+            if u.RegisterHotKey(None, ident, mods, vk):
+                got = name
+                break
+        self.hotkey_name = got or ""
+        try:
+            self.root.after(0, self._hotkey_paint)
+        except Exception:
+            pass
+        if not got:
+            return
+        msg = ctypes.wintypes.MSG()
+        while u.GetMessageW(ctypes.byref(msg), None, 0, 0) != 0:
+            if msg.message == 786:
+                if getattr(self, "hotkey_on", True):
+                    try:
+                        self.root.after(0, self._dim_panic_all)
+                    except Exception:
+                        pass
+
+    def _dim_panic_all(self):
+        self._dim_panic()
+        threading.Thread(target=self._dim_tell_peer, daemon=True).start()
+
+    def _dim_tell_peer(self):
+        try:
+            with open(DIM_CLEAR_FLAG, "w", encoding="utf-8") as fh:
+                fh.write(str(int(time.time())))
+        except Exception:
+            pass
+        if IS_DESKTOP or not os.path.exists(DIM_PEER_KEY):
+            return
+        try:
+            subprocess.run(
+                ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=4",
+                 "-o", "StrictHostKeyChecking=no", "-i", DIM_PEER_KEY,
+                 DIM_PEER_HOST,
+                 'powershell -NoProfile -Command "Set-Content -Path \'C:\\\\Users\\\\desktop\\\\Documents\\\\PyToolbox\\\\dim_clear.flag\' -Value ((Get-Date).Ticks) -Encoding ascii"'],
+                capture_output=True, timeout=12,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        except Exception:
+            pass
+
+    def _dim_watch_flag(self):
+        try:
+            if os.path.exists(DIM_CLEAR_FLAG):
+                st = os.path.getmtime(DIM_CLEAR_FLAG)
+                if st > getattr(self, "_dim_flag_seen", 0):
+                    self._dim_flag_seen = st
+                    if getattr(self, "dim_level", 0) > 0:
+                        self._dim_panic()
+        except Exception:
+            pass
+        try:
+            self.root.after(1500, self._dim_watch_flag)
+        except Exception:
+            pass
+
+    def _screen_cmd_watch(self):
+        """The laptop's page 8 controls this desktop's screen by writing one command
+        word into screen_cmd.flag over SSH. This reads that flag and runs the local
+        dim or eye code, the same functions the desktop's own page 7 buttons call."""
+        try:
+            if os.path.exists(SCREEN_CMD_FLAG):
+                st = os.path.getmtime(SCREEN_CMD_FLAG)
+                if st > getattr(self, "_screen_cmd_seen", 0):
+                    self._screen_cmd_seen = st
+                    cmd = ""
+                    try:
+                        with open(SCREEN_CMD_FLAG, "r", encoding="utf-8",
+                                  errors="ignore") as fh:
+                            cmd = fh.read().strip()
+                    except Exception:
+                        cmd = ""
+                    self._apply_screen_cmd(cmd)
+        except Exception:
+            pass
+        try:
+            self.root.after(1200, self._screen_cmd_watch)
+        except Exception:
+            pass
+
+    def _apply_screen_cmd(self, cmd):
+        try:
+            if cmd == "restore":
+                self._dim_reset()
+                self._eye_reset()
+            elif cmd.startswith("eye:"):
+                self._eye_toggle(cmd[4:])
+            elif cmd.startswith("bright:"):
+                self._eye_level_set(int(cmd[7:]))
+            elif cmd.startswith("dim:"):
+                lvl = max(0, min(100, int(cmd[4:])))
+                if hasattr(self, "dimscale"):
+                    self.dimscale.set(lvl)
+                self._dim_set(lvl)
+        except Exception:
+            pass
+
+    def _hotkey_paint(self):
+        on = getattr(self, "hotkey_on", True)
+        name = getattr(self, "hotkey_name", "")
+        if not name:
+            self.hkbtn.config(text="\u71b1\u9375\u88ab\u4eba\u4f54\u4e86",
+                              bg="#7a2320", fg="white")
+            return
+        self.hkbtn.config(
+            text="%s  %s" % (name, "\u958b\u555f" if on else "\u95dc\u9589"),
+            bg="#7a5a1e" if on else PANEL,
+            fg=ACCENT if on else DIM)
+
+    def _hotkey_toggle(self):
+        self.hotkey_on = not getattr(self, "hotkey_on", True)
+        self._hotkey_paint()
+
+    def _dim_set(self, value):
+        try:
+            level = int(float(value))
+        except Exception:
+            return
+        self.dim_level = max(0, min(100, level))
+        if hasattr(self, "dimval"):
+            self.dimval.config(text="%d%%" % self.dim_level)
+        self._dim_apply(self.dim_level)
+
+    def _dim_reset(self):
+        self.dim_level = 0
+        if hasattr(self, "dimscale"):
+            self.dimscale.set(0)
+        if hasattr(self, "dimval"):
+            self.dimval.config(text="0%")
+        self._dim_apply(0)
 
     def _eye_paint(self):
         state = {"dark": dark_mode_read(), "night": self.eye_night,
@@ -1869,9 +2193,148 @@ class Toolbox:
         finally:
             self._boost_busy = False
 
+    MIRROR_DIR = r"C:\\Users\\desktop\\Documents\\MOUSEMIRROR"
+    MIRROR_PY = (r"C:\\Users\\desktop\\AppData\\Local\\Programs\\Python\\Python312\\python.exe")
+    MIRROR_PEER = "192.168.1.51"
+    MIRROR_PORT = 50510
+
+    def _build_mirror(self):
+        tk.Label(self.page8, text="MIRROR", bg=BG, fg=ACCENT, anchor="w",
+                 font=("Segoe UI", 12, "bold")).pack(fill="x", padx=10,
+                                                     pady=(6, 2))
+        tk.Label(self.page8,
+                 text="\u5169\u53f0\u6a5f\u4e00\u8d77\u958b\u3001"
+                      "\u4e00\u8d77\u95dc\u3002"
+                      "CTRL+SHIFT+Q \u6c7a\u5b9a\u54ea\u4e00\u53f0\u5e36"
+                      "\u982d",
+                 bg=BG, fg=DIM, anchor="w", font=("Segoe UI", 9),
+                 wraplength=WIDTH - 24,
+                 justify="left").pack(fill="x", padx=10, pady=(0, 4))
+
+        tk.Button(self.page8, text="\u958b MIRROR", bg="#4a3a1e", fg=ACCENT,
+                  activebackground="#5c4826", activeforeground=ACCENT,
+                  font=("Segoe UI", 11, "bold"), relief="flat", height=2,
+                  command=self._mirror_start).pack(fill="x", padx=10,
+                                                   pady=(0, 4))
+        tk.Button(self.page8, text="\u95dc MIRROR", bg="#4a3a1e", fg=ACCENT,
+                  activebackground="#5c4826", activeforeground=ACCENT,
+                  font=("Segoe UI", 11, "bold"), relief="flat", height=2,
+                  command=self._mirror_stop).pack(fill="x", padx=10,
+                                                  pady=(0, 4))
+        self.mirnote = tk.Label(self.page8, text="", bg=BG, fg=DIM, anchor="w",
+                                font=("Segoe UI", 9),
+                                wraplength=WIDTH - 24, justify="left")
+        self.mirnote.pack(fill="x", padx=10, pady=(2, 6))
+        threading.Thread(target=self._mirror_listen, daemon=True).start()
+        self._mirror_note()
+
+    def _mirror_listen(self):
+        """One button has to reach both machines, and the mirror itself cannot
+        carry the word because when it is off there is nothing listening. The
+        sidebar is the thing that is always running, so it is the thing that
+        listens."""
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind(("0.0.0.0", self.MIRROR_PORT))
+        except Exception:
+            return
+        while True:
+            try:
+                data, _addr = sock.recvfrom(32)
+            except Exception:
+                time.sleep(0.5)
+                continue
+            word = data.decode("utf-8", "ignore").strip().lower()
+            if word == "on":
+                self.root.after(0, lambda: self._mirror_do_start(False))
+            elif word == "off":
+                self.root.after(0, lambda: self._mirror_do_stop(False))
+
+    def _mirror_tell(self, word):
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.sendto(word.encode("utf-8"),
+                        (self.MIRROR_PEER, self.MIRROR_PORT))
+            sock.close()
+        except Exception:
+            pass
+
+    def _mirror_running(self):
+        found = []
+        for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+            try:
+                if not (proc.info["name"] or "").lower().startswith("python"):
+                    continue
+                line = " ".join(proc.info["cmdline"] or [])
+                if "MOUSEMIRROR" in line and "mirror.py" in line:
+                    found.append(proc.info["pid"])
+            except Exception:
+                continue
+        return found
+
+    def _mirror_note(self):
+        try:
+            with io.open(os.path.join(self.MIRROR_DIR, "mirror.state"),
+                         encoding="utf-8") as fh:
+                line = fh.read().strip()
+        except Exception:
+            line = ""
+        alive = self._mirror_running()
+        if not alive:
+            self.mirnote.config(text="\u6c92\u6709\u958b")
+        else:
+            self.mirnote.config(text=(line.split("|")[0] or "?")
+                                + "   pid " + ", ".join(str(p) for p in alive))
+        self.page8.after(2000, self._mirror_note)
+
+    def _mirror_do_stop(self, tell=True):
+        for pid in self._mirror_running():
+            try:
+                psutil.Process(pid).kill()
+            except Exception:
+                pass
+        if tell:
+            self._mirror_tell("off")
+        self._mirror_note()
+
+    def _mirror_do_start(self, tell=True):
+        """On means refresh and on - anything already running is killed first,
+        so pressing it always ends with a fresh pair rather than whatever was
+        left over from before.
+
+        Started as administrator on purpose. Without it every injected move is
+        pulled back to the centre of the screen by whatever else is running, so
+        the click lands in the wrong place and a right click looks like it did
+        nothing at all. Measured: not elevated, the pointer never once left the
+        centre in nine seconds; elevated, three clicks landed on 700,400 then
+        1400,800 then 300,200."""
+        for pid in self._mirror_running():
+            try:
+                psutil.Process(pid).kill()
+            except Exception:
+                pass
+        time.sleep(0.6)
+        try:
+            ctypes.windll.shell32.ShellExecuteW(
+                None, "runas", self.MIRROR_PY,
+                '"' + os.path.join(self.MIRROR_DIR, "mirror.py") + '"',
+                self.MIRROR_DIR, 0)
+        except Exception as exc:
+            self._fail("MIRROR \u958b\u4e0d\u5230: %r" % (exc,))
+        if tell:
+            self._mirror_tell("on")
+        self._mirror_note()
+
+    def _mirror_start(self):
+        self._mirror_do_start(True)
+
+    def _mirror_stop(self):
+        self._mirror_do_stop(True)
+
     def _show_page(self, n):
         pages = (self.page1, self.page2, self.page3, self.page4, self.page5,
-                 self.page6, self.page7)
+                 self.page6, self.page7, self.page8)
         n = len(pages) if n > len(pages) else (1 if n < 1 else n)
         self.page = n
         for frame in pages:
@@ -2342,6 +2805,81 @@ class Toolbox:
 
         threading.Thread(target=work, daemon=True).start()
 
+    NVIDIA_SCRIPT = os.path.join(HERE, "nvidia_launch.py")
+    NVIDIA_OUT = r"C:\Users\desktop\nvidia_launch.out"
+
+    def _nvidia_launch(self):
+        """One press for the NVIDIA key run. It opens Phone Link for the SMS
+        code, the gateway key page, build.nvidia.com and Gmail, and puts each
+        one back at the rectangle measured off his own screen on 2026-08-31:
+        Phone Link top left, the key page under it, build.nvidia.com down the
+        right edge, Gmail in the middle and in front."""
+        if getattr(self, "_nv_busy", False):
+            return
+        self._nv_busy = True
+        self.nvbtn.config(text="NVIDIA ...", state="disabled")
+
+        def paint(text, colour=ACCENT, done=False):
+            def work():
+                self.nvbtn.config(text=text, fg=colour)
+                if done:
+                    self._nv_busy = False
+                    self.nvbtn.config(state="normal")
+                    self.root.after(4000, lambda: self.nvbtn.config(
+                        text="NVIDIA", fg=ACCENT))
+            self.root.after(0, work)
+
+        def work():
+            try:
+                if not os.path.exists(self.NVIDIA_SCRIPT):
+                    paint("NVIDIA 缺檔", "#ffb3b3", True)
+                    self._fail("NVIDIA:找不到 " + self.NVIDIA_SCRIPT)
+                    return
+                try:
+                    os.remove(self.NVIDIA_OUT)
+                except Exception:
+                    pass
+                exe = sys.executable
+                if exe.lower().endswith("python.exe"):
+                    cand = exe[:-10] + "pythonw.exe"
+                    if os.path.exists(cand):
+                        exe = cand
+                subprocess.Popen(
+                    [exe, self.NVIDIA_SCRIPT], cwd=HERE, close_fds=True,
+                    creationflags=(getattr(subprocess, "DETACHED_PROCESS", 0)
+                                   | getattr(subprocess, "CREATE_NO_WINDOW", 0)))
+                note("nvidia launch started")
+                deadline = time.monotonic() + 90.0
+                last = ""
+                while time.monotonic() < deadline:
+                    time.sleep(0.4)
+                    try:
+                        with io.open(self.NVIDIA_OUT, encoding="utf-8",
+                                     errors="replace") as fh:
+                            tail = fh.read().strip().splitlines()
+                    except Exception:
+                        continue
+                    if not tail:
+                        continue
+                    last = tail[-1]
+                    if last.startswith("DONE"):
+                        bad = [ln for ln in tail if ln.startswith("FAIL")]
+                        if bad:
+                            paint("NVIDIA 差幾個", "#ffb3b3", True)
+                            self._fail("NVIDIA:" + bad[0])
+                        else:
+                            paint("NVIDIA 完成", ACCENT, True)
+                            note("nvidia launch " + last)
+                        return
+                    paint("NVIDIA " + last[:14])
+                paint("NVIDIA 超時", "#ffb3b3", True)
+                self._fail("NVIDIA 90 秒未完成: " + (last or "(空)"))
+            except Exception as exc:
+                paint("NVIDIA 出錯", "#ffb3b3", True)
+                self._fail("NVIDIA 出錯: " + str(exc))
+
+        threading.Thread(target=work, daemon=True).start()
+
     def _buglog_push(self, block, state):
         if IS_DESKTOP:
             return
@@ -2737,6 +3275,74 @@ class Toolbox:
     # of this button looked like it did nothing. The repair therefore gets its
     # own always-on-top window, and every step is also written to
     # toolbox_boot.log so there is a record even if nothing was on screen.
+    GF_PY = r"C:\Users\desktop\AppData\Local\Programs\Python\Python312\python.exe"
+    GF_SWITCH = r"E:\ai\GAMEFORGE\gf.py"
+    GF_OFF = r"E:\ai\GAMEFORGE\NEWGOD-DUNGEON.disable"
+
+    def _dungeon_say(self, text):
+        try:
+            self.dgnote.config(text=text)
+        except Exception:
+            pass
+
+    def _dungeon_refresh(self):
+        threading.Thread(target=self._dungeon_state_worker, daemon=True).start()
+
+    def _dungeon_state_worker(self):
+        try:
+            off = os.path.exists(self.GF_OFF)
+            live = 0
+            for p in psutil.process_iter(["name", "cmdline"]):
+                try:
+                    if not (p.info["name"] or "").lower().startswith("py"):
+                        continue
+                    if "GAMEFORGE" in " ".join(p.info["cmdline"] or []):
+                        live += 1
+                except Exception:
+                    continue
+            if off:
+                line = "而家關住,工人 " + str(live) + " 隻"
+            else:
+                line = "而家開住,工人 " + str(live) + " 隻"
+        except Exception as exc:
+            line = "讀不到狀態:" + str(exc)[:60]
+        self.root.after(0, lambda: self._dungeon_say(line))
+
+    def _dungeon_open(self):
+        self.dgopen.config(state="disabled", text="開緊...")
+        self._dungeon_say("開緊,等排程起六個工人")
+        threading.Thread(target=self._dungeon_run,
+                         args=("enable", self.dgopen, "OPEN"), daemon=True).start()
+
+    def _dungeon_close(self):
+        self.dgclose.config(state="disabled", text="關緊...")
+        self._dungeon_say("關緊,寫 disable 檔同停晒工人")
+        threading.Thread(target=self._dungeon_run,
+                         args=("disable", self.dgclose, "CLOSE"), daemon=True).start()
+
+    def _dungeon_run(self, verb, btn, label):
+        cmd = [self.GF_PY, self.GF_SWITCH, verb]
+        if verb == "disable":
+            cmd.append("closed from the toolbox")
+        bad = ""
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True, timeout=180,
+                                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            if out.returncode != 0:
+                bad = (out.stderr or out.stdout or "").strip()[-120:] or ("回傳 " + str(out.returncode))
+            elif verb == "enable" and os.path.exists(self.GF_OFF):
+                bad = "disable 檔仲喺度,開唔成"
+        except Exception as exc:
+            bad = str(exc)[:120]
+
+        def done():
+            btn.config(state="normal", text=label)
+            if bad:
+                self._dungeon_say(label + " 失敗:" + bad)
+            else:
+                self._dungeon_refresh()
+        self.root.after(0, done)
+
     CLAUDE_PROCS = ("claude", "anthropicclaude", "claude code")
 
     def _fix_claude(self):
