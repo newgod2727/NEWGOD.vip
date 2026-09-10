@@ -435,7 +435,7 @@ footer .furl:hover{color:var(--gold2)}
     <div class="card">
       <h3>Download</h3>
       <p>A single file. Save it, drop it in the folder on the next tab, open it.</p>
-      <div class="plat"><span class="chip">Windows</span><span class="chip">.exe</span><span class="chip">Tauri</span><span class="chip">7.39 MiB</span></div>
+      <div class="plat"><span class="chip">Windows</span><span class="chip">.exe</span><span class="chip">Tauri</span><span class="chip">7.39 MiB</span><span class="chip">no admin needed</span></div>
       <p>
         <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/GOLDAUTOCLICKER.exe" download>Download GOLDAUTOCLICKER.exe</a>
       </p>
@@ -444,6 +444,15 @@ footer .furl:hover{color:var(--gold2)}
         <code class="block" id="src-ga-url">https://newgod.vip/toolbox/tools/GOLDAUTOCLICKER.exe</code>
       </div>
       <p class="note">Two things worth reading first: <a href="#defender">what Windows Defender says about it</a>, and <a href="#install">where it has to sit</a> for the PyToolbox row to find it.</p>
+    </div>
+
+    <div class="card">
+      <h3>It does not need admin</h3>
+      <p>A locked-down machine &mdash; a school desktop with administrator switched off &mdash; runs this file as it is. There is no separate no-admin build, and there does not need to be one.</p>
+      <p>Read straight out of the executable&rsquo;s own PE resource directory: it carries exactly one <span class="k">RT_MANIFEST</span>, 334 bytes long, and the only thing in that manifest is a Common-Controls dependency. There is no <span class="k">&lt;trustInfo&gt;</span> block and no <span class="k">&lt;requestedExecutionLevel&gt;</span> line anywhere in it &mdash; so Windows falls back to the default, <span class="k">asInvoker</span>, and starts it with whatever rights you already have.</p>
+      <p>That is the difference between this and some of the small Python clickers sitting beside it in the PyToolbox panel. Four of those open by asking to be elevated and then call <span class="k">sys.exit()</span> the moment the answer is no &mdash; measured at 0.03 seconds, zero windows, no message and no log line, which from the outside looks exactly like a download that did nothing. This one never asks in the first place.</p>
+      <p class="note">One caveat that belongs to Windows rather than to this program: with no admin, synthetic clicks cannot reach a window that is itself running as administrator. That is UIPI &mdash; measured, <span class="k">AttachThreadInput</span> err 0 to an ordinary window and err 5 to an elevated one, while <span class="k">SendInput</span> still returns 1 and quietly does nothing. On a locked-down machine it costs you nothing, because nothing there is running as administrator either.</p>
+      <p><a class="link-btn" href="https://newgod.vip/info/pytoolbox#no-admin">What no admin costs the rest of the toolbox</a></p>
     </div>
 
     <div class="card">

@@ -15,7 +15,8 @@ def is_admin():
 if not is_admin():
     # Force restart as Admin
     ctypes.windll.shell32.ShellExecuteW(
-        None, "runas", sys.executable, " ".join(sys.argv), None, 1
+        None, "runas", sys.executable,
+        " ".join('"' + a + '"' for a in sys.argv), None, 1
     )
     sys.exit()
 

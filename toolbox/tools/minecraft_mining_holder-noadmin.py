@@ -5,19 +5,7 @@ import threading
 import time
 from pynput import keyboard
 
-# --- ADMIN CHECK & RESTART ---
-def is_admin():
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except:
-        return False
-
-if not is_admin():
-    ctypes.windll.shell32.ShellExecuteW(
-        None, "runas", sys.executable,
-        " ".join('"' + a + '"' for a in sys.argv), None, 1
-    )
-    sys.exit()
+NOADMIN_LINE = "NO-ADMIN BUILD - no UAC prompt. Cannot click apps run as admin."
 
 # --- DIRECTX MOUSE EVENTS ---
 # 0x0002 = Left Mouse Down
@@ -32,7 +20,7 @@ def release_left_up():
 class MiningHolder:
     def __init__(self, root):
         self.root = root
-        self.root.title("Minecraft AFK Miner (Shift+T)")
+        self.root.title("Minecraft AFK Miner (Shift+T) [NO ADMIN]")
         self.root.geometry("400x250")
         self.root.resizable(False, False)
         
@@ -40,7 +28,8 @@ class MiningHolder:
         self.running = False
         
         # UI Setup
-        tk.Label(root, text="", height=1).pack()
+        tk.Label(root, text=NOADMIN_LINE, fg="#b06000",
+                 font=("Segoe UI", 8), height=1).pack()
         
         self.lbl_info = tk.Label(root, text="Press 'Shift + T' to Toggle", font=("Segoe UI", 14, "bold"))
         self.lbl_info.pack(pady=5)
@@ -60,17 +49,23 @@ class MiningHolder:
         self.thread_mine.start()
 
         # Hotkey Listener
-        self.listener = keyboard.GlobalHotKeys({'<shift>+t': self.toggle_mining})
-        self.listener.start()
+        try:
+            self.listener = keyboard.GlobalHotKeys({'<shift>+t': self.toggle_mining})
+            self.listener.start()
+        except Exception as exc:
+            self.listener = None
+            self.lbl_info.config(
+                text="Hotkey off (%s) - use the button" % type(exc).__name__,
+                fg="red")
 
     def toggle_mining(self):
         self.running = not self.running
         if self.running:
             self.btn_status.config(text="MINING...", bg="#28a745") # Green
-            self.root.title("MINING ACTIVE - Shift+T to Stop")
+            self.root.title("MINING ACTIVE - Shift+T to Stop [NO ADMIN]")
         else:
             self.btn_status.config(text="PAUSED", bg="#b02424") # Red
-            self.root.title("Minecraft AFK Miner (Shift+T)")
+            self.root.title("Minecraft AFK Miner (Shift+T) [NO ADMIN]")
             # Force release immediately when paused
             release_left_up()
 

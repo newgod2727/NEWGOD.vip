@@ -5,19 +5,7 @@ import threading
 import time
 from pynput import keyboard
 
-# --- ADMIN CHECK & RESTART ---
-def is_admin():
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except:
-        return False
-
-if not is_admin():
-    ctypes.windll.shell32.ShellExecuteW(
-        None, "runas", sys.executable,
-        " ".join('"' + a + '"' for a in sys.argv), None, 1
-    )
-    sys.exit()
+NOADMIN_LINE = "NO-ADMIN BUILD - no UAC prompt. Cannot click apps run as admin."
 
 # --- DIRECTX INPUT CODES ---
 # Scan codes for number keys (1-9, 0)
@@ -47,7 +35,7 @@ def press_key_directx(key_char):
 class SequenceRightClicker:
     def __init__(self, root):
         self.root = root
-        self.root.title("MC Sequence Clicker (Shift+C)")
+        self.root.title("MC Sequence Clicker (Shift+C) [NO ADMIN]")
         self.root.geometry("600x450")
         self.root.resizable(False, False)
         
@@ -62,6 +50,8 @@ class SequenceRightClicker:
         tk.Label(root, text="Right Click + Sequence", font=("Segoe UI", 16, "bold")).pack(pady=5)
         self.lbl_info = tk.Label(root, text="Press 'Shift + C' to Toggle", font=("Segoe UI", 12))
         self.lbl_info.pack()
+        tk.Label(root, text=NOADMIN_LINE, fg="#b06000",
+                 font=("Segoe UI", 8)).pack()
         
         self.btn_status = tk.Button(root, text="PAUSED", bg="#b02424", fg="white",
                                     font=("Segoe UI", 14, "bold"), width=20, height=2,
@@ -119,8 +109,14 @@ class SequenceRightClicker:
         self.thread_seq.start()
 
         # Hotkey Listener
-        self.listener = keyboard.GlobalHotKeys({'<shift>+c': self.toggle_clicking})
-        self.listener.start()
+        try:
+            self.listener = keyboard.GlobalHotKeys({'<shift>+c': self.toggle_clicking})
+            self.listener.start()
+        except Exception as exc:
+            self.listener = None
+            self.lbl_info.config(
+                text="Hotkey off (%s) - use the button" % type(exc).__name__,
+                fg="red")
 
     # --- UI LOGIC ---
     def add_to_sequence(self, key):

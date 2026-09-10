@@ -245,6 +245,10 @@ table tr:hover td{background:rgba(231,177,115,.045)}
 th{font-family:"JetBrains Mono",monospace;font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gold3);background:rgba(255,243,201,.03)}
 td.kk{color:var(--gold2);font-weight:600}
 td.nn{font-family:"JetBrains Mono",monospace;color:var(--sage)}
+td.yes{font-family:"JetBrains Mono",monospace;color:var(--sage);font-weight:600}
+td.no{font-family:"JetBrains Mono",monospace;color:var(--coral);font-weight:600}
+td.yes,td.no{white-space:nowrap}
+table.wide3{min-width:560px}
 
 .pager{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:1080px;margin:20px auto 0;padding:0 16px}
 .pager button{cursor:pointer;border:1px solid transparent;color:var(--ink);border-radius:14px;padding:17px 14px;font-family:inherit;font-weight:700;font-size:.92rem;letter-spacing:.02em;background:linear-gradient(180deg,var(--card1),var(--card2)) padding-box,linear-gradient(135deg,rgba(255,243,201,.2),rgba(231,177,115,.06)) border-box;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:color .2s,box-shadow .2s,transform .08s}
@@ -463,16 +467,26 @@ footer .furl:hover{color:var(--gold2)}
 
     <div class="card">
       <h3>Download</h3>
-      <p>The zip holds both builds and the readme. If you only want one file, take the one for your machine.</p>
+      <p>The zip holds both the desktop build and the laptop build, plus the readme. If you only want one file, take the one for your machine.</p>
       <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span></div>
       <p>
-        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/PyToolbox.zip" download>Download PyToolbox.zip</a>
-        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/desktop-toolbox.py" download>desktop toolbox.py</a>
-        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/laptop-toolbox.py" download>laptop toolbox.py</a>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/PyToolbox.zip" download>PyToolbox.zip &mdash; ADMIN ALLOWED</a>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/PyToolbox-noadmin.zip" download>PyToolbox-noadmin.zip &mdash; NO ADMIN</a>
+      </p>
+      <p class="note">Take the <span class="k">NO ADMIN</span> zip if the machine will not let you run anything as administrator &mdash; a school or a work desktop. On your own machine take the other one. It was measured rather than guessed: the no-admin build loses three buttons and one behaviour and keeps everything else, and the <a href="#no-admin" data-goto="No admin">No admin</a> tab lists all of it.</p>
+      <p>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/desktop-toolbox.py" download>desktop toolbox.py &mdash; ADMIN ALLOWED</a>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/desktop-toolbox-noadmin.py" download>desktop toolbox.py &mdash; NO ADMIN</a>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/laptop-toolbox.py" download>laptop toolbox.py &mdash; ADMIN ALLOWED</a>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/laptop-toolbox-noadmin.py" download>laptop toolbox.py &mdash; NO ADMIN</a>
       </p>
       <div class="code">
         <div class="code-top"><span class="code-name">download</span><button class="copy sm" type="button" data-copy="src-tb-zip">Copy the PyToolbox.zip link</button></div>
         <code class="block" id="src-tb-zip">https://newgod.vip/toolbox/PyToolbox.zip</code>
+      </div>
+      <div class="code">
+        <div class="code-top"><span class="code-name">download &mdash; no admin</span><button class="copy sm" type="button" data-copy="src-tb-zip-na">Copy the PyToolbox-noadmin.zip link</button></div>
+        <code class="block" id="src-tb-zip-na">https://newgod.vip/toolbox/PyToolbox-noadmin.zip</code>
       </div>
       <div class="code">
         <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-tb-run">Copy the line that starts toolbox.py</button></div>
@@ -512,6 +526,7 @@ footer .furl:hover{color:var(--gold2)}
         <li>Every <span class="k">.py</span> below wants <span class="k">Python 3.12</span> and <span class="k">psutil</span>. The one <span class="k">.exe</span> wants nothing at all &mdash; no Python, no install.</li>
         <li>The downloaded file has to sit in the <span class="k">same folder as toolbox.py</span>. A panel row starts its tool by filename out of its own folder, so a file left in Downloads is a row that does nothing when you press it.</li>
         <li>Start a <span class="k">.py</span> with <span class="k">pythonw.exe</span>, never <span class="k">python.exe</span>. python.exe leaves a black console window sitting on the screen for as long as the tool runs.</li>
+        <li>Every tool that ever asked for administrator now has <span class="k">two</span> files below: the <span class="k">ADMIN ALLOWED</span> one and the <span class="k">NO ADMIN</span> one. Four of the eleven never asked in the first place and have a single file, which their own card says. <a href="#no-admin" data-goto="No admin">What no admin actually costs</a> is a tab of its own.</li>
       </ul>
       <div class="code">
         <div class="code-top"><span class="code-name">where every file goes</span><button class="copy sm" type="button" data-copy="src-f-folder">Copy the folder path</button></div>
@@ -540,7 +555,11 @@ footer .furl:hover{color:var(--gold2)}
         <h3><span class="fq">01</span>&#x5DE6;&#x9375;&#x9023;&#x9EDE;</h3>
         <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span></div>
         <p>Repeats a left click on its own timer for as long as it is switched on. The plainest of the seven small clickers &mdash; one button, one interval.</p>
-        <p><a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/autoclicker21.py" download>Download autoclicker21.py</a></p>
+        <p>
+          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/autoclicker21.py" download>autoclicker21.py &mdash; ADMIN ALLOWED</a>
+          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/autoclicker21-noadmin.py" download>autoclicker21-noadmin.py &mdash; NO ADMIN</a>
+        </p>
+        <p class="note">Second file is the same tool built for a machine with admin switched off &mdash; <a href="#no-admin" data-goto="No admin">what that costs</a>, which is next to nothing.</p>
         <div class="code">
           <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-f01">Copy the line that starts autoclicker21.py</button></div>
           <code class="block" id="src-f01">pythonw.exe autoclicker21.py</code>
@@ -552,7 +571,11 @@ footer .furl:hover{color:var(--gold2)}
         <h3><span class="fq">02</span>&#x53F3;&#x9375;&#x9023;&#x9EDE;</h3>
         <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span></div>
         <p>The same repeat on the right button instead of the left. The filename says where it came from; the panel row is a right-click repeater and nothing more.</p>
-        <p><a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/minecraft_rightclicker.py" download>Download minecraft_rightclicker.py</a></p>
+        <p>
+          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/minecraft_rightclicker.py" download>minecraft_rightclicker.py &mdash; ADMIN ALLOWED</a>
+          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/minecraft_rightclicker-noadmin.py" download>minecraft_rightclicker-noadmin.py &mdash; NO ADMIN</a>
+        </p>
+        <p class="note">Second file is the same tool built for a machine with admin switched off &mdash; <a href="#no-admin" data-goto="No admin">what that costs</a>, which is next to nothing.</p>
         <div class="code">
           <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-f02">Copy the line that starts minecraft_rightclicker.py</button></div>
           <code class="block" id="src-f02">pythonw.exe minecraft_rightclicker.py</code>
@@ -564,7 +587,11 @@ footer .furl:hover{color:var(--gold2)}
         <h3><span class="fq">03</span>&#x6309;&#x4F4F;&#x5DE6;&#x9375;</h3>
         <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span></div>
         <p>Holds the left button down and keeps it down, rather than pressing and releasing over and over. For anything that reacts to a held button instead of to a click count.</p>
-        <p><a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/minecraft_mining_holder.py" download>Download minecraft_mining_holder.py</a></p>
+        <p>
+          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/minecraft_mining_holder.py" download>minecraft_mining_holder.py &mdash; ADMIN ALLOWED</a>
+          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/minecraft_mining_holder-noadmin.py" download>minecraft_mining_holder-noadmin.py &mdash; NO ADMIN</a>
+        </p>
+        <p class="note">Second file is the same tool built for a machine with admin switched off &mdash; <a href="#no-admin" data-goto="No admin">what that costs</a>, which is next to nothing.</p>
         <div class="code">
           <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-f03">Copy the line that starts minecraft_mining_holder.py</button></div>
           <code class="block" id="src-f03">pythonw.exe minecraft_mining_holder.py</code>
@@ -576,7 +603,11 @@ footer .furl:hover{color:var(--gold2)}
         <h3><span class="fq">04</span>&#x53F3;&#x9375;&#x52A0;&#x5E8F;&#x5217;</h3>
         <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span></div>
         <p>Right clicks in a set sequence instead of at one flat interval, so the gaps between clicks are not all the same length.</p>
-        <p><a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/minecraft_sequence_clicker.py" download>Download minecraft_sequence_clicker.py</a></p>
+        <p>
+          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/minecraft_sequence_clicker.py" download>minecraft_sequence_clicker.py &mdash; ADMIN ALLOWED</a>
+          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/minecraft_sequence_clicker-noadmin.py" download>minecraft_sequence_clicker-noadmin.py &mdash; NO ADMIN</a>
+        </p>
+        <p class="note">Second file is the same tool built for a machine with admin switched off &mdash; <a href="#no-admin" data-goto="No admin">what that costs</a>, which is next to nothing.</p>
         <div class="code">
           <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-f04">Copy the line that starts minecraft_sequence_clicker.py</button></div>
           <code class="block" id="src-f04">pythonw.exe minecraft_sequence_clicker.py</code>
@@ -588,8 +619,12 @@ footer .furl:hover{color:var(--gold2)}
         <h3><span class="fq">05</span>&#x5B9A;&#x9EDE;&#x9023;&#x9EDE;</h3>
         <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span><span class="chip">rename it back</span></div>
         <p>Clicks at a point you pick rather than wherever the cursor happens to be, so the mouse stays free while it runs.</p>
-        <p><a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/clcik-with-chosing.py" download>Download clcik-with-chosing.py</a></p>
-        <p class="note">This is the one trap on the page. The real file is named <span class="k">clcik with chosing.py</span> &mdash; with spaces, and the misspelling is in the actual name. A URL cannot carry the spaces, so the download arrives hyphenated. The panel row launches the spaced name, so rename it back after downloading or that row does nothing and looks broken.</p>
+        <p>
+          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/clcik-with-chosing.py" download>clcik-with-chosing.py &mdash; ADMIN ALLOWED</a>
+          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/clcik-with-chosing-noadmin.py" download>clcik-with-chosing-noadmin.py &mdash; NO ADMIN</a>
+        </p>
+        <p class="note">Second file is the same tool built for a machine with admin switched off &mdash; <a href="#no-admin" data-goto="No admin">what that costs</a>, which is next to nothing.</p>
+        <p class="note">This is the one trap on the page. The real file is named <span class="k">clcik with chosing.py</span> &mdash; with spaces, and the misspelling is in the actual name. A URL cannot carry the spaces, so the download arrives hyphenated. The panel row launches the spaced name, so rename it back after downloading or that row does nothing and looks broken. If you took either zip you can ignore all of this &mdash; the zip already ships it under the real spaced name, and under the hyphenated one as well.</p>
         <div class="code">
           <div class="code-top"><span class="code-name">rename it to this</span><button class="copy sm" type="button" data-copy="src-f05n">Copy the real filename</button></div>
           <code class="block" id="src-f05n">clcik with chosing.py</code>
@@ -605,7 +640,8 @@ footer .furl:hover{color:var(--gold2)}
         <h3><span class="fq">06</span>&#x5FAA;&#x74B0;&#x6253;&#x5B57;</h3>
         <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span></div>
         <p>Types a line of text over and over on a timer, the way the clickers repeat a click.</p>
-        <p><a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/pc_autotyper.py" download>Download pc_autotyper.py</a></p>
+        <p><a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/pc_autotyper.py" download>Download pc_autotyper.py &mdash; one build, admin or not</a></p>
+        <p class="note">One file, no second build: there is no elevation code anywhere in it, so there is nothing for a no-admin build to take out. <a href="#no-admin" data-goto="No admin">No admin</a>.</p>
         <div class="code">
           <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-f06">Copy the line that starts pc_autotyper.py</button></div>
           <code class="block" id="src-f06">pythonw.exe pc_autotyper.py</code>
@@ -617,7 +653,8 @@ footer .furl:hover{color:var(--gold2)}
         <h3><span class="fq">07</span>&#x53F3;&#x9375;&#x89F8;&#x767C;&#x6253;&#x5B57;</h3>
         <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span></div>
         <p>Types on the right button rather than on a timer &mdash; the click is the trigger, so nothing happens until you press.</p>
-        <p><a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/typewordinf.py" download>Download typewordinf.py</a></p>
+        <p><a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/typewordinf.py" download>Download typewordinf.py &mdash; one build, admin or not</a></p>
+        <p class="note">One file, no second build: there is no elevation code anywhere in it, so there is nothing for a no-admin build to take out. <a href="#no-admin" data-goto="No admin">No admin</a>.</p>
         <div class="code">
           <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-f07">Copy the line that starts typewordinf.py</button></div>
           <code class="block" id="src-f07">pythonw.exe typewordinf.py</code>
@@ -631,9 +668,11 @@ footer .furl:hover{color:var(--gold2)}
         <p>The macro recorder. It records what you do, saves each run on its own so closing it does not lose the recording, and lets you open the recorded steps and edit them one at a time afterwards.</p>
         <p>Not one of the small clickers &mdash; a full tool with its own panel, and it has a page of its own.</p>
         <p>
-          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/GOLDMACRO_v4.py" download>Download GOLDMACRO_v4.py</a>
+          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/GOLDMACRO_v4.py" download>GOLDMACRO_v4.py &mdash; ADMIN ALLOWED</a>
+          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/GOLDMACRO_v4-noadmin.py" download>GOLDMACRO_v4-noadmin.py &mdash; NO ADMIN</a>
           <a class="link-btn" href="https://newgod.vip/info/marccliking">The full GOLDMACRO page</a>
         </p>
+        <p class="note">The no-admin build says which one it is on itself: the version label reads <span class="k">v4.1 no-admin</span>. GOLDMACRO is also the one tool here that never died when elevation was refused &mdash; it already fell through to running unelevated instead of exiting. <a href="#no-admin" data-goto="No admin">No admin</a>.</p>
         <div class="code">
           <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-f08">Copy the line that starts GOLDMACRO_v4.py</button></div>
           <code class="block" id="src-f08">pythonw.exe GOLDMACRO_v4.py</code>
@@ -655,13 +694,15 @@ footer .furl:hover{color:var(--gold2)}
           <code class="block" id="src-f09">https://newgod.vip/toolbox/tools/GOLDAUTOCLICKER.exe</code>
         </div>
         <p class="note">The folder rule still holds: the GOLD &#x81EA;&#x52D5;&#x9EDE;&#x64CA; row starts it out of the folder <span class="k">toolbox.py</span> lives in. Being an <span class="k">.exe</span> it also opens on its own from anywhere &mdash; but then that row will not find it.</p>
+        <p class="note">One build, and it does not need a second one. Its manifest asks for <span class="k">asInvoker</span> &mdash; read straight out of the PE resource directory, one <span class="k">RT_MANIFEST</span> of 334 bytes carrying nothing but a Common-Controls dependency, with no <span class="k">requestedExecutionLevel</span> in it at all &mdash; so it starts on a locked-down machine exactly as it ships.</p>
       </div>
 
       <div class="card fd" data-f="f10">
         <h3><span class="fq">10</span>BOT &#x770B;&#x9580;&#x72D7;</h3>
         <div class="plat"><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span></div>
         <p>Watches the client processes and says so on the panel when one of them has stopped, instead of leaving you to notice it later.</p>
-        <p><a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/farm_watch.py" download>Download farm_watch.py</a></p>
+        <p><a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/farm_watch.py" download>Download farm_watch.py &mdash; one build, admin or not</a></p>
+        <p class="note">One file, no second build: there is no elevation code anywhere in it, so there is nothing for a no-admin build to take out. <a href="#no-admin" data-goto="No admin">No admin</a>.</p>
         <div class="code">
           <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-f10">Copy the line that starts farm_watch.py</button></div>
           <code class="block" id="src-f10">pythonw.exe farm_watch.py</code>
@@ -675,9 +716,14 @@ footer .furl:hover{color:var(--gold2)}
         <p>Opens a window that writes out where the machine stands right now. It is the one row on page 1 with no file behind it &mdash; the whole thing is built into <span class="k">toolbox.py</span> itself.</p>
         <p>So there is nothing extra to download here. Taking <span class="k">toolbox.py</span> is taking this feature. It is listed anyway rather than dropped, because a row on the panel with no entry on this page reads like a missing download.</p>
         <p>
-          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/desktop-toolbox.py" download>desktop toolbox.py</a>
-          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/laptop-toolbox.py" download>laptop toolbox.py</a>
+          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/desktop-toolbox.py" download>desktop toolbox.py &mdash; ADMIN ALLOWED</a>
+          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/desktop-toolbox-noadmin.py" download>desktop toolbox.py &mdash; NO ADMIN</a>
         </p>
+        <p>
+          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/laptop-toolbox.py" download>laptop toolbox.py &mdash; ADMIN ALLOWED</a>
+          <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/laptop-toolbox-noadmin.py" download>laptop toolbox.py &mdash; NO ADMIN</a>
+        </p>
+        <p class="note">The no-admin panel says which one it is in its own title bar: it reads <span class="k">TOOLBOX &#x514D;&#x7BA1;</span>. It starts on a non-admin account &mdash; measured, boot log and all &mdash; and the three buttons it loses are named on the <a href="#no-admin" data-goto="No admin">No admin</a> tab.</p>
         <div class="code">
           <div class="code-top"><span class="code-name">run</span><button class="copy sm" type="button" data-copy="src-f11">Copy the line that starts toolbox.py</button></div>
           <code class="block" id="src-f11">pythonw.exe toolbox.py</code>
@@ -685,6 +731,97 @@ footer .furl:hover{color:var(--gold2)}
         <p class="note">Rename whichever build you took to <span class="k">toolbox.py</span>. Every other file on this page then goes in the folder beside it.</p>
       </div>
 
+    </div>
+  </section>
+
+  <section class="view" data-t="No admin">
+    <div class="vhead">
+      <h2>On a machine with no admin</h2>
+      <p>A school desktop will not let you run anything as administrator. That is why every download here now comes in two builds &mdash; and the honest headline is that the no-admin one loses almost nothing.</p>
+    </div>
+
+    <div class="card">
+      <h3>Almost nothing is lost, and that is measured</h3>
+      <p>The panel was run under a real non-admin token: a scheduled task registered at <span class="k">/RL LIMITED /IT</span>, which reports <span class="k">IsUserAnAdmin</span> False and <span class="k">TokenElevation</span> 0. Then each thing the panel does was tried again under that token.</p>
+      <p><b>It starts.</b> The boot log wrote <span class="k">panel up, priority raised</span>, and it was still alive 22 seconds later. Neither build of the panel contains <span class="k">IsUserAnAdmin</span> anywhere, so nothing inside it is checking who you are and refusing you on that basis.</p>
+      <p>Out of the whole panel, <b>three buttons and one behaviour</b> are gone. Everything else came back the same &mdash; and in the case of the page 7 dimming, byte-identical to the admin run.</p>
+      <p class="note">This is a different split from the one on the <a href="#two-builds" data-goto="Two builds">Two builds</a> tab. That one is desktop against laptop. This one is admin against no admin, and the two stack: there is a no-admin desktop build and a no-admin laptop build.</p>
+    </div>
+
+    <div class="card">
+      <h3>What still works, and what is gone</h3>
+      <div class="tablewrap"><table class="wide3">
+        <tr><th>What</th><th>With no admin</th><th>How that was measured</th></tr>
+        <tr><td class="kk">Clicking and typing</td><td class="yes">works</td><td class="nn">SendInput, mouse_event and keybd_event all returned 1, err 0</td></tr>
+        <tr><td class="kk">Every hotkey</td><td class="yes">works</td><td class="nn">WH_KEYBOARD_LL and WH_MOUSE_LL both installed, err 0. pynput and keyboard both fine</td></tr>
+        <tr><td class="kk">Page 7 screen dimming</td><td class="yes">works</td><td class="nn">SetDeviceGammaRamp get, set and restore all true &mdash; byte-identical to the admin run</td></tr>
+        <tr><td class="kk">Dark mode toggle</td><td class="yes">works</td><td class="nn">HKCU write ok</td></tr>
+        <tr><td class="kk">Power-settings readout</td><td class="yes">works</td><td class="nn">HKLM read returned the same as admin. The panel never writes HKLM</td></tr>
+        <tr><td class="kk">powercfg /setactive</td><td class="yes">works</td><td class="nn">rc 0</td></tr>
+        <tr><td class="kk">HIGH priority</td><td class="yes">works</td><td class="nn">nice() went 16384 to 128. Only REALTIME needs admin, and the code never asks for it</td></tr>
+        <tr><td class="kk">Page 2 END TASK</td><td class="yes">works</td><td class="nn">plain taskkill /F /PID, rc 0</td></tr>
+        <tr><td class="kk">First run, the whole way</td><td class="yes">works</td><td class="nn">START.cmd to bootstrap.py to pip install --user psutil, rc 0</td></tr>
+        <tr><td class="kk">The panel starting at all</td><td class="yes">works</td><td class="nn">boot log wrote &ldquo;panel up, priority raised&rdquo;, still alive 22 s later</td></tr>
+        <tr><td class="kk">MOUSE MIRROR</td><td class="no">gone</td><td class="nn">the panel starts mirror.py through runas</td></tr>
+        <tr><td class="kk">The one-time &ldquo;never ask again&rdquo; task</td><td class="no">gone</td><td class="nn">Register-ScheduledTask -RunLevel Highest, err 5</td></tr>
+        <tr><td class="kk">Launching Roblox as administrator</td><td class="no">gone</td><td class="nn">the ordinary Roblox launch is not affected</td></tr>
+        <tr><td class="kk">Clicking into a window that is itself admin</td><td class="no">gone</td><td class="nn">UIPI. AttachThreadInput err 0 to an ordinary window, err 5 to an elevated one</td></tr>
+      </table></div>
+      <p class="note">Ten rows work, four do not, and three of the four are one button each. That is the whole cost.</p>
+    </div>
+
+    <div class="card broken">
+      <h3>The three buttons</h3>
+      <ul>
+        <li><b>MOUSE MIRROR.</b> The panel starts <span class="k">mirror.py</span> through <span class="k">runas</span>, and <span class="k">runas</span> is exactly the thing that is switched off. That one button is the whole casualty &mdash; nothing else on the panel goes through it.</li>
+        <li><b>The one-time &ldquo;never ask again&rdquo; registration</b> for the admin Roblox task. <span class="k">Register-ScheduledTask -RunLevel Highest</span> comes back with error 5. Eight calls were suspected of needing admin and this is the only one actually denied.</li>
+        <li><b>Launching Roblox as administrator.</b> Only the as-administrator version of it. Ordinary Roblox launching is untouched.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>The fourth thing, which has no button</h3>
+      <p>Synthetic input cannot reach a window that is itself running as administrator. That is Windows UIPI, and it is the real reason these tools ever asked to be elevated &mdash; not to click harder, but to be allowed to click <b>at</b> something elevated.</p>
+      <p>Measured: <span class="k">AttachThreadInput</span> to an ordinary medium-integrity window succeeded, err 0; to a high-integrity one it failed, err 5. The nasty part is that <span class="k">SendInput</span> still returns 1 while that is happening, so the tool cannot tell from the return value that it was blocked. It just does nothing.</p>
+      <p><b>On a school machine this costs nothing</b>, because nothing on a school machine is running as administrator either. It only bites if you go and elevate the target yourself.</p>
+    </div>
+
+    <div class="card">
+      <h3>Why the old download died there, without saying a word</h3>
+      <p>All five of the small clickers open with <span class="k">ShellExecuteW(..., &quot;runas&quot;, ...)</span> and then call <span class="k">sys.exit()</span> the moment it is refused. On a machine where elevation is switched off, the refusal is instant. GOLDMACRO never had this fault &mdash; it already carried on unelevated and flipped a badge instead.</p>
+      <p>Measured on the real files with that return forced to 5: <span class="k">SystemExit</span> in 0.03 seconds, zero windows created, no message, no log line. From outside, that is identical to a double-click that did nothing at all &mdash; which is exactly what it looked like.</p>
+      <p><span class="k">GOLDMACRO</span> never had this problem. It already fell through to running unelevated and flipped a badge to say so, instead of exiting.</p>
+    </div>
+
+    <div class="card">
+      <h3>You never have to guess which file you opened</h3>
+      <ul>
+        <li>The no-admin clicker windows carry <span class="k">[NO ADMIN]</span> on the end of the title, all five of them, and GOLDMACRO&rsquo;s version label reads <span class="k">no-admin</span>. You never have to remember which file you opened.</li>
+        <li>GOLDMACRO&rsquo;s version label reads <span class="k">v4.1 no-admin</span>.</li>
+        <li>The panel&rsquo;s own title reads <span class="k">TOOLBOX &#x514D;&#x7BA1;</span>.</li>
+      </ul>
+      <p>Every no-admin build in one place, so you do not have to walk the <a href="#features" data-goto="Features">Features</a> tab collecting them:</p>
+      <div class="plat"><span class="chip">no admin</span><span class="chip">Windows</span><span class="chip">Python 3.12</span><span class="chip">psutil</span></div>
+      <p>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/PyToolbox-noadmin.zip" download>PyToolbox-noadmin.zip</a>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/desktop-toolbox-noadmin.py" download>desktop toolbox &mdash; no admin</a>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/laptop-toolbox-noadmin.py" download>laptop toolbox &mdash; no admin</a>
+      </p>
+      <p>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/autoclicker21-noadmin.py" download>autoclicker21-noadmin.py</a>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/minecraft_rightclicker-noadmin.py" download>minecraft_rightclicker-noadmin.py</a>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/minecraft_mining_holder-noadmin.py" download>minecraft_mining_holder-noadmin.py</a>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/minecraft_sequence_clicker-noadmin.py" download>minecraft_sequence_clicker-noadmin.py</a>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/clcik-with-chosing-noadmin.py" download>clcik-with-chosing-noadmin.py</a>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/GOLDMACRO_v4-noadmin.py" download>GOLDMACRO_v4-noadmin.py</a>
+        <a class="link-btn dl-btn" href="https://newgod.vip/toolbox/tools/NOADMIN.md" download>NOADMIN.md</a>
+      </p>
+      <div class="code">
+        <div class="code-top"><span class="code-name">the no-admin zip</span><button class="copy sm" type="button" data-copy="src-na-zip">Copy the link</button></div>
+        <code class="block" id="src-na-zip">https://newgod.vip/toolbox/PyToolbox-noadmin.zip</code>
+      </div>
+      <p class="note">The <span class="k">&#x5B9A;&#x9EDE;&#x9023;&#x9EDE;</span> rename trap applies to this build too: the panel row only ever launches the one spaced name <span class="k">clcik with chosing.py</span>, so whichever of the two files you keep has to end up carrying that name.</p>
+      <p class="note">Four of the eleven tools are not on this list and do not need to be. <span class="k">pc_autotyper.py</span>, <span class="k">typewordinf.py</span> and <span class="k">farm_watch.py</span> were read top to bottom and hold no elevation code at all, so there is nothing a second build could take out. <span class="k">GOLDAUTOCLICKER.exe</span> is the same answer for a different reason &mdash; its manifest asks for <span class="k">asInvoker</span>, so it never wanted admin either.</p>
     </div>
   </section>
 

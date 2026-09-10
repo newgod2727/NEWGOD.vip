@@ -4,6 +4,32 @@ A sidebar panel for Windows. It pins itself to the left of the desktop and does
 no work of its own. Every row on page 1 starts a separate tool in its own
 process, and the pages behind the arrows hold the buttons I press every day.
 
+## Two builds: admin and no admin
+
+There are two zips and they hold the same tools.
+
+`PyToolbox.zip` is the normal one. Six of the tools ask Windows for admin the
+moment they start, which is right on a machine you own.
+
+`PyToolbox-noadmin.zip` is for a machine where admin is switched off, like a
+school PC. Nothing in it ever raises a UAC prompt. Every file keeps its normal
+name, so every row on page 1 still works — the file behind the row is simply the
+build that does not ask.
+
+On the old zip, a machine that refuses admin killed four of the clickers in
+0.03 seconds with no window and no message. That is what this second zip is for.
+
+What you actually lose without admin is small, and it was measured rather than
+guessed: MOUSE MIRROR, the one-time admin-Roblox setup, and launching Roblox as
+admin. Everything else — the clicking, the typing, the hotkeys, the screen
+dimming, dark mode, END TASK, HIGH priority, and the panel itself — works
+exactly the same. The one behaviour that changes with no button attached to it
+is that synthetic clicks cannot reach a window that is itself running as admin.
+That is a Windows rule called UIPI, and it is the reason those tools asked for
+elevation in the first place.
+
+Full breakdown is in `NOADMIN.md` beside this file.
+
 ## What you need
 
 Python 3.12 and one package, `psutil`.

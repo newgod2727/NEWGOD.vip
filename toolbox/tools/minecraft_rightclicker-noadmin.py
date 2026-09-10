@@ -5,19 +5,7 @@ import threading
 import time
 from pynput import keyboard
 
-# --- ADMIN CHECK & RESTART ---
-def is_admin():
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except:
-        return False
-
-if not is_admin():
-    ctypes.windll.shell32.ShellExecuteW(
-        None, "runas", sys.executable,
-        " ".join('"' + a + '"' for a in sys.argv), None, 1
-    )
-    sys.exit()
+NOADMIN_LINE = "NO-ADMIN BUILD - no UAC prompt. Cannot click apps run as admin."
 
 # --- DIRECTX RIGHT CLICKING ---
 def click_right_directx():
@@ -29,7 +17,7 @@ def click_right_directx():
 class MinecraftRightClicker:
     def __init__(self, root):
         self.root = root
-        self.root.title("Minecraft Right-Clicker (Shift+R)")
+        self.root.title("Minecraft Right-Clicker (Shift+R) [NO ADMIN]")
         self.root.geometry("400x350")
         self.root.resizable(False, False)
         
@@ -38,7 +26,8 @@ class MinecraftRightClicker:
         self.click_count = 0
         
         # UI Setup
-        tk.Label(root, text="", height=1).pack()
+        tk.Label(root, text=NOADMIN_LINE, fg="#b06000",
+                 font=("Segoe UI", 8), height=1).pack()
         
         # --- CHANGED LABEL HERE ---
         self.lbl_info = tk.Label(root, text="Press 'Shift + R' to Toggle", font=("Segoe UI", 14, "bold"))
@@ -72,8 +61,14 @@ class MinecraftRightClicker:
 
         # --- CHANGED HOTKEY HERE ---
         # Changed to <shift>+r
-        self.listener = keyboard.GlobalHotKeys({'<shift>+r': self.toggle_clicking})
-        self.listener.start()
+        try:
+            self.listener = keyboard.GlobalHotKeys({'<shift>+r': self.toggle_clicking})
+            self.listener.start()
+        except Exception as exc:
+            self.listener = None
+            self.lbl_info.config(
+                text="Hotkey off (%s) - use the button" % type(exc).__name__,
+                fg="red")
 
     def toggle_clicking(self):
         self.running = not self.running
