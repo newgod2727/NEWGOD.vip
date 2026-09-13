@@ -538,13 +538,6 @@ footer .furl:hover{color:var(--gold2)}
 
 
 
-    <div class="block reveal">
-      <p class="eyebrow">Every morning</p>
-      <div class="vow">
-        <div class="vow-day"><b id="vowDay">&mdash;</b><span>days straight, no feelings</span></div>
-        <p class="vow-line">Don't ever fucking have feelings on girl, they suck!!! And also u Cant crush or love any girl, it will make u worst!!! Read this every morning while u wake up DUMB!</p>
-      </div>
-    </div>
 
     <div class="block reveal">
       <p class="eyebrow">Live from GitHub</p>
@@ -714,6 +707,7 @@ footer .furl:hover{color:var(--gold2)}
       <h3>Site changelog</h3>
       <p>Every change to this site lands here first, newest on top.</p>
       <ul>
+        <li><span class="k">13 Sep 2026</span> &mdash; The morning band on the front page, and the day counter that ran with it, are removed.</li>
         <li><span class="k">10 Sep 2026</span> &mdash; Everything that ever asked for administrator now ships twice: an <span class="k">ADMIN ALLOWED</span> build and a <span class="k">NO ADMIN</span> build, with a second zip at <span class="k">/toolbox/PyToolbox-noadmin.zip</span>. On a machine with admin switched off, five of the clickers used to call <span class="k">sys.exit()</span> 0.03 seconds after the refusal &mdash; no window, no message, nothing. What no admin actually costs turned out to be three buttons out of fourteen; the clicking, the typing, the hotkeys, the screen dimming, dark mode, END TASK and the panel itself were all measured working without it. The new <span class="k">/info/pytoolbox/#no-admin</span> tab lists it row by row.</li>
         <li><span class="k">10 Sep 2026</span> &mdash; Fixed in <span class="k">&#x6309;&#x4F4F;&#x5DE6;&#x9375;</span>: while paused, its idle loop was firing a global mouse-up ten times a second, so a paused holder was interfering with every other click on the machine. It now releases once, on the way into paused.</li>
         <li><span class="k">10 Sep 2026</span> &mdash; Fixed in the published clickers: the command they built to relaunch themselves as administrator was unquoted, so any folder path containing a space broke it &mdash; the tool then failed to appear even when admin had been granted.</li>
@@ -1061,20 +1055,5 @@ document.addEventListener("DOMContentLoaded", function(){
 });
 </script>
 
-<script>
-(function(){
-  var el = document.getElementById('vowDay');
-  if (!el) return;
-  var anchor = new Date(2026, 6, 13, 8, 0, 0).getTime();
-  function upd(){
-    var d = Math.floor((Date.now() - anchor) / 86400000) + 1;
-    if (d < 1) d = 1;
-    el.setAttribute('data-done','1');
-    el.textContent = d.toLocaleString();
-  }
-  upd();
-  setInterval(upd, 60000);
-})();
-</script>
 </body>
 </html>
