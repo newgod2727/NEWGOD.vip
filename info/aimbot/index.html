@@ -462,6 +462,21 @@ footer .furl:hover{color:var(--gold2)}
       <p class="note">The readout shows round state, current target and its health, ammo, accuracy, ultimate charge, how many players and bots are in the arena, and shots / landed / kills / reloads.</p>
     </div>
 
+    <div class="card">
+      <h3>MORE, added 15 September 2026</h3>
+      <p><span class="k">MORE</span> is the row under AUTO OPEN. It folds the rows below it away and back, so the panel is the size it always was when you do not want them.</p>
+      <ul>
+        <li><span class="k">HOP -1 &nbsp; 0/5 &nbsp; HOP +1</span> &mdash; hop by itself after this many matches. The middle button is the count, so you can see how far off it is. Set it to 0 and it reads <span class="k">HOP OFF</span> and never fires. It waits for a round to end: hopping mid round throws away the match you are already in.</li>
+        <li><span class="k">ANTI AFK</span> &mdash; Roblox drops a client after twenty minutes with no input, which on a farm left running is the usual reason it is not running any more. One synthetic input at the moment it is about to happen resets that clock. The button counts how many times it has saved you.</li>
+        <li><span class="k">RECONNECT</span> &mdash; on a disconnect it asks to be put back into the place, up to three times, and the loader at the top of the script comes back with it. Best effort and worth being honest about: once Roblox has finished closing the connection nothing in the client can teleport, so this catches the ones where the error shows up first, not every one.</li>
+        <li><span class="k">HOP EMPTY</span> &mdash; 45 seconds into a round with nothing left this farm can shoot, it leaves. An empty server pays nothing.</li>
+        <li><span class="k">HOP LAG</span> &mdash; 30 seconds stuck under 20 fps and it leaves. Off by default, because one bad reading is not a bad server.</li>
+        <li><span class="k">HUMAN</span> &mdash; a ceiling on kills per minute: off, 20, 40, 60. Off by default. It turns red and holds the trigger while you are over the line, and it shows the rate it is measuring so the number is not a guess.</li>
+      </ul>
+      <p class="note">A hop now tries up to four servers instead of firing one teleport and hoping. It also refuses the last eight servers this client has been in, which is what stopped an auto hop bouncing between the same two servers on a place with a short list, and a teleport Roblox refuses now says so on the panel instead of leaving the farm running in the server it was told to leave.</p>
+      <p class="note">Kills, shots, landed, matches and hops are also kept across servers in <span class="k">RobloxComm/tpfarm_stats.json</span>, so a hop stops setting your score back to zero. With HUMAN off, that lifetime kill count is what the HUMAN button shows.</p>
+    </div>
+
   </section>
   <section class="view" data-t="Crates">
     <div class="vhead">
