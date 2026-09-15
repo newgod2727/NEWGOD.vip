@@ -275,10 +275,47 @@ local CFG = loadCfg({ on = false, back = 5, tpEvery = 2, jumpEvery = 3, settle =
               autoDeploy = true, doBots = true, doPlayers = true, oneShot = true,
               autoBuy = false, buyBasic = false, buySuper = false, buyGold = true,
               autoOpen = false, lobbyHold = false, vapeList = {}, guiX = 24, guiY = 150,
-              clickX = 0, clickY = 0, clickRate = 16, clickFX = 0, clickFY = 0 })
+              clickX = 0, clickY = 0, clickRate = 16, clickFX = 0, clickFY = 0,
+              hopMatches = 5, autoHop = true, antiAfk = true, autoReconnect = true,
+              hopEmpty = true, hopLag = false, humanKpm = 0, moreOpen = true, pref = {} })
 if type(CFG.autoBuy) ~= "boolean" then CFG.autoBuy = false end
 CFG.autoOpen = false
 if type(CFG.vapeList) ~= "table" then CFG.vapeList = {} end
+
+-- Everything this update adds hangs off this one table on purpose.
+--
+-- Luau gives a function 200 local registers and the main chunk of this file was already
+-- close to that line: thirty loose locals for the new rows and the new loops pushed it over
+-- and nothing compiled at all, which the luau compiler said in one line and a Roblox client
+-- would have said as a red error after loading. One local, and the ceiling stops mattering.
+local NG = { shut = 510, rows = 120, matches = 0, stamps = {}, hopBusy = false,
+             hopReason = "", hopState = "idle", kids = {},
+             life = { kills = 0, shots = 0, landed = 0, matches = 0, hops = 0, afk = 0, rejoins = 0 } }
+
+-- What the player chose, kept apart from whether the farm is running.
+--
+-- Until now the last thing startup did was setFarm(true), and setFarm walks a list of steps
+-- that assign the SAME value to every sub toggle. So every join, and every press of ENABLE
+-- FARM, wrote true over bots, players, respawn, auto ult and auto buy no matter what the
+-- player had picked, and the 3 second config writer then saved the overwritten values. A
+-- server hop therefore lost every choice permanently. That is the thing he asked for by
+-- name: a hop has to bring back the options the player chose, the way vape does.
+--
+-- CFG.pref is only ever written by a press on that one button. CFG[key] is the live value.
+-- setFarm(true, CFG.pref) restores; setFarm(false) still takes everything down and leaves
+-- pref alone, so DISABLE FARM does not erase what he picked either.
+if type(CFG.pref) ~= "table" then CFG.pref = {} end
+do
+    -- The defaults match what the old setFarm(true) actually produced, autoBuy included, so
+    -- nobody's farm behaves differently on the first load after this update.
+    local was = { doBots = true, doPlayers = true, autoDeploy = true, oneShot = true, autoBuy = true }
+    for k, v in pairs(was) do
+        if type(CFG.pref[k]) ~= "boolean" then CFG.pref[k] = v end
+    end
+end
+if type(CFG.hopMatches) ~= "number" then CFG.hopMatches = 5 end
+CFG.hopMatches = math.clamp(math.floor(CFG.hopMatches), 0, 50)
+if type(CFG.humanKpm) ~= "number" then CFG.humanKpm = 0 end
 getgenv().TPFARM = CFG
 
 local list, idx, current, holdUntil = {}, 1, nil, 0
@@ -366,12 +403,20 @@ task.spawn(function()
     end
 end)
 
+-- The extra rows fold away behind MORE, and every number here is measured off his existing
+-- rows rather than picked: the last of his buttons ends at 326, so the fold row sits at 330
+-- and the four new rows run 360 to 476 on the same 30 pixel pitch he already uses. Folded,
+-- the panel is 510 tall, one row more than the 480 it has always been; open, 630. Whatever
+-- has to slide for them moves by exactly NG.rows, and nothing of his changes size, colour,
+-- font, text or order.
+function NG.h() return NG.shut + (CFG.moreOpen and NG.rows or 0) end
+
 local frame = Instance.new("Frame")
-frame.Size = UDim2.fromOffset(252, 480)
+frame.Size = UDim2.fromOffset(252, NG.h())
 do
     local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
     local gx = math.clamp(CFG.guiX or 24, 0, math.max(0, vp.X - 252))
-    local gy = math.clamp(CFG.guiY or 150, 0, math.max(0, vp.Y - 480))
+    local gy = math.clamp(CFG.guiY or 150, 0, math.max(0, vp.Y - NG.h()))
     frame.Position = UDim2.fromOffset(gx, gy)
 end
 frame.BackgroundColor3 = Color3.fromRGB(20, 17, 13); frame.BorderSizePixel = 0
@@ -393,7 +438,7 @@ mark.Font = Enum.Font.GothamBold; mark.TextSize = 11
 mark.TextXAlignment = Enum.TextXAlignment.Right; mark.Active = true; mark.Parent = frame
 
 local mark2 = Instance.new("TextLabel")
-mark2.Size = UDim2.fromOffset(120, 14); mark2.Position = UDim2.fromOffset(8, 334)
+mark2.Size = UDim2.fromOffset(120, 14); mark2.Position = UDim2.fromOffset(8, 364)
 mark2.BackgroundTransparency = 1; mark2.Text = "NEWGOD"
 mark2.TextColor3 = Color3.fromRGB(231, 177, 115); mark2.TextTransparency = 0.5
 mark2.Font = Enum.Font.GothamBold; mark2.TextSize = 10
@@ -435,7 +480,7 @@ do
 end
 
 local status = Instance.new("TextLabel")
-status.Size = UDim2.new(1, -16, 0, 116); status.Position = UDim2.fromOffset(8, 356)
+status.Size = UDim2.new(1, -16, 0, 116); status.Position = UDim2.fromOffset(8, 386)
 status.BackgroundTransparency = 1; status.Text = "off"
 status.TextColor3 = Color3.fromRGB(190, 180, 168); status.Font = Enum.Font.Gotham
 status.TextSize = 11; status.TextWrapped = true
@@ -446,7 +491,7 @@ local GOLD, GREY, RED = Color3.fromRGB(231, 177, 115), Color3.fromRGB(120, 108, 
 
 hintFrame = Instance.new("Frame")
 hintFrame.Size = UDim2.fromOffset(236, 62)
-hintFrame.Position = UDim2.fromOffset(8, 412)
+hintFrame.Position = UDim2.fromOffset(8, 442)
 hintFrame.BackgroundColor3 = Color3.fromRGB(34, 26, 18)
 hintFrame.BorderSizePixel = 0
 hintFrame.Visible = false
@@ -499,6 +544,28 @@ local buySuper = mk("SUPER", 89, 240, 74, GREY)
 local buyGold = mk("GOLD", 169, 240, 75, GOLD)
 local autoBuyBtn = mk("AUTO BUY OFF", 8, 270, 236, GREY)
 local autoOpenBtn = mk("AUTO OPEN OFF", 8, 300, 236, GREY)
+
+NG.more = mk("MORE: SHOWN", 8, 330, 236, GREY)
+NG.hopDown = mk("HOP -1", 8, 360, 75, GREY)
+NG.hopLbl = mk("0/" .. tostring(CFG.hopMatches), 89, 360, 74, GREY)
+NG.hopUp = mk("HOP +1", 169, 360, 75, GREY)
+NG.afk = mk("ANTI AFK ON", 8, 390, 114, GOLD)
+NG.rec = mk("RECONNECT ON", 130, 390, 114, GOLD)
+NG.empty = mk("HOP EMPTY ON", 8, 420, 114, GOLD)
+NG.lag = mk("HOP LAG OFF", 130, 420, 114, GREY)
+NG.human = mk("HUMAN OFF", 8, 450, 236, GREY)
+NG.kids = { NG.hopDown, NG.hopLbl, NG.hopUp, NG.afk, NG.rec, NG.empty, NG.lag, NG.human }
+
+function NG.applyMore()
+    local open = CFG.moreOpen and true or false
+    for _, b in ipairs(NG.kids) do b.Visible = open end
+    local d = open and NG.rows or 0
+    mark2.Position = UDim2.fromOffset(8, 364 + d)
+    status.Position = UDim2.fromOffset(8, 386 + d)
+    hintFrame.Position = UDim2.fromOffset(8, 442 + d)
+    frame.Size = UDim2.fromOffset(252, NG.shut + d)
+    NG.more.Text = open and "MORE: SHOWN" or "MORE: HIDDEN"
+end
 
 do
     local function hb(t, x, w, c)
@@ -836,22 +903,50 @@ local function fetch(url)
     return body
 end
 
-local function bestServer()
+-- Returns the whole ranked pool now, not just the winner, because one hop can need a second
+-- and a third candidate: a TeleportToPlaceInstance aimed at a server that filled up in the
+-- second between listing it and jumping simply fails.
+--
+-- avoid is the last few JobIds this client has already been in. Without it the only server
+-- ruled out was the one being stood in, so on a place with a short server list an auto hop
+-- bounces between the same two servers all night, which is not a hop.
+function NG.pool(avoid)
     local url = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId)
         .. "/servers/Public?sortOrder=Desc&limit=100"
     local body = fetch(url)
     if not body then return nil, "http failed" end
     local ok, data = pcall(function() return HttpService:JSONDecode(body) end)
     if not ok or not data.data then return nil, "bad json" end
-    local pool = {}
+    local skip = {}
+    if type(avoid) == "table" then for _, j in ipairs(avoid) do skip[j] = true end end
+    local pool, blocked = {}, 0
     for _, s in ipairs(data.data) do
         local playing, maxp = s.playing or 0, s.maxPlayers or 0
         if s.id ~= game.JobId and playing < maxp and playing > 0 then
-            pool[#pool + 1] = { id = s.id, playing = playing, max = maxp }
+            if skip[s.id] then
+                blocked = blocked + 1
+            else
+                pool[#pool + 1] = { id = s.id, playing = playing, max = maxp }
+            end
+        end
+    end
+    -- Every candidate was somewhere we just came from, so going back beats standing still.
+    if #pool == 0 and blocked > 0 then
+        for _, s in ipairs(data.data) do
+            local playing, maxp = s.playing or 0, s.maxPlayers or 0
+            if s.id ~= game.JobId and playing < maxp and playing > 0 then
+                pool[#pool + 1] = { id = s.id, playing = playing, max = maxp }
+            end
         end
     end
     if #pool == 0 then return nil, "none joinable" end
     table.sort(pool, function(a, b) return a.playing > b.playing end)
+    return pool
+end
+
+local function bestServer(avoid)
+    local pool, why = NG.pool(avoid)
+    if not pool then return nil, why end
     return pool[1]
 end
 
@@ -1397,7 +1492,7 @@ local farmPending = nil
 -- Switching ten vape modules takes seconds, and the old code threw away every press that
 -- landed inside that window with nothing on the panel to say so. That is the shape of
 -- "it was glitching, some of it not working": the button did nothing and looked fine.
-local function setFarm(on)
+local function setFarm(on, restore)
     if farmBusy then
         farmPending = on
         buyState = "queued: " .. (on and "enable" or "disable") .. ", the last press is still finishing"
@@ -1418,13 +1513,21 @@ local function setFarm(on)
     paintAll()
     task.spawn(function()
         pcall(function() setthreadidentity(8) end)
+        -- Turning the farm ON now means "back to what he picked", not "everything true".
+        -- Turning it OFF is unchanged: all of it down, and pref is left alone, so what he
+        -- picked is still there for the next enable and for the next server.
+        local function want(key)
+            if not on then return false end
+            if restore and type(restore[key]) == "boolean" then return restore[key] end
+            return true
+        end
         local steps = {
             { "shooting and aiming", function() CFG.on = on if not on then current = nil end end },
-            { "bots", function() CFG.doBots = on end },
-            { "players", function() CFG.doPlayers = on end },
-            { "respawn", function() CFG.autoDeploy = on end },
-            { "auto ult", function() CFG.oneShot = on end },
-            { "auto buy", function() CFG.autoBuy = on end },
+            { "bots", function() CFG.doBots = want("doBots") end },
+            { "players", function() CFG.doPlayers = want("doPlayers") end },
+            { "respawn", function() CFG.autoDeploy = want("autoDeploy") end },
+            { "auto ult", function() CFG.oneShot = want("oneShot") end },
+            { "auto buy", function() CFG.autoBuy = want("autoBuy") end },
         }
         for _, step in ipairs(steps) do
             task.wait(0.05)
@@ -1491,19 +1594,128 @@ local function hideHint(why)
     if why then BOOST_STATE = why end
 end
 
-local function doHop()
+-- Lifetime numbers, so a hop stops resetting the score to zero.
+--
+-- kills, shots and landed at the top of this file belong to this server; these belong to
+-- every server since the file was written. They live on disk because getgenv does not
+-- survive the client being closed, and a farm that runs all night gets closed.
+do
+    local ok, raw = pcall(readfile, "RobloxComm/tpfarm_stats.json")
+    if ok then
+        local ok2, t = pcall(function() return HttpService:JSONDecode(raw) end)
+        if ok2 and type(t) == "table" then
+            for k in pairs(NG.life) do
+                if type(t[k]) == "number" then NG.life[k] = t[k] end
+            end
+        end
+    end
+end
+function NG.saveLife()
+    pcall(function() writefile("RobloxComm/tpfarm_stats.json", HttpService:JSONEncode(NG.life)) end)
+end
+
+-- Kills per minute, capped. He has never been banned on this game and neither has the player
+-- who asked for these, so this is off by default. It is here because a farm holding one kill
+-- a second forever is the one thing a report screen can actually see, and the only thing
+-- turning it down costs is time.
+function NG.rate()
+    local cut, n = os.clock() - 60, 0
+    for _, t in ipairs(NG.stamps) do if t >= cut then n = n + 1 end end
+    return n
+end
+function NG.throttled()
+    if CFG.humanKpm <= 0 then return false end
+    return NG.rate() >= CFG.humanKpm
+end
+function NG.noteKill()
+    kills = kills + 1
+    NG.life.kills = NG.life.kills + 1
+    NG.stamps[#NG.stamps + 1] = os.clock()
+    if #NG.stamps > 400 then
+        local t = {}
+        for i = #NG.stamps - 200, #NG.stamps do t[#t + 1] = NG.stamps[i] end
+        NG.stamps = t
+    end
+end
+
+function NG.recent()
+    if type(ENV.__TPFARM_RECENT) ~= "table" then ENV.__TPFARM_RECENT = {} end
+    return ENV.__TPFARM_RECENT
+end
+function NG.remember()
+    local r = NG.recent()
+    for _, j in ipairs(r) do if j == game.JobId then return end end
+    r[#r + 1] = game.JobId
+    while #r > 8 do table.remove(r, 1) end
+end
+
+-- One hop, and it keeps going until the client is actually somewhere else.
+--
+-- The old version fired one TeleportToPlaceInstance and trusted it. A teleport that is
+-- refused leaves the player exactly where he was with nothing on screen saying so, and the
+-- farm carries on in the server it was supposed to have left, which is how "it hopped" and
+-- "it did not hop" came to look identical. Now every candidate gets a turn, a plain Teleport
+-- is the last resort, and the reason lands on the panel either way.
+function NG.hopNow(why)
+    if NG.hopBusy then return end
+    NG.hopBusy = true
     lastHopAt = os.clock()
     hopDeclined = false
-    hideHint("hopping, ram was " .. math.floor(RAM_MB) .. " MB")
+    NG.hopReason = tostring(why or "asked")
+    NG.matches = 0
+    NG.remember()
+    NG.life.hops = NG.life.hops + 1
+    NG.saveLife()
+    hideHint("hopping: " .. NG.hopReason)
+    LOG("hop: " .. NG.hopReason)
     task.spawn(function()
-        local best, why = bestServer()
-        if not best then
+        pcall(function() setthreadidentity(8) end)
+        local startJob = game.JobId
+        local pool, why2 = NG.pool(NG.recent())
+        if not pool then
+            NG.hopState = "server list: " .. tostring(why2) .. ", taking any server"
+            buyState = NG.hopState
             pcall(function() TS:Teleport(game.PlaceId, me) end)
+            task.wait(20)
+            NG.hopBusy = false
             return
         end
-        local ok = pcall(function() TS:TeleportToPlaceInstance(game.PlaceId, best.id, me) end)
-        if not ok then pcall(function() TS:Teleport(game.PlaceId, me) end) end
+        for i = 1, math.min(4, #pool) do
+            local s = pool[i]
+            NG.hopState = string.format("hop %s: try %d, a %d/%d server", NG.hopReason, i, s.playing, s.max)
+            buyState = NG.hopState
+            LOG(NG.hopState)
+            pcall(function() TS:TeleportToPlaceInstance(game.PlaceId, s.id, me) end)
+            local t0 = os.clock()
+            while os.clock() - t0 < 25 do
+                if not STATE.alive() then NG.hopBusy = false return end
+                if game.JobId ~= startJob then NG.hopBusy = false return end
+                task.wait(0.5)
+            end
+            LOG("hop: try " .. i .. " did not land, next candidate")
+        end
+        NG.hopState = "hop: no candidate took us, asking for any server"
+        buyState = NG.hopState
+        LOG(NG.hopState)
+        pcall(function() TS:Teleport(game.PlaceId, me) end)
+        task.wait(20)
+        NG.hopBusy = false
     end)
+end
+
+local function doHop()
+    NG.hopNow("ram was " .. math.floor(RAM_MB) .. " MB")
+end
+
+do
+    -- A refusal arrives here and nowhere else. Without this the only sign of one was the farm
+    -- carrying on in the server it had been told to leave.
+    keep(TS.TeleportInitFailed:Connect(function(_, result, msg)
+        NG.hopState = "hop refused: " .. tostring(msg)
+        buyState = NG.hopState
+        LOG("hop refused by roblox: " .. tostring(result) .. " " .. tostring(msg))
+        NG.hopBusy = false
+    end))
 end
 
 hintYes.MouseButton1Click:Connect(function()
@@ -1537,7 +1749,7 @@ local lastMaster, lastMasterOn = 0, nil
 local function master(on)
     if on == lastMasterOn and os.clock() - lastMaster < 1.2 then return end
     lastMaster, lastMasterOn = os.clock(), on
-    setFarm(on)
+    setFarm(on, CFG.pref)
 end
 startBtn.MouseButton1Click:Connect(function() master(true) end)
 stopBtn.MouseButton1Click:Connect(function() master(false) end)
@@ -1552,6 +1764,7 @@ plrBtn.MouseButton1Click:Connect(function() paintAll() end)
 depBtn.MouseButton1Click:Connect(function() paintAll() end)
 autoBuyBtn.MouseButton1Click:Connect(function()
     CFG.autoBuy = not CFG.autoBuy
+    CFG.pref.autoBuy = CFG.autoBuy
     autoBuyBtn.Text = CFG.autoBuy and "AUTO BUY ON" or "AUTO BUY OFF"
     autoBuyBtn.BackgroundColor3 = CFG.autoBuy and GOLD or GREY
     if not CFG.autoBuy then buyState = "stopping" end
@@ -1710,36 +1923,29 @@ backDown.MouseButton1Click:Connect(function() CFG.back = math.max(0, CFG.back - 
 backUp.MouseButton1Click:Connect(function() CFG.back = math.min(150, CFG.back + 5); backLbl.Text = tostring(CFG.back) end)
 botBtn.MouseButton1Click:Connect(function()
     CFG.doBots = not CFG.doBots
+    CFG.pref.doBots = CFG.doBots
     botBtn.Text = CFG.doBots and "BOTS ON" or "BOTS OFF"
     botBtn.BackgroundColor3 = CFG.doBots and GOLD or GREY
 end)
 plrBtn.MouseButton1Click:Connect(function()
     CFG.doPlayers = not CFG.doPlayers
+    CFG.pref.doPlayers = CFG.doPlayers
     plrBtn.Text = CFG.doPlayers and "PLAYERS ON" or "PLAYERS OFF"
     plrBtn.BackgroundColor3 = CFG.doPlayers and GOLD or GREY
 end)
 depBtn.MouseButton1Click:Connect(function()
     CFG.autoDeploy = not CFG.autoDeploy
+    CFG.pref.autoDeploy = CFG.autoDeploy
     depBtn.Text = CFG.autoDeploy and "RESPAWN ON" or "RESPAWN OFF"
     depBtn.BackgroundColor3 = CFG.autoDeploy and GOLD or GREY
 end)
 oneBtn.MouseButton1Click:Connect(function()
     CFG.oneShot = not CFG.oneShot
+    CFG.pref.oneShot = CFG.oneShot
     paintUlt()
 end)
 hopSrv.MouseButton1Click:Connect(function()
-    status.Text = "looking for the fullest server"
-    task.spawn(function()
-        local best, why = bestServer()
-        if not best then
-            status.Text = "hop: " .. tostring(why) .. ", using random"
-            pcall(function() TS:Teleport(game.PlaceId, me) end)
-            return
-        end
-        status.Text = string.format("hopping to a %d/%d server", best.playing, best.max)
-        local ok = pcall(function() TS:TeleportToPlaceInstance(game.PlaceId, best.id, me) end)
-        if not ok then pcall(function() TS:Teleport(game.PlaceId, me) end) end
-    end)
+    NG.hopNow("HOP SERVER pressed")
 end)
 
 task.spawn(function()
@@ -1835,7 +2041,7 @@ end)
 
 task.spawn(function()
     while STATE.alive() do
-        if not CFG.on then task.wait(0.15)
+        if not CFG.on or NG.throttled() then task.wait(0.15)
         else
             local bl = blaster()
             if not bl then task.wait(0.2)
@@ -1863,16 +2069,17 @@ task.spawn(function()
                                 { ["1"] = t.hit }, { ["1"] = true }, { isQuickscope = false, isNoscope = false })
                         end)
                         shots = shots + 1
+                        NG.life.shots = NG.life.shots + 1
                         if not bl:GetAttribute("_reloading") then
                             pcall(function() Reload:FireServer(bl) end)
                             reloads = reloads + 1
                         end
                         local td = os.clock()
                         while os.clock() - td < 0.45 do
-                            if t.life.Health < hp0 then landed = landed + 1 break end
+                            if t.life.Health < hp0 then landed = landed + 1 NG.life.landed = NG.life.landed + 1 break end
                             task.wait(0.03)
                         end
-                        if t.life.Health <= 0 then kills = kills + 1 end
+                        if t.life.Health <= 0 then NG.noteKill() end
                     end
                     holdUntil = 0
                 else
@@ -2241,6 +2448,197 @@ task.spawn(function()
     end
 end)
 
+-- The new rows, wired. Every one of them carries its own value on its own button, the way
+-- BACK and BOTS already do, so nothing here needs a key and nothing needs a console open to
+-- see what it is doing.
+NG.more.MouseButton1Click:Connect(function()
+    CFG.moreOpen = not CFG.moreOpen
+    NG.applyMore()
+end)
+NG.hopDown.MouseButton1Click:Connect(function()
+    CFG.hopMatches = math.max(0, CFG.hopMatches - 1)
+end)
+NG.hopUp.MouseButton1Click:Connect(function()
+    CFG.hopMatches = math.min(50, CFG.hopMatches + 1)
+end)
+NG.afk.MouseButton1Click:Connect(function() CFG.antiAfk = not CFG.antiAfk end)
+NG.rec.MouseButton1Click:Connect(function() CFG.autoReconnect = not CFG.autoReconnect end)
+NG.empty.MouseButton1Click:Connect(function() CFG.hopEmpty = not CFG.hopEmpty end)
+NG.lag.MouseButton1Click:Connect(function() CFG.hopLag = not CFG.hopLag end)
+NG.human.MouseButton1Click:Connect(function()
+    local ladder = { 0, 20, 40, 60 }
+    local at = 1
+    for i, v in ipairs(ladder) do if v == CFG.humanKpm then at = i end end
+    CFG.humanKpm = ladder[(at % #ladder) + 1]
+end)
+
+task.spawn(function()
+    while STATE.alive() do
+        local n = CFG.hopMatches
+        if not CFG.autoHop or n <= 0 then
+            NG.hopLbl.Text = "HOP OFF"
+            NG.hopLbl.BackgroundColor3 = GREY
+        else
+            NG.hopLbl.Text = tostring(math.min(NG.matches, n)) .. "/" .. tostring(n)
+            NG.hopLbl.BackgroundColor3 = (NG.matches >= n) and GOLD or GREY
+        end
+        NG.afk.Text = CFG.antiAfk
+            and (NG.life.afk > 0 and ("ANTI AFK " .. NG.life.afk) or "ANTI AFK ON")
+            or "ANTI AFK OFF"
+        NG.afk.BackgroundColor3 = CFG.antiAfk and GOLD or GREY
+        NG.rec.Text = CFG.autoReconnect and "RECONNECT ON" or "RECONNECT OFF"
+        NG.rec.BackgroundColor3 = CFG.autoReconnect and GOLD or GREY
+        NG.empty.Text = CFG.hopEmpty and "HOP EMPTY ON" or "HOP EMPTY OFF"
+        NG.empty.BackgroundColor3 = CFG.hopEmpty and GOLD or GREY
+        NG.lag.Text = CFG.hopLag and "HOP LAG ON" or "HOP LAG OFF"
+        NG.lag.BackgroundColor3 = CFG.hopLag and GOLD or GREY
+        if CFG.humanKpm > 0 then
+            NG.human.Text = string.format("HUMAN %d/min   now %d%s", CFG.humanKpm, NG.rate(),
+                NG.throttled() and "   HOLDING" or "")
+            NG.human.BackgroundColor3 = NG.throttled() and RED or GOLD
+        else
+            NG.human.Text = "HUMAN OFF   life kills " .. tostring(NG.life.kills)
+            NG.human.BackgroundColor3 = GREY
+        end
+        task.wait(0.3)
+    end
+end)
+
+-- Matches, counted off the round state leaving active, and the hop only ever fires while a
+-- round is NOT running. Hopping mid round throws away a match that is already half paid for,
+-- which is the opposite of what was asked for.
+task.spawn(function()
+    task.wait(4)
+    local prev = rstate()
+    while STATE.alive() do
+        task.wait(1)
+        local now = rstate()
+        if now ~= prev then
+            if prev == "active" and now ~= "active" then
+                NG.matches = NG.matches + 1
+                NG.life.matches = NG.life.matches + 1
+                NG.saveLife()
+                LOG(string.format("match over, %d of %d before the hop", NG.matches, CFG.hopMatches))
+            end
+            prev = now
+        end
+        if CFG.autoHop and CFG.hopMatches > 0 and NG.matches >= CFG.hopMatches
+            and now ~= "active" and os.clock() - lastHopAt > 30 then
+            NG.hopNow(string.format("played %d matches", CFG.hopMatches))
+        end
+    end
+end)
+
+-- Never idle kicked. Roblox fires Idled after twenty minutes with no input and then drops the
+-- client, which on a farm left running overnight is the most common way it stops. One
+-- synthetic input resets that timer, and it only ever happens at the moment the player is
+-- already idle, so it cannot fight anything he is holding down.
+do
+    local okVU, VU = pcall(function() return game:GetService("VirtualUser") end)
+    if okVU and VU then
+        keep(me.Idled:Connect(function()
+            if not CFG.antiAfk then return end
+            NG.life.afk = NG.life.afk + 1
+            NG.saveLife()
+            pcall(function()
+                VU:CaptureController()
+                VU:ClickButton2(Vector2.new(0, 0))
+            end)
+            LOG("anti afk: the client was about to be dropped, nudged it, save " .. NG.life.afk)
+        end))
+    else
+        LOG("anti afk: VirtualUser is not available on this executor")
+    end
+end
+
+-- A server with nothing alive in it pays nothing. Read off the same list the farm aims at,
+-- so empty means empty of things this farm can shoot, not empty of people.
+task.spawn(function()
+    local emptySince = 0
+    while STATE.alive() do
+        task.wait(5)
+        if CFG.hopEmpty and forceOn and CFG.on and not inLobby() and rstate() == "active" then
+            if #list == 0 then
+                if emptySince == 0 then emptySince = os.clock() end
+                if os.clock() - emptySince > 45 and os.clock() - lastHopAt > 60 then
+                    emptySince = 0
+                    NG.hopNow("nothing left to shoot for 45s")
+                end
+            else
+                emptySince = 0
+            end
+        else
+            emptySince = 0
+        end
+    end
+end)
+
+-- A server running at single digit frames costs kills whatever the aim does, and the old
+-- code only ever offered a button about it behind a condition that could never be reached.
+task.spawn(function()
+    local badSince = 0
+    while STATE.alive() do
+        task.wait(5)
+        if CFG.hopLag and forceOn and CFG.on and BOOST_FPS > 0 and BOOST_FPS < 20 then
+            if badSince == 0 then badSince = os.clock() end
+            if os.clock() - badSince > 30 and os.clock() - lastHopAt > 90 then
+                badSince = 0
+                NG.hopNow(string.format("fps stuck at %.0f", BOOST_FPS))
+            end
+        else
+            badSince = 0
+        end
+    end
+end)
+
+-- Best effort, and worth saying plainly: once Roblox has finished tearing the connection
+-- down, nothing in this process can teleport anywhere. The error text changes before that
+-- finishes, so trying at once does get the client back into the place a good part of the
+-- time, and queue_on_teleport at the top of this file brings the script along with it.
+do
+    local function comeBack(msg)
+        if not CFG.autoReconnect then return end
+        if type(msg) ~= "string" or msg == "" then return end
+        NG.life.rejoins = NG.life.rejoins + 1
+        NG.saveLife()
+        LOG("disconnected: " .. msg .. "  trying to get back in")
+        buyState = "dropped, rejoining"
+        task.spawn(function()
+            for _ = 1, 3 do
+                local ok = pcall(function() TS:Teleport(game.PlaceId, me) end)
+                if ok then return end
+                task.wait(2)
+            end
+        end)
+    end
+    -- Two names for the same thing across client versions, and neither is guaranteed to be
+    -- present, so each is tried on its own and a miss costs only this one feature.
+    local wired = false
+    pcall(function()
+        local G = game:GetService("GuiService")
+        keep(G.ErrorMessageChanged:Connect(function(msg) comeBack(tostring(msg)) end))
+        wired = true
+    end)
+    if not wired then
+        pcall(function()
+            local G = game:GetService("GuiService")
+            keep(G:GetPropertyChangedSignal("ErrorMessage"):Connect(function()
+                comeBack(tostring(G.ErrorMessage or ""))
+            end))
+            wired = true
+        end)
+    end
+    LOG("auto reconnect: " .. (wired and "watching for a disconnect" or "no hook on this client"))
+end
+
+task.spawn(function()
+    while STATE.alive() do
+        task.wait(10)
+        NG.saveLife()
+    end
+end)
+
+NG.applyMore()
 rebuild()
 task.spawn(function()
     pcall(function() setthreadidentity(8) end)
@@ -2251,8 +2649,8 @@ task.spawn(function()
         paintAll()
         return
     end
-    LOG("startup: enabling farm")
-    setFarm(true)
+    LOG("startup: enabling farm, restoring the options he picked")
+    setFarm(true, CFG.pref)
     while farmBusy and STATE.alive() do task.wait(0.1) end
     LOG("startup: farm is up, vape is " .. vapeStateText())
     buyState = "started, vape " .. vapeStateText()
