@@ -1315,5 +1315,97 @@ document.addEventListener("DOMContentLoaded", function(){
 });
 </script>
 
+
+<!-- NEWGOD live spotify widget (self-contained, id-scoped) -->
+<div id="ngsp" data-min="0" hidden>
+  <a id="ngsp-card" href="#" target="_blank" rel="noopener">
+    <img id="ngsp-cover" alt="">
+    <div id="ngsp-mid">
+      <div id="ngsp-top"><span id="ngsp-dot"></span><span id="ngsp-state">LISTENING NOW</span></div>
+      <div id="ngsp-title">—</div>
+      <div id="ngsp-artist">Spotify</div>
+      <div id="ngsp-bar"><div id="ngsp-fill"></div></div>
+      <div id="ngsp-times"><span id="ngsp-cur">0:00</span><span id="ngsp-dur">0:00</span></div>
+    </div>
+    <span id="ngsp-min" title="collapse" role="button" aria-label="collapse">–</span>
+  </a>
+</div>
+<style>
+  #ngsp{position:fixed;right:18px;bottom:18px;z-index:99999;width:300px;max-width:calc(100vw - 24px);
+    font-family:"Segoe UI",system-ui,-apple-system,"PingFang HK","Microsoft JhengHei",sans-serif;
+    transform:translateY(16px);opacity:0;transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .45s,width .3s}
+  #ngsp[data-show="1"]{transform:translateY(0);opacity:1}
+  #ngsp-card{display:flex;gap:12px;align-items:center;text-decoration:none;position:relative;
+    background:linear-gradient(160deg,#1d1810,#171308);border:1px solid #3a2f1d;border-radius:14px;
+    padding:12px;color:#f0e6d4;box-shadow:0 12px 40px rgba(0,0,0,.55);overflow:hidden}
+  #ngsp-card::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 120% at 0% 0%,rgba(231,177,115,.12),transparent 45%)}
+  #ngsp-cover{width:64px;height:64px;border-radius:9px;flex:none;object-fit:cover;
+    background:#0d0b07;border:1px solid #3a2f1d}
+  #ngsp-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+  #ngsp-top{display:flex;align-items:center;gap:6px;font-size:9.5px;letter-spacing:.14em;
+    text-transform:uppercase;color:#e7b173}
+  #ngsp-dot{width:7px;height:7px;border-radius:50%;background:#1db954;flex:none;
+    animation:ngsp-pulse 1.6s infinite}
+  #ngsp-dot.paused{background:#8a7a5c;animation:none}
+  @keyframes ngsp-pulse{0%{box-shadow:0 0 0 0 rgba(29,185,84,.6)}
+    70%{box-shadow:0 0 0 8px rgba(29,185,84,0)}100%{box-shadow:0 0 0 0 rgba(29,185,84,0)}}
+  #ngsp-title{font-size:14px;font-weight:700;color:#f3cf99;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #ngsp-artist{font-size:11.5px;color:#f0e6d4;opacity:.82;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #ngsp-bar{height:4px;border-radius:3px;background:#2a2114;margin-top:6px;overflow:hidden}
+  #ngsp-fill{height:100%;width:0;border-radius:3px;background:linear-gradient(90deg,#e7b173,#f3cf99)}
+  #ngsp-times{display:flex;justify-content:space-between;font-size:9px;color:#8a7a5c;margin-top:3px;
+    font-variant-numeric:tabular-nums}
+  #ngsp-min{position:absolute;top:6px;right:9px;color:#8a7a5c;font-size:15px;line-height:1;cursor:pointer;
+    padding:2px 5px;border-radius:6px}
+  #ngsp-min:hover{color:#e7b173;background:rgba(231,177,115,.10)}
+  #ngsp.off #ngsp-card{opacity:.72}
+  #ngsp.off #ngsp-title{color:#8a7a5c}
+  /* collapsed pill: only the cover + dot */
+  #ngsp[data-min="1"]{width:64px}
+  #ngsp[data-min="1"] #ngsp-mid,#ngsp[data-min="1"] #ngsp-min{display:none}
+  #ngsp[data-min="1"] #ngsp-card{padding:8px}
+  #ngsp[data-min="1"] #ngsp-cover{width:48px;height:48px}
+</style>
+<script>
+(function(){
+  var NP="https://mcp.newgod.vip/np";
+  var g=function(id){return document.getElementById(id)};
+  var box=g("ngsp"),card=g("ngsp-card"),cover=g("ngsp-cover"),dot=g("ngsp-dot"),state=g("ngsp-state"),
+      title=g("ngsp-title"),artist=g("ngsp-artist"),fill=g("ngsp-fill"),cur=g("ngsp-cur"),dur=g("ngsp-dur"),min=g("ngsp-min");
+  var pos=0,len=0,playing=false,base=0,baseAt=0,coverFor="",shown=false;
+  function mmss(s){s=Math.max(0,Math.floor(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
+  function loadCover(url){ if(!url||url===coverFor)return; coverFor=url;
+    fetch("https://open.spotify.com/oembed?url="+encodeURIComponent(url)).then(function(r){return r.json()})
+      .then(function(d){ if(d&&d.thumbnail_url)cover.src=d.thumbnail_url }).catch(function(){}); }
+  min.addEventListener("click",function(e){ e.preventDefault(); e.stopPropagation();
+    box.setAttribute("data-min", box.getAttribute("data-min")==="1"?"0":"1"); });
+  card.addEventListener("click",function(e){ if(box.getAttribute("data-min")==="1"){ e.preventDefault();
+    box.setAttribute("data-min","0"); } });
+  function show(){ if(shown)return; shown=true; box.hidden=false;
+    requestAnimationFrame(function(){ box.setAttribute("data-show","1") }); }
+  function pull(){
+    fetch(NP,{cache:"no-store"}).then(function(r){return r.json()}).then(function(d){
+      if(d.error) return;
+      var stale=false;
+      if(d.at){ var t=Date.parse(d.at.replace(" ","T")+"+08:00"); if(!isNaN(t)&&Date.now()-t>70000)stale=true }
+      len=+d.duration||0; base=+d.position||0; baseAt=Date.now();
+      playing=(d.status==="playing")&&d.live!==false&&!stale;
+      title.textContent=d.title||"—";
+      artist.textContent=(d.artist||"")+(d.device?("  ·  "+d.device):"");
+      if(d.url){card.href=d.url; loadCover(d.url)}
+      box.classList.toggle("off",!playing);
+      dot.classList.toggle("paused",!playing);
+      state.textContent = stale?"LAST PLAYED":(playing?"LISTENING NOW":"PAUSED");
+      show();
+    }).catch(function(){});
+  }
+  function tick(){ var p=base+(playing?(Date.now()-baseAt)/1000:0); if(len>0)p=Math.min(p,len);
+    fill.style.width=(len>0?(p/len*100):0)+"%"; cur.textContent=mmss(p); dur.textContent=mmss(len);
+    requestAnimationFrame(tick); }
+  pull(); setInterval(pull,4000); requestAnimationFrame(tick);
+})();
+</script>
+
 </body>
 </html>
