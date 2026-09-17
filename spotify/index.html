@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NEWGOD — now playing</title>
+<style>
+  :root{
+    --bg:#14110d; --card:#1d1810; --edge:#3a2f1d;
+    --gold:#e7b173; --gold-hi:#f3cf99; --dim:#8a7a5c; --text:#f0e6d4;
+    --live:#1db954;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);
+    font-family:"Segoe UI",system-ui,-apple-system,"PingFang HK","Microsoft JhengHei",sans-serif}
+  .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px}
+
+  .np{width:380px;max-width:100%;background:linear-gradient(160deg,#1d1810,#171308);
+    border:1px solid var(--edge);border-radius:16px;padding:16px;display:flex;gap:14px;
+    color:var(--text);text-decoration:none;box-shadow:0 10px 40px rgba(0,0,0,.5);
+    position:relative;overflow:hidden}
+  .np::before{content:"";position:absolute;inset:0;
+    background:radial-gradient(120% 120% at 0% 0%, rgba(231,177,115,.10), transparent 45%);
+    pointer-events:none}
+  .cover{width:84px;height:84px;border-radius:10px;flex:none;object-fit:cover;
+    background:#0d0b07 url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="84" height="84"><rect width="84" height="84" fill="%230d0b07"/></svg>');
+    border:1px solid var(--edge)}
+  .mid{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:3px}
+  .top{display:flex;align-items:center;gap:7px;font-size:11px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--gold)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--live);flex:none;
+    box-shadow:0 0 0 0 rgba(29,185,84,.7);animation:pulse 1.6s infinite}
+  .dot.paused{background:var(--dim);animation:none;box-shadow:none}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(29,185,84,.6)}
+    70%{box-shadow:0 0 0 9px rgba(29,185,84,0)}100%{box-shadow:0 0 0 0 rgba(29,185,84,0)}}
+  .title{font-size:16px;font-weight:700;color:var(--gold-hi);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .artist{font-size:13px;color:var(--text);opacity:.85;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar{height:5px;border-radius:3px;background:#2a2114;margin-top:8px;overflow:hidden}
+  .fill{height:100%;width:0;border-radius:3px;
+    background:linear-gradient(90deg,var(--gold),var(--gold-hi))}
+  .times{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);
+    margin-top:4px;font-variant-numeric:tabular-nums}
+  .np.off{opacity:.72}
+  .np.off .title{color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="np" id="card" href="#" target="_blank" rel="noopener">
+    <img class="cover" id="cover" alt="">
+    <div class="mid">
+      <div class="top"><span class="dot" id="dot"></span><span id="state">LISTENING NOW</span></div>
+      <div class="title" id="title">—</div>
+      <div class="artist" id="artist">Spotify</div>
+      <div class="bar"><div class="fill" id="fill"></div></div>
+      <div class="times"><span id="cur">0:00</span><span id="dur">0:00</span></div>
+    </div>
+  </a>
+</div>
+
+<script>
+(function(){
+  var NP="https://mcp.newgod.vip/np";
+  var el=function(id){return document.getElementById(id)};
+  var card=el("card"),cover=el("cover"),dot=el("dot"),state=el("state"),
+      title=el("title"),artist=el("artist"),fill=el("fill"),cur=el("cur"),dur=el("dur");
+  var pos=0,len=0,playing=false,base=0,baseAt=0,coverUrl="",coverFor="";
+
+  function mmss(s){s=Math.max(0,Math.floor(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
+
+  // album cover via Spotify's public oEmbed (no auth), cached per track
+  function loadCover(url){
+    if(!url||url===coverFor)return;
+    coverFor=url;
+    fetch("https://open.spotify.com/oembed?url="+encodeURIComponent(url))
+      .then(function(r){return r.json()})
+      .then(function(d){ if(d&&d.thumbnail_url){coverUrl=d.thumbnail_url;cover.src=coverUrl} })
+      .catch(function(){});
+  }
+
+  function pull(){
+    fetch(NP,{cache:"no-store"}).then(function(r){return r.json()}).then(function(d){
+      if(d.error){ offline(); return }
+      var stale=false;
+      // "at" is desktop read time; if we haven't been read in ~70s treat as not-live
+      if(d.at){ var t=Date.parse(d.at.replace(" ","T")+"+08:00"); if(!isNaN(t)&&Date.now()-t>70000)stale=true }
+      len=+d.duration||0; base=+d.position||0; baseAt=Date.now();
+      playing=(d.status==="playing")&&d.live!==false&&!stale;
+      title.textContent=d.title||"—";
+      artist.textContent=(d.artist||"")+(d.device?("  ·  "+d.device):"");
+      if(d.url){card.href=d.url; loadCover(d.url)}
+      card.classList.toggle("off",!playing);
+      dot.classList.toggle("paused",!playing);
+      state.textContent = stale? "LAST PLAYED" : (playing? "LISTENING NOW" : "PAUSED");
+    }).catch(function(){ offline() });
+  }
+  function offline(){ playing=false; state.textContent="OFFLINE";
+    card.classList.add("off"); dot.classList.add("paused") }
+
+  // smooth local progress between polls
+  function tick(){
+    var p=base + (playing? (Date.now()-baseAt)/1000 : 0);
+    if(len>0)p=Math.min(p,len);
+    fill.style.width=(len>0? (p/len*100):0)+"%";
+    cur.textContent=mmss(p); dur.textContent=mmss(len);
+    requestAnimationFrame(tick);
+  }
+
+  pull(); setInterval(pull,4000); requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
