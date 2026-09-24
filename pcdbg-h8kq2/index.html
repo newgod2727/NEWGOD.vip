@@ -439,7 +439,7 @@ footer .furl:hover{color:var(--gold2)}
     <div class="card">
       <h3>Why the exe would not open</h3>
       <p>In PowerShell a path that starts with a variable needs an <span class="k">&amp;</span> in front, and <span class="k">%USERPROFILE%</span> is cmd syntax that PowerShell does not understand. A file you just downloaded also carries a "from the internet" mark that can stop it. The <b>Open the exe</b> tab fixes both.</p>
-      <p>The Tech-room scan on 24 Sep showed the PC is barely locked: FullLanguage, no AppLocker, every folder writable, Python 3.13 installed. Two real problems were left. The exe sits in <b>Downloads</b>, but the old box only looked in Documents, so it never launched it. And GOLDAUTOCLICKER is a Tauri app that draws its window with <b>WebView2</b> — if WebView2 is missing, the exe starts and dies with no window. The <b>Open the exe</b> tab now checks both.</p>
+      <p>The Tech-room scan on 24 Sep showed the PC is barely locked: FullLanguage, no AppLocker, every folder writable, Python 3.13 installed. Two real problems were left. The exe sits in <b>Downloads</b>, but the old box only looked in Documents, so it never launched it. And GOLDAUTOCLICKER is a Tauri app that draws its window with <b>WebView2</b> — if WebView2 is missing, the exe starts and dies with no window. The <b>Open the exe</b> tab now checks both. If it is WebView2, do not fight it — the <b>Autoclicker</b> tab has the whole GOLDAUTOCLICKER rebuilt as a native window that needs no WebView2, so it shows and works the same.</p>
     </div>
   </section>
 
@@ -576,11 +576,54 @@ where.exe py 2&gt;$null</code>
 
   <section class="view" data-t="Autoclicker">
     <div class="vhead">
-      <h2>Autoclicker, no install</h2>
-      <p>A one-box left-clicker with an on/off key, for when the exe will not run.</p>
+      <h2>GOLDAUTOCLICKER — native build</h2>
+      <p>The whole clicker as a real window, drawn without WebView2 — plus a console-only fallback.</p>
     </div>
     <div class="card">
-      <h3>Autoclicker with an on/off key</h3>
+      <h3>GOLDAUTOCLICKER, native window (no WebView2, no install, no admin)</h3>
+      <p>The full clicker drawn by Windows itself instead of WebView2, so its window shows even on a PC that has no WebView2 — which is the thing that stops the .exe. Black-and-gold window, a big <b>START / STOP</b> button you click, a clicks-per-second box, and the same <span class="k">Ctrl</span>+<span class="k">E</span> toggle as the exe. No install, no admin. Paste it, put the mouse where you want, click START.</p>
+      <p style="margin:2px 0 10px"><button class="copy" type="button" data-copy="c-native">Copy</button> &nbsp; <a href="https://newgod.vip/toolbox/tools/goldautoclicker-native.ps1" download style="color:var(--gold);text-decoration:underline">or download the .ps1</a></p>
+      <div class="code">
+        <div class="code-top"><span class="code-name">goldautoclicker-native.ps1</span><button class="copy sm" type="button" data-copy="c-native">Copy again</button></div>
+        <code class="block" id="c-native">$sig = '[DllImport("user32.dll")] public static extern void mouse_event(uint f,uint x,uint y,uint d,int e); [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int k);'
+Add-Type -AssemblyName System.Windows.Forms,System.Drawing
+$api = Add-Type -MemberDefinition $sig -Name NgClick -Namespace Ng -PassThru
+$gold=[Drawing.Color]::FromArgb(231,177,115); $bg=[Drawing.Color]::FromArgb(20,17,13); $card=[Drawing.Color]::FromArgb(30,26,20); $grey=[Drawing.Color]::FromArgb(140,140,140)
+$f=New-Object Windows.Forms.Form
+$f.Text='GOLDAUTOCLICKER'; $f.Size=New-Object Drawing.Size(320,262); $f.StartPosition='CenterScreen'
+$f.BackColor=$bg; $f.ForeColor=$gold; $f.FormBorderStyle='FixedSingle'; $f.MaximizeBox=$false; $f.TopMost=$true
+$title=New-Object Windows.Forms.Label; $title.Text='GOLDAUTOCLICKER'; $title.ForeColor=$gold; $title.Font=New-Object Drawing.Font('Segoe UI',15,[Drawing.FontStyle]::Bold); $title.AutoSize=$true; $title.Location=New-Object Drawing.Point(20,16); $f.Controls.Add($title)
+$state=New-Object Windows.Forms.Label; $state.Text='OFF'; $state.ForeColor=$grey; $state.Font=New-Object Drawing.Font('Segoe UI',11,[Drawing.FontStyle]::Bold); $state.AutoSize=$true; $state.Location=New-Object Drawing.Point(24,52); $f.Controls.Add($state)
+$cnt=New-Object Windows.Forms.Label; $cnt.Text='0 clicks'; $cnt.ForeColor=$gold; $cnt.AutoSize=$true; $cnt.Location=New-Object Drawing.Point(150,54); $f.Controls.Add($cnt)
+$slab=New-Object Windows.Forms.Label; $slab.Text='clicks / second'; $slab.ForeColor=$gold; $slab.AutoSize=$true; $slab.Location=New-Object Drawing.Point(24,86); $f.Controls.Add($slab)
+$cps=New-Object Windows.Forms.NumericUpDown; $cps.Minimum=1; $cps.Maximum=200; $cps.Value=10; $cps.Location=New-Object Drawing.Point(150,84); $cps.Width=70; $cps.BackColor=$card; $cps.ForeColor=$gold; $f.Controls.Add($cps)
+$btn=New-Object Windows.Forms.Button; $btn.Text='START   (Ctrl+E)'; $btn.Size=New-Object Drawing.Size(260,60); $btn.Location=New-Object Drawing.Point(24,120); $btn.FlatStyle='Flat'; $btn.BackColor=$card; $btn.ForeColor=$gold; $btn.Font=New-Object Drawing.Font('Segoe UI',13,[Drawing.FontStyle]::Bold); $btn.FlatAppearance.BorderColor=$gold; $f.Controls.Add($btn)
+$note=New-Object Windows.Forms.Label; $note.Text='Put the mouse where you want, then START or press Ctrl+E.'; $note.ForeColor=$grey; $note.AutoSize=$true; $note.Location=New-Object Drawing.Point(24,192); $f.Controls.Add($note)
+$script:on=$false; $script:n=0; $script:next=0; $script:was=$false
+$sw=[Diagnostics.Stopwatch]::StartNew()
+function Set-State($v){
+  $script:on=$v
+  if($v){ $state.Text='ON'; $state.ForeColor=[Drawing.Color]::FromArgb(120,230,140); $btn.Text='STOP   (Ctrl+E)'; $script:next=$sw.ElapsedMilliseconds }
+  else  { $state.Text='OFF'; $state.ForeColor=$grey; $btn.Text='START   (Ctrl+E)' }
+}
+$btn.Add_Click({ Set-State (-not $script:on) })
+$t=New-Object Windows.Forms.Timer; $t.Interval=5
+$t.Add_Tick({
+  $down = (($api::GetAsyncKeyState(0x11) -band 0x8000) -ne 0) -and (($api::GetAsyncKeyState(0x45) -band 0x8000) -ne 0)
+  if($down -and -not $script:was){ Set-State (-not $script:on) }
+  $script:was=$down
+  if($script:on){
+    $iv=[int](1000/[double]$cps.Value)
+    if($sw.ElapsedMilliseconds -ge $script:next){ $api::mouse_event(2,0,0,0,0); $api::mouse_event(4,0,0,0,0); $script:n++; $cnt.Text=("{0} clicks" -f $script:n); $script:next=$sw.ElapsedMilliseconds+$iv }
+  }
+})
+$t.Start()
+[Windows.Forms.Application]::Run($f)</code>
+      </div>
+      <p class="note">If even this window will not show, the PC is stopping windows themselves, not just WebView2 — then use the console-only clicker below.</p>
+    </div>
+    <div class="card">
+      <h3>Fallback: console-only clicker (no window)</h3>
       <p>Same key as the exe: <span class="k">Ctrl</span>+<span class="k">E</span> starts and stops clicking wherever the cursor is, so you never Ctrl+C and paste again. Every re-paste recompiles the C# part, which is what made the PC stutter — this one compiles once and then just waits. The window title shows ON or OFF. Close the window to quit. Change <span class="k">$speed</span> for faster or slower.</p>
       <p style="margin:2px 0 10px"><button class="copy" type="button" data-copy="c-clicker">Copy</button></p>
       <div class="code">
