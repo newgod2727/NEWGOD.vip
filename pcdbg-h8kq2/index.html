@@ -439,27 +439,42 @@ footer .furl:hover{color:var(--gold2)}
     <div class="card">
       <h3>Why the exe would not open</h3>
       <p>In PowerShell a path that starts with a variable needs an <span class="k">&amp;</span> in front, and <span class="k">%USERPROFILE%</span> is cmd syntax that PowerShell does not understand. A file you just downloaded also carries a "from the internet" mark that can stop it. The <b>Open the exe</b> tab fixes both.</p>
+      <p>The Tech-room scan on 24 Sep showed the PC is barely locked: FullLanguage, no AppLocker, every folder writable, Python 3.13 installed. Two real problems were left. The exe sits in <b>Downloads</b>, but the old box only looked in Documents, so it never launched it. And GOLDAUTOCLICKER is a Tauri app that draws its window with <b>WebView2</b> — if WebView2 is missing, the exe starts and dies with no window. The <b>Open the exe</b> tab now checks both.</p>
     </div>
   </section>
 
   <section class="view" data-t="Open the exe">
     <div class="vhead">
       <h2>Open the exe</h2>
-      <p>Get the downloaded GOLDAUTOCLICKER to actually launch.</p>
+      <p>Launch GOLDAUTOCLICKER and find out exactly why no window shows.</p>
     </div>
     <div class="card">
-      <h3>One box that opens it</h3>
-      <p>Checks the file is there, strips the download mark, then launches it. If the machine blocks it, it prints the real reason instead of nothing.</p>
+      <h3>One box that opens it and says why</h3>
+      <p>Finds the exe wherever it landed (Downloads first), strips the download mark, starts it, waits 5 seconds, then tells you: is the process still alive, does it have a window, and is WebView2 — the thing it draws its window with — on this PC.</p>
       <p style="margin:2px 0 10px"><button class="copy" type="button" data-copy="c-open">Copy</button></p>
       <div class="code">
         <div class="code-top"><span class="code-name">open-goldautoclicker.ps1</span><button class="copy sm" type="button" data-copy="c-open">Copy again</button></div>
-        <code class="block" id="c-open">$exe = "$env:USERPROFILE\Documents\GOLDAUTOCLICKER\GOLDAUTOCLICKER.exe"
-if (-not (Test-Path $exe)) { "NOT FOUND: $exe"; return }
+        <code class="block" id="c-open">$exe = Get-ChildItem "$env:USERPROFILE\Downloads","$env:USERPROFILE\Desktop","$env:USERPROFILE\Documents",$env:USERPROFILE -Recurse -Filter GOLDAUTOCLICKER.exe -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+if (-not $exe) { "NOT FOUND anywhere in your home"; return }
+"exe      : $exe  ($((Get-Item $exe).Length) bytes)"
+if (Get-Item $exe -Stream Zone.Identifier -ErrorAction SilentlyContinue) { "dl-mark  : yes, removing it" } else { "dl-mark  : none" }
 Unblock-File $exe -ErrorAction SilentlyContinue
-try   { Start-Process $exe; "started ok" }
-catch { "blocked -&gt; " + $_.Exception.Message }</code>
+$wv = @('HKLM:\SOFTWARE\WOW6432Node','HKLM:\SOFTWARE','HKCU:\Software') | ForEach-Object { (Get-ItemProperty "$_\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" -ErrorAction SilentlyContinue).pv } | Where-Object { $_ -and $_ -ne '0.0.0.0' } | Select-Object -First 1
+if ($wv) { "webview2 : $wv" } else { "webview2 : MISSING" }
+$t0 = Get-Date
+try { $p = Start-Process $exe -PassThru -ErrorAction Stop } catch { "blocked  : " + $_.Exception.Message; return }
+Start-Sleep -Seconds 5
+$p.Refresh()
+if ($p.HasExited) { "process  : DIED after start, exit code $($p.ExitCode)" }
+else {
+  "process  : alive, pid $($p.Id), window $($p.MainWindowHandle)"
+  "children : " + @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$($p.Id)" -ErrorAction SilentlyContinue).Count
+}
+Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=$t0} -ErrorAction SilentlyContinue |
+  Where-Object { $_.Message -match 'GOLDAUTOCLICKER|WebView' } | Select-Object -First 3 |
+  ForEach-Object { "event    : " + ($_.Message -split "`n")[0] }</code>
       </div>
-      <p class="note">If it prints <b>blocked -&gt; This program is blocked by Group Policy</b> that is AppLocker — go to the Limits tab. If it prints a virus / Defender line, the machine is quarantining it.</p>
+      <p class="note">How to read it: <b>webview2 MISSING</b> + <b>DIED</b> = the exe is fine, this PC just lacks WebView2. <b>blocked</b> = the PC stopped it, the line says why. <b>alive, window 0</b> = it started but the window is hidden. <b>alive, window</b> + a big number = it is open, check Alt+Tab.</p>
     </div>
     <div class="card">
       <h3>If it says NOT FOUND</h3>
@@ -473,11 +488,11 @@ catch { "blocked -&gt; " + $_.Exception.Message }</code>
     </div>
     <div class="card">
       <h3>The plain one-liner</h3>
-      <p>Once you know the path is right, this is all it takes. The <span class="k">&amp;</span> is what makes PowerShell run it.</p>
+      <p>On the Tech-room PC your copy is in <b>Downloads</b>, not Documents — that is why the old line said not recognized. The <span class="k">&amp;</span> is what makes PowerShell run it.</p>
       <p style="margin:2px 0 10px"><button class="copy" type="button" data-copy="c-manual">Copy</button></p>
       <div class="code">
         <div class="code-top"><span class="code-name">run.ps1</span><button class="copy sm" type="button" data-copy="c-manual">Copy again</button></div>
-        <code class="block" id="c-manual">&amp; "$env:USERPROFILE\Documents\GOLDAUTOCLICKER\GOLDAUTOCLICKER.exe"</code>
+        <code class="block" id="c-manual">&amp; "$env:USERPROFILE\Downloads\GOLDAUTOCLICKER.exe"</code>
       </div>
     </div>
   </section>
@@ -562,21 +577,33 @@ where.exe py 2&gt;$null</code>
   <section class="view" data-t="Autoclicker">
     <div class="vhead">
       <h2>Autoclicker, no install</h2>
-      <p>A one-box left-clicker for when the exe will not run.</p>
+      <p>A one-box left-clicker with an on/off key, for when the exe will not run.</p>
     </div>
     <div class="card">
-      <h3>Autoclicker with no exe</h3>
-      <p>When the exe is blocked, this is the same job in pure PowerShell — it left-clicks wherever the cursor is, at the speed you set. Change <span class="k">$speed</span>, put the mouse where you want, run it, and press <span class="k">Ctrl</span>+<span class="k">C</span> to stop.</p>
+      <h3>Autoclicker with an on/off key</h3>
+      <p>Same key as the exe: <span class="k">Ctrl</span>+<span class="k">E</span> starts and stops clicking wherever the cursor is, so you never Ctrl+C and paste again. Every re-paste recompiles the C# part, which is what made the PC stutter — this one compiles once and then just waits. The window title shows ON or OFF. Close the window to quit. Change <span class="k">$speed</span> for faster or slower.</p>
       <p style="margin:2px 0 10px"><button class="copy" type="button" data-copy="c-clicker">Copy</button></p>
       <div class="code">
         <div class="code-top"><span class="code-name">autoclicker.ps1</span><button class="copy sm" type="button" data-copy="c-clicker">Copy again</button></div>
         <code class="block" id="c-clicker">$speed = 100   # ms between clicks. 100 = 10 clicks a second
-$sig = '[DllImport("user32.dll")] public static extern void mouse_event(uint f,uint x,uint y,uint d,int e);'
-$m = Add-Type -MemberDefinition $sig -Name Ng -Namespace Click -PassThru
-"clicking every $speed ms - hold Ctrl+C to stop"
-while ($true) { $m::mouse_event(2,0,0,0,0); $m::mouse_event(4,0,0,0,0); Start-Sleep -Milliseconds $speed }</code>
+$sig = '[DllImport("user32.dll")] public static extern void mouse_event(uint f,uint x,uint y,uint d,int e); [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int k);'
+$m = Add-Type -MemberDefinition $sig -Name NgT -Namespace Click -PassThru
+$on = $false; $was = $false; $next = 0
+$sw = [Diagnostics.Stopwatch]::StartNew()
+$host.UI.RawUI.WindowTitle = "clicker OFF - Ctrl+E on/off"
+"Ctrl+E = start / stop. Close this window to quit."
+while ($true) {
+  $down = (($m::GetAsyncKeyState(0x11) -band 0x8000) -ne 0) -and (($m::GetAsyncKeyState(0x45) -band 0x8000) -ne 0)
+  if ($down -and -not $was) {
+    $on = -not $on; $next = $sw.ElapsedMilliseconds
+    if ($on) { $host.UI.RawUI.WindowTitle = "clicker ON - Ctrl+E on/off" } else { $host.UI.RawUI.WindowTitle = "clicker OFF - Ctrl+E on/off" }
+  }
+  $was = $down
+  if ($on -and $sw.ElapsedMilliseconds -ge $next) { $m::mouse_event(2,0,0,0,0); $m::mouse_event(4,0,0,0,0); $next = $sw.ElapsedMilliseconds + $speed }
+  Start-Sleep -Milliseconds 5
+}</code>
       </div>
-      <p class="note">If it errors with <b>Add-Type is not supported in this language mode</b>, the machine is in Constrained mode (see Limits) — then you need the compiled exe from the Open tab instead.</p>
+      <p class="note">If it errors with <b>Add-Type is not supported in this language mode</b>, the machine is in Constrained mode (see Limits). On the Tech-room PC it is FullLanguage, so it runs.</p>
     </div>
   </section>
 
@@ -587,7 +614,7 @@ while ($true) { $m::mouse_event(2,0,0,0,0); $m::mouse_event(4,0,0,0,0); Start-Sl
     </div>
     <div class="card">
       <h3>Everything in one paste</h3>
-      <p>Next time you sit at the school PC, paste this one box first. It prints who you are, the language mode, execution policy, AppLocker, which folders are writable, and whether py works — the whole picture in one go.</p>
+      <p>Next time you sit at the school PC, paste this one box first. It prints who you are, the language mode, execution policy, AppLocker, which folders are writable, whether py works, and whether WebView2 is installed — the whole picture in one go.</p>
       <p style="margin:2px 0 10px"><button class="copy" type="button" data-copy="c-scan">Copy</button></p>
       <div class="code">
         <div class="code-top"><span class="code-name">scan-all.ps1</span><button class="copy sm" type="button" data-copy="c-scan">Copy again</button></div>
@@ -600,7 +627,9 @@ foreach ($d in @($env:TEMP,"$env:USERPROFILE\Documents",$env:PUBLIC)) {
   $f = Join-Path $d ("w_"+[guid]::NewGuid().ToString("N")+".txt")
   try { "x" | Out-File $f -ErrorAction Stop; Remove-Item $f -Force; "write ok  $d" } catch { "no write  $d" }
 }
-try { "py " + (py -3 --version 2&gt;&amp;1) } catch { "no py" }</code>
+try { "py " + (py -3 --version 2&gt;&amp;1) } catch { "no py" }
+$wv = @('HKLM:\SOFTWARE\WOW6432Node','HKLM:\SOFTWARE','HKCU:\Software') | ForEach-Object { (Get-ItemProperty "$_\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" -ErrorAction SilentlyContinue).pv } | Where-Object { $_ -and $_ -ne '0.0.0.0' } | Select-Object -First 1
+if ($wv) { "webview2 $wv" } else { "webview2 MISSING" }</code>
       </div>
     </div>
   </section>
