@@ -498,83 +498,6 @@ Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=$t0} -ErrorActi
     </div>
   </section>
 
-  <section class="view" data-t="Limits">
-    <div class="vhead">
-      <h2>Machine limits</h2>
-      <p>One read-only box that prints every restriction that matters.</p>
-    </div>
-    <div class="card">
-      <h3>Read what this machine allows</h3>
-      <p>Pure read, all as a normal user. It tells you your integrity level, whether PowerShell is in the crippled Constrained mode, the script execution policy, and whether AppLocker is enforcing exe / script rules.</p>
-      <p style="margin:2px 0 10px"><button class="copy" type="button" data-copy="c-limits">Copy</button></p>
-      <div class="code">
-        <div class="code-top"><span class="code-name">limits.ps1</span><button class="copy sm" type="button" data-copy="c-limits">Copy again</button></div>
-        <code class="block" id="c-limits">"user      : $env:USERNAME on $env:COMPUTERNAME"
-"home      : $env:USERPROFILE"
-$admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
-"admin     : $admin"
-"integrity : " + ((whoami /groups | Select-String 'Mandatory Level') -replace '\s+',' ')
-"langmode  : $($ExecutionContext.SessionState.LanguageMode)"
-""
-"-- execution policy --"
-Get-ExecutionPolicy -List | Format-Table -AutoSize | Out-String
-"-- applocker (blank = off) --"
-try {
-  (Get-AppLockerPolicy -Effective).RuleCollections |
-    ForEach-Object { "$($_.RuleCollectionType.PadRight(8)) $($_.EnforcementMode)" }
-} catch { "not readable" }</code>
-      </div>
-      <p class="note"><b>langmode</b> other than FullLanguage means the machine cut PowerShell down — the autoclicker script tab will not run and you fall back to the exe. <b>AppLocker Exe = Enabled</b> means the exe is blocked unless it sits in an allowed folder (usually inside C:\Program Files or C:\Windows).</p>
-    </div>
-  </section>
-
-  <section class="view" data-t="Writable">
-    <div class="vhead">
-      <h2>Writable folders</h2>
-      <p>Find the folders you are allowed to write to and run from.</p>
-    </div>
-    <div class="card">
-      <h3>Where can you drop a tool</h3>
-      <p>A portable tool has to live somewhere you can write to. This tries to create and delete a tiny file in each common folder and reports which ones let you.</p>
-      <p style="margin:2px 0 10px"><button class="copy" type="button" data-copy="c-writable">Copy</button></p>
-      <div class="code">
-        <div class="code-top"><span class="code-name">writable.ps1</span><button class="copy sm" type="button" data-copy="c-writable">Copy again</button></div>
-        <code class="block" id="c-writable">$dirs = @($env:TEMP, "$env:USERPROFILE\Documents", "$env:USERPROFILE\Downloads",
-          $env:PUBLIC, $env:USERPROFILE, "C:\Windows\Temp")
-foreach ($d in $dirs) {
-  $f = Join-Path $d ("w_" + [guid]::NewGuid().ToString("N") + ".txt")
-  try { "x" | Out-File $f -ErrorAction Stop; Remove-Item $f -Force; "WRITE OK   $d" }
-  catch { "no write   $d" }
-}</code>
-      </div>
-      <p class="note">A folder that is <b>WRITE OK</b> but also AppLocker-allowed is where a portable exe will actually run. TEMP is almost always writable; whether an exe there runs depends on the AppLocker result from the Limits tab.</p>
-    </div>
-  </section>
-
-  <section class="view" data-t="Python">
-    <div class="vhead">
-      <h2>Python check</h2>
-      <p>See if py / python can run your .py tools here.</p>
-    </div>
-    <div class="card">
-      <h3>Is Python usable</h3>
-      <p>Your tools are .py, so this checks the <span class="k">py</span> launcher and any <span class="k">python</span> on PATH.</p>
-      <p style="margin:2px 0 10px"><button class="copy" type="button" data-copy="c-py">Copy</button></p>
-      <div class="code">
-        <div class="code-top"><span class="code-name">python-check.ps1</span><button class="copy sm" type="button" data-copy="c-py">Copy again</button></div>
-        <code class="block" id="c-py">"-- py launcher --"
-try { py -3 --version } catch { "no py launcher" }
-"-- python on PATH --"
-$p = (Get-Command python -ErrorAction SilentlyContinue).Source
-if ($p) { $p; (Get-Item $p).Length } else { "no python on PATH" }
-"-- where --"
-where.exe python 2&gt;$null
-where.exe py 2&gt;$null</code>
-      </div>
-      <p class="note">If <span class="k">python</span> shows a <b>Length of 0</b> it is the fake Windows Store stub — it opens the Store instead of running. Use <span class="k">py -3</span> instead, or a portable python you drop in a writable folder.</p>
-    </div>
-  </section>
-
   <section class="view" data-t="Autoclicker">
     <div class="vhead">
       <h2>GOLDAUTOCLICKER — native build</h2>
@@ -648,33 +571,6 @@ while ($true) {
 }</code>
       </div>
       <p class="note">If it errors with <b>Add-Type is not supported in this language mode</b>, the machine is in Constrained mode (see Limits). On the Tech-room PC it is FullLanguage, so it runs.</p>
-    </div>
-  </section>
-
-  <section class="view" data-t="Scan all">
-    <div class="vhead">
-      <h2>One scan</h2>
-      <p>Paste one box, read the whole machine at once.</p>
-    </div>
-    <div class="card">
-      <h3>Everything in one paste</h3>
-      <p>Next time you sit at the school PC, paste this one box first. It prints who you are, the language mode, execution policy, AppLocker, which folders are writable, whether py works, and whether WebView2 is installed — the whole picture in one go.</p>
-      <p style="margin:2px 0 10px"><button class="copy" type="button" data-copy="c-scan">Copy</button></p>
-      <div class="code">
-        <div class="code-top"><span class="code-name">scan-all.ps1</span><button class="copy sm" type="button" data-copy="c-scan">Copy again</button></div>
-        <code class="block" id="c-scan">$admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
-"user=$env:USERNAME  admin=$admin  langmode=$($ExecutionContext.SessionState.LanguageMode)"
-"integrity=" + ((whoami /groups | Select-String 'Mandatory Level') -replace '\s+',' ')
-Get-ExecutionPolicy -List | Format-Table -AutoSize | Out-String
-try { (Get-AppLockerPolicy -Effective).RuleCollections | ForEach-Object { "applocker $($_.RuleCollectionType)=$($_.EnforcementMode)" } } catch { "applocker not readable" }
-foreach ($d in @($env:TEMP,"$env:USERPROFILE\Documents",$env:PUBLIC)) {
-  $f = Join-Path $d ("w_"+[guid]::NewGuid().ToString("N")+".txt")
-  try { "x" | Out-File $f -ErrorAction Stop; Remove-Item $f -Force; "write ok  $d" } catch { "no write  $d" }
-}
-try { "py " + (py -3 --version 2&gt;&amp;1) } catch { "no py" }
-$wv = @('HKLM:\SOFTWARE\WOW6432Node','HKLM:\SOFTWARE','HKCU:\Software') | ForEach-Object { (Get-ItemProperty "$_\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" -ErrorAction SilentlyContinue).pv } | Where-Object { $_ -and $_ -ne '0.0.0.0' } | Select-Object -First 1
-if ($wv) { "webview2 $wv" } else { "webview2 MISSING" }</code>
-      </div>
     </div>
   </section>
 
