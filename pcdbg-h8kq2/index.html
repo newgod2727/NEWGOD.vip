@@ -574,6 +574,33 @@ while ($true) {
     </div>
   </section>
 
+  <section class="view" data-t="Scan all">
+    <div class="vhead">
+      <h2>One scan</h2>
+      <p>Paste one box, read the whole machine at once.</p>
+    </div>
+    <div class="card">
+      <h3>Everything in one paste</h3>
+      <p>Next time you sit at the school PC, paste this one box first. It prints who you are, the language mode, execution policy, AppLocker, which folders are writable, whether py works, and whether WebView2 is installed — the whole picture in one go.</p>
+      <p style="margin:2px 0 10px"><button class="copy" type="button" data-copy="c-scan">Copy</button></p>
+      <div class="code">
+        <div class="code-top"><span class="code-name">scan-all.ps1</span><button class="copy sm" type="button" data-copy="c-scan">Copy again</button></div>
+        <code class="block" id="c-scan">$admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
+"user=$env:USERNAME  admin=$admin  langmode=$($ExecutionContext.SessionState.LanguageMode)"
+"integrity=" + ((whoami /groups | Select-String 'Mandatory Level') -replace '\s+',' ')
+Get-ExecutionPolicy -List | Format-Table -AutoSize | Out-String
+try { (Get-AppLockerPolicy -Effective).RuleCollections | ForEach-Object { "applocker $($_.RuleCollectionType)=$($_.EnforcementMode)" } } catch { "applocker not readable" }
+foreach ($d in @($env:TEMP,"$env:USERPROFILE\Documents",$env:PUBLIC)) {
+  $f = Join-Path $d ("w_"+[guid]::NewGuid().ToString("N")+".txt")
+  try { "x" | Out-File $f -ErrorAction Stop; Remove-Item $f -Force; "write ok  $d" } catch { "no write  $d" }
+}
+try { "py " + (py -3 --version 2&gt;&amp;1) } catch { "no py" }
+$wv = @('HKLM:\SOFTWARE\WOW6432Node','HKLM:\SOFTWARE','HKCU:\Software') | ForEach-Object { (Get-ItemProperty "$_\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" -ErrorAction SilentlyContinue).pv } | Where-Object { $_ -and $_ -ne '0.0.0.0' } | Select-Object -First 1
+if ($wv) { "webview2 $wv" } else { "webview2 MISSING" }</code>
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <div class="pager">
